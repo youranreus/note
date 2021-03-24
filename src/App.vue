@@ -46,4 +46,10 @@ html::before {
   content: '';
 }
 
+@media screen and (max-width: 768px) {
+  #app{
+    width: 90%;
+  }
+}
+
 </style>

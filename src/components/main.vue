@@ -42,4 +42,14 @@ export default {
   width: 100px;
   height: 100px;
 }
+@media screen and (max-width: 768px) {
+  #new img{
+    width: 50px;
+    height: 50px;
+  }
+  #new{
+    width:65px;
+    height: 90px;
+  }
+}
 </style>
