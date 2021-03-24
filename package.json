@@ -10,6 +10,7 @@
   "dependencies": {
     "axios": "^0.21.1",
     "core-js": "^3.6.5",
+    "qs": "^6.10.1",
     "v-clipboard3": "^0.1.4",
     "vue": "^2.6.11",
     "vue-axios": "^3.2.4",

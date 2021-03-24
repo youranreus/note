@@ -10,7 +10,7 @@
 </template>
 
 <script>
-
+import qs from 'qs'
 import toolbar from "@/components/toolbar.vue";
 export default {
   name: "note",
@@ -48,10 +48,8 @@ export default {
         alert("请填写密钥");
         return;
       }
-      console.log("https://i.exia.xyz/note/modify/"+this.sid+"?key="+that.key+"&content="+that.content);
-      that.$axios.get("https://i.exia.xyz/note/modify/"+this.sid+"?key="+that.key+"&content="+that.content).then(response => {
+      that.$axios.post("https://i.exia.xyz/note/modify/"+this.sid+"?key="+that.key, qs.stringify({content: that.content})).then(response => {
         that.$nextTick(() => {
-          console.log(response);
           if(response.data !== 1)
           {
             if(response.data === 0)
