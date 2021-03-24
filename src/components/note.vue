@@ -27,7 +27,7 @@ export default {
   methods:{
     getContent(){
       let that = this;
-      that.$axios.get("http://homepod.test/note/get/"+this.sid).then(response => {
+      that.$axios.get("https://i.exia.xyz/note/get/"+this.sid).then(response => {
         that.$nextTick(() => {
           if(response.data.content === undefined)
           {
@@ -48,7 +48,7 @@ export default {
         alert("请填写密钥");
         return;
       }
-      that.$axios.get("http://homepod.test/note/modify/"+this.sid+"?key="+that.key+"&content="+that.content).then(response => {
+      that.$axios.get("https://i.exia.xyz/note/modify/"+this.sid+"?key="+that.key+"&content="+that.content).then(response => {
         that.$nextTick(() => {
           console.log(response);
           if(response.data !== 1)
