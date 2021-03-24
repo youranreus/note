@@ -1,9 +1,5 @@
 <template>
   <div id="main">
-    <div id="new" @click="createNote">
-      <img src="new.svg" alt="新增"/>
-      <span>新增笔记</span>
-    </div>
   </div>
 </template>
 
@@ -23,7 +19,11 @@ export default {
       for (i = 0; i < e; i++) n += t.charAt(Math.floor(Math.random() * a));
       return n
     }
+  },
+  created(){
+    this.createNote();
   }
+
 }
 </script>
 
