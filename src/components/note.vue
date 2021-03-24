@@ -48,6 +48,7 @@ export default {
         alert("请填写密钥");
         return;
       }
+      console.log("https://i.exia.xyz/note/modify/"+this.sid+"?key="+that.key+"&content="+that.content);
       that.$axios.get("https://i.exia.xyz/note/modify/"+this.sid+"?key="+that.key+"&content="+that.content).then(response => {
         that.$nextTick(() => {
           console.log(response);

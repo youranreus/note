@@ -36,7 +36,7 @@ html::before {
   -webkit-background-size: cover;
   -o-background-size: cover;
   background-position: center 0;
-  background-image: url(https://cdn.exia.xyz/img/blog/tiger.png);
+  background-image: url(/bg_pattern1.png);
 }
 .clear,.clear::before,.clear::after{
   display: block;
