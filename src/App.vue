@@ -38,5 +38,12 @@ html::before {
   background-position: center 0;
   background-image: url(https://cdn.exia.xyz/img/blog/tiger.png);
 }
+.clear,.clear::before,.clear::after{
+  display: block;
+  clear: both;
+}
+.clear::before,.clear::after{
+  content: '';
+}
 
 </style>

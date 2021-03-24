@@ -12,7 +12,7 @@ export default {
   name: "noteMain",
   methods:{
     createNote(){
-      this.$router.push({path:'/'+this.randomString(6)});
+      this.$router.push({path:'/'+this.randomString(8)});
     },
     randomString(e) {
       e = e || 32;
