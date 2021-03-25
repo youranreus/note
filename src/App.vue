@@ -13,8 +13,8 @@
   width: 800px;
   padding: 15px;
   border-radius: 15px;
-  margin: 100px auto;
-  border: 2px solid RGBA(0,0,0,0.1);
+  margin: 20px auto;
+  border: 2px solid RGBA(0,0,0,0.02);
   background: #fff;
 }
 

@@ -1,6 +1,6 @@
 <template>
     <div id="note" class="clear">
-      <textarea name="content" id="content" rows="20" v-model="content"></textarea>
+      <textarea name="content" id="content" rows="30" v-model="content"></textarea>
       <toolbar/>
       <div id="key-area" v-if="this.$store.state.edit">
         <input type="text" v-model="key" placeholder="密钥">
