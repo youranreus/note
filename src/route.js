@@ -2,7 +2,6 @@
  * @author 季悠然
  * @date 2021-12-10
  */
-import React from "react";
 import Entry from "./components/Entry.js";
 
 const route = [

@@ -5,3 +5,8 @@
     align-items: center;
     justify-content: center;
 }
+
+.addNote {
+    width: 400px;
+    text-align: left;
+}

@@ -3,7 +3,7 @@
  * @date 2021-12-10
  */
 import React from 'react';
-import {Empty, Button, Input, Collapsible} from '@douyinfe/semi-ui';
+import {Empty, Button, Input, Collapsible, Card, RadioGroup, Radio, Typography} from '@douyinfe/semi-ui';
 import { IconPlus,IconSearch } from '@douyinfe/semi-icons';
 import { IllustrationNoContent, IllustrationNoContentDark } from '@douyinfe/semi-illustrations';
 
@@ -12,11 +12,30 @@ class Entry extends React.Component {
         super(props);
         this.state = {
             goto: '',
-            isOpen: false
+            findFlag: false,
+            addFlag: false,
+            newNote: {
+                mode: 'online',
+                key: '',
+                lock: ''
+            }
         }
     }
 
+    jump = (e)=>{
+        alert("Jumping to " + e.target.value);
+    }
+
+    switchMode = (e)=>{
+        this.setState({
+           newNote: {
+               mode: e.target.value
+           }
+        });
+    }
+
     render() {
+        const {Title} = Typography;
         return (
             <div className="entry">
                 <div>
@@ -26,15 +45,32 @@ class Entry extends React.Component {
                         title="季悠然の便签本"
                     >
                         <div style={{textAlign: "center"}}>
-                            <Button icon={<IconPlus />} style={{ margin: 12 }} theme="solid" type="primary">
+                            <Button icon={<IconPlus />} style={{ margin: 12 }} theme="solid" type="primary" onClick={()=>{this.setState({addFlag: !this.state.addFlag, findFlag: false})}}>
                                 撕一张
                             </Button>
-                            <Button icon={<IconSearch />} style={{ margin: 12 }} type="primary" onClick={()=>{this.setState({isOpen: !this.state.isOpen})}}>
+                            <Button icon={<IconSearch />} style={{ margin: 12 }} type="primary" onClick={()=>{this.setState({findFlag: !this.state.findFlag, addFlag: false})}}>
                                 找一张
                             </Button>
                             <br/>
-                            <Collapsible isOpen={this.state.isOpen}>
-                                <Input placeholder={"便签ID（回车跳转）"}/>
+                            <Collapsible isOpen={this.state.findFlag}>
+                                <Input placeholder={"便签ID（回车跳转）"} onEnterPress={this.jump}/>
+                            </Collapsible>
+                            <Collapsible isOpen={this.state.addFlag}>
+                                <Card className={"addNote"} >
+                                    <Title heading={6} style={{margin: "0 0 .5rem"}}>
+                                        标签类型
+                                    </Title>
+                                    <RadioGroup defaultValue={"online"} onChange={this.switchMode}>
+                                        <Radio value={"local"}>本地便签</Radio>
+                                        <Radio value={"online"}>在线便签</Radio>
+                                    </RadioGroup>
+                                    <Collapsible isOpen={this.state.newNote.mode === "online"}>
+                                        <Title heading={6} style={{margin: "1rem 0 .5rem"}}>
+                                            加密
+                                        </Title>
+                                        <Input placeholder={"密钥（留空则无加密）"}/>
+                                    </Collapsible>
+                                </Card>
                             </Collapsible>
                         </div>
                     </Empty>
