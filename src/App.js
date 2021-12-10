@@ -1,4 +1,8 @@
 import React from 'react';
+import {BrowserRouter as Router} from 'react-router-dom';
+import {renderRoutes} from "react-router-config";
+import route from "./route.js";
+import './App.css';
 
 class App extends React.Component {
     constructor(props) {
@@ -11,7 +15,9 @@ class App extends React.Component {
     render() {
         return (
             <div className="App">
-                <h2>yo</h2>
+                <Router>
+                    {renderRoutes(route)}
+                </Router>
             </div>
         );
     }
