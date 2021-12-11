@@ -2,12 +2,13 @@ body[theme-mode="dark"] {
     background: #16161a;
 }
 
-.entry {
+.App {
     display: flex;
-    width: 100vw;
-    height: 100vh;
+    min-width: 100vw;
+    min-height: 100vh;
     align-items: center;
     justify-content: center;
+    overflow: auto;
 }
 
 .dark {
@@ -22,8 +23,22 @@ body[theme-mode="dark"] {
     text-align: left;
 }
 
+.local {
+    width: 800px;
+    margin: 3rem auto;
+}
+
+.local-header {
+    margin-bottom: 1rem;
+}
+
 @media (max-width: 830px) {
     .addNote {
+        width: 95%;
+    }
+
+    .local {
+        margin: 1rem auto;
         width: 95%;
     }
 }

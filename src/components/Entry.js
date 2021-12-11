@@ -3,9 +3,22 @@
  * @date 2021-12-10
  */
 import React from 'react';
-import {Toast, Empty, Button, Input, Collapsible, RadioGroup, Radio, Typography, InputGroup, Select, AutoComplete} from '@douyinfe/semi-ui';
+import {
+    Toast,
+    Empty,
+    Button,
+    Input,
+    Collapsible,
+    RadioGroup,
+    Radio,
+    Typography,
+    InputGroup,
+    Select,
+    AutoComplete
+} from '@douyinfe/semi-ui';
 import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
-import {IllustrationNoContent, IllustrationNoContentDark} from '@douyinfe/semi-illustrations';
+import {IllustrationNoContent} from '@douyinfe/semi-illustrations';
+import {withRouter} from "react-router-dom";
 
 class Entry extends React.Component {
     constructor(props) {
@@ -27,10 +40,12 @@ class Entry extends React.Component {
     }
 
     jump = () => {
-        if(this.state.jumpId === '')
-            Toast.warning({content:'ID呐？'});
-        else
-            alert("Jumping to " + this.state.jumpId);
+        if (this.state.jumpId === '')
+            Toast.warning({content: 'ID呐？'});
+        else {
+            if (this.state.jumpMode === 'local')
+                this.props.history.push('/l/' + this.state.jumpId);
+        }
     }
 
     switchMode = (e) => {
@@ -77,6 +92,7 @@ class Entry extends React.Component {
         //更新便签localStorage储存
         localStorage.setItem("localArr", localData.join(","));
         localStorage.setItem(newNoteId, "Begin your story");
+        this.props.history.push('/l/' + newNoteId);
     }
 
     randomString = (s) => {
@@ -90,87 +106,87 @@ class Entry extends React.Component {
     }
 
     componentDidMount() {
-        if(localStorage.getItem('localArr') === null)
+        if (localStorage.getItem('localArr') === null)
             localStorage.setItem("localArr", "");
-        if(localStorage.getItem('onlineArr') === null)
+        if (localStorage.getItem('onlineArr') === null)
             localStorage.setItem("onlineArr", "");
         this.setState({
-            localArr: localStorage.getItem('localArr').split(",").filter((item)=>{
+            localArr: localStorage.getItem('localArr').split(",").filter((item) => {
                 return item !== ''
             }),
-            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item)=>{
+            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => {
                 return item !== ''
             })
         });
     }
 
     render() {
-        const {Title,Paragraph} = Typography;
+        const {Title, Paragraph} = Typography;
         return (
             <div className="entry">
-                <div>
-                    <Empty
-                        image={<IllustrationNoContent style={{width: 150, height: 150}}/>}
-                        title="季悠然の便签本"
-                    >
-                        <div style={{textAlign: "center"}}>
-                            <Button icon={<IconPlus/>} style={{margin: 12}} theme="solid" type="primary"
-                                    onClick={() => {
-                                        this.setState({addFlag: !this.state.addFlag, findFlag: false})
+                <Empty
+                    image={<IllustrationNoContent style={{width: 150, height: 150}}/>}
+                    title="季悠然の便签本"
+                >
+                    <div style={{textAlign: "center"}}>
+                        <Button icon={<IconPlus/>} style={{margin: 12}} theme="solid" type="primary"
+                                onClick={() => {
+                                    this.setState({addFlag: !this.state.addFlag, findFlag: false})
+                                }}>
+                            撕一张
+                        </Button>
+                        <Button icon={<IconSearch/>} style={{margin: 12}} type="primary" onClick={() => {
+                            this.setState({findFlag: !this.state.findFlag, addFlag: false})
+                        }}>
+                            找一张
+                        </Button>
+                        <br/>
+                        <Collapsible isOpen={this.state.findFlag}>
+                            <div>
+                                <InputGroup>
+                                    <Select defaultValue='local' onSelect={(value) => {
+                                        this.setState({jumpMode: value})
                                     }}>
-                                撕一张
-                            </Button>
-                            <Button icon={<IconSearch/>} style={{margin: 12}} type="primary" onClick={() => {
-                                this.setState({findFlag: !this.state.findFlag, addFlag: false})
-                            }}>
-                                找一张
-                            </Button>
-                            <br/>
-                            <Collapsible isOpen={this.state.findFlag}>
-                                <div>
-                                    <InputGroup>
-                                        <Select defaultValue='local' onSelect={(value)=>{this.setState({jumpMode: value})}}>
-                                            <Select.Option value='online'>在线</Select.Option>
-                                            <Select.Option value='local'>本地</Select.Option>
-                                        </Select>
-                                        <AutoComplete
-                                            data={this.state.jumpMode === 'local' ? this.state.localArr : this.state.onlineArr}
-                                            placeholder={"便签ID"}
-                                            emptyContent={<Paragraph style={{padding: "6px 12px"}} >没有记录噢</Paragraph>}
-                                            onChange={(v)=>this.setState({jumpId: v})}
-                                        />
-                                    </InputGroup>
-                                    <div style={{textAlign: "right", marginTop: "1rem"}}>
-                                        <Button type={"primary"} onClick={this.jump}>找一下</Button>
-                                    </div>
+                                        <Select.Option value='online'>在线</Select.Option>
+                                        <Select.Option value='local'>本地</Select.Option>
+                                    </Select>
+                                    <AutoComplete
+                                        data={this.state.jumpMode === 'local' ? this.state.localArr : this.state.onlineArr}
+                                        placeholder={"便签ID"}
+                                        emptyContent={<Paragraph style={{padding: "6px 12px"}}>没有记录噢</Paragraph>}
+                                        onChange={(v) => this.setState({jumpId: v})}
+                                    />
+                                </InputGroup>
+                                <div style={{textAlign: "right", marginTop: "1rem"}}>
+                                    <Button type={"primary"} onClick={this.jump}>找一下</Button>
                                 </div>
-                            </Collapsible>
-                            <Collapsible isOpen={this.state.addFlag}>
-                                <div className={"addNote"}>
-                                    <Title heading={6} style={{margin: "0 0 .5rem"}}>
-                                        标签类型
+                            </div>
+                        </Collapsible>
+                        <Collapsible isOpen={this.state.addFlag}>
+                            <div className={"addNote"}>
+                                <Title heading={6} style={{margin: "0 0 .5rem"}}>
+                                    标签类型
+                                </Title>
+                                <RadioGroup defaultValue={"online"} onChange={this.switchMode}>
+                                    <Radio value={"local"}>本地便签</Radio>
+                                    <Radio value={"online"}>在线便签</Radio>
+                                </RadioGroup>
+                                <Collapsible isOpen={this.state.newNote.mode === "online"}>
+                                    <Title heading={6} style={{margin: "1rem 0 .5rem"}}>
+                                        加密
                                     </Title>
-                                    <RadioGroup defaultValue={"online"} onChange={this.switchMode}>
-                                        <Radio value={"local"}>本地便签</Radio>
-                                        <Radio value={"online"}>在线便签</Radio>
-                                    </RadioGroup>
-                                    <Collapsible isOpen={this.state.newNote.mode === "online"}>
-                                        <Title heading={6} style={{margin: "1rem 0 .5rem"}}>
-                                            加密
-                                        </Title>
-                                        <Input placeholder={"密钥（留空则无加密）"}/>
-                                    </Collapsible>
-                                    <div style={{textAlign: "right", marginTop: "1rem"}}>
-                                        <Button type={"primary"} onClick={this.add}>撕一张</Button>
-                                    </div>
+                                    <Input placeholder={"密钥（留空则无加密）"}/>
+                                </Collapsible>
+                                <div style={{textAlign: "right", marginTop: "1rem"}}>
+                                    <Button type={"primary"} onClick={this.add}>撕一张</Button>
                                 </div>
-                            </Collapsible>
-                        </div>
-                    </Empty>
-                </div>
+                            </div>
+                        </Collapsible>
+                    </div>
+                </Empty>
             </div>
         );
     }
 }
 
-export default Entry;
+export default withRouter(Entry);
