@@ -111,7 +111,6 @@ class Entry extends React.Component {
                 <div>
                     <Empty
                         image={<IllustrationNoContent style={{width: 150, height: 150}}/>}
-                        darkModeImage={<IllustrationNoContentDark style={{width: 150, height: 150}}/>}
                         title="季悠然の便签本"
                     >
                         <div style={{textAlign: "center"}}>
