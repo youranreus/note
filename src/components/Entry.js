@@ -45,6 +45,8 @@ class Entry extends React.Component {
         else {
             if (this.state.jumpMode === 'local')
                 this.props.history.push('/l/' + this.state.jumpId);
+            else
+                this.props.history.push('/o/' + this.state.jumpId);
         }
     }
 
@@ -75,6 +77,7 @@ class Entry extends React.Component {
 
         //更新便签localStorage储存
         localStorage.setItem("onlineArr", onlineData.join(","));
+        this.props.history.push('/o/' + newNoteId);
     }
 
     addLocal = () => {

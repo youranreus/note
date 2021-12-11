@@ -22,22 +22,22 @@ body[theme-mode="dark"] {
     text-align: left;
 }
 
-.local {
+.local, .Online {
     width: 800px;
     margin: 3rem auto;
 }
 
-.local-header {
+.local-header, .Online-header {
     margin-bottom: 1rem;
 }
 
 @media (max-width: 830px) {
 
-    .addNote, .local, .entry {
+    .addNote, .local, .entry, .Online {
         width: 95%;
     }
 
-    .local {
+    .local, .Online {
         margin: 1rem auto;
     }
 }
