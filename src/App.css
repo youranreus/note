@@ -20,3 +20,9 @@ body[theme-mode="dark"] {
     width: 400px;
     text-align: left;
 }
+
+@media (max-width: 830px) {
+    .addNote {
+        width: 95%;
+    }
+}

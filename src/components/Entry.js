@@ -4,8 +4,8 @@
  */
 import React from 'react';
 import {Empty, Button, Input, Collapsible, Card, RadioGroup, Radio, Typography} from '@douyinfe/semi-ui';
-import { IconPlus,IconSearch } from '@douyinfe/semi-icons';
-import { IllustrationNoContent, IllustrationNoContentDark } from '@douyinfe/semi-illustrations';
+import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
+import {IllustrationNoContent, IllustrationNoContentDark} from '@douyinfe/semi-illustrations';
 
 class Entry extends React.Component {
     constructor(props) {
@@ -22,16 +22,55 @@ class Entry extends React.Component {
         }
     }
 
-    jump = (e)=>{
+    jump = (e) => {
         alert("Jumping to " + e.target.value);
     }
 
-    switchMode = (e)=>{
+    switchMode = (e) => {
         this.setState({
-           newNote: {
-               mode: e.target.value
-           }
+            newNote: {
+                mode: e.target.value
+            }
         });
+    }
+
+    add = () => {
+        if (this.state.newNote.mode === 'local')
+            this.addLocal();
+        else
+            this.addLocal();
+    }
+
+    addOnline = () => {
+
+    }
+
+    addLocal = () => {
+        //获取当前本地便签清单
+        let localArr = localStorage.getItem("localArr").split(",");
+
+        //生成新便签id并添加进入本地便签清单
+        let newNoteId = this.randomString(5);
+        localArr.push(newNoteId);
+
+        //更新便签localStorage储存
+        localStorage.setItem("localArr", localArr.join(","));
+        localStorage.setItem(newNoteId, "Begin your story");
+    }
+
+    randomString = (s) => {
+        s = s || 32;
+        let t = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678",
+            a = t.length,
+            n = "",
+            i = 0;
+        for (; i < s; i++) n += t.charAt(Math.floor(Math.random() * a));
+        return n;
+    }
+
+    componentDidMount() {
+        if(localStorage.getItem('localArr') === null)
+            localStorage.setItem("localArr", "");
     }
 
     render() {
@@ -40,15 +79,20 @@ class Entry extends React.Component {
             <div className="entry">
                 <div>
                     <Empty
-                        image={<IllustrationNoContent style={{width: 150, height: 150}} />}
-                        darkModeImage={<IllustrationNoContentDark style={{width: 150, height: 150}} />}
+                        image={<IllustrationNoContent style={{width: 150, height: 150}}/>}
+                        darkModeImage={<IllustrationNoContentDark style={{width: 150, height: 150}}/>}
                         title="季悠然の便签本"
                     >
                         <div style={{textAlign: "center"}}>
-                            <Button icon={<IconPlus />} style={{ margin: 12 }} theme="solid" type="primary" onClick={()=>{this.setState({addFlag: !this.state.addFlag, findFlag: false})}}>
+                            <Button icon={<IconPlus/>} style={{margin: 12}} theme="solid" type="primary"
+                                    onClick={() => {
+                                        this.setState({addFlag: !this.state.addFlag, findFlag: false})
+                                    }}>
                                 撕一张
                             </Button>
-                            <Button icon={<IconSearch />} style={{ margin: 12 }} type="primary" onClick={()=>{this.setState({findFlag: !this.state.findFlag, addFlag: false})}}>
+                            <Button icon={<IconSearch/>} style={{margin: 12}} type="primary" onClick={() => {
+                                this.setState({findFlag: !this.state.findFlag, addFlag: false})
+                            }}>
                                 找一张
                             </Button>
                             <br/>
@@ -56,7 +100,7 @@ class Entry extends React.Component {
                                 <Input placeholder={"便签ID（回车跳转）"} onEnterPress={this.jump}/>
                             </Collapsible>
                             <Collapsible isOpen={this.state.addFlag}>
-                                <Card className={"addNote"} >
+                                <Card className={"addNote"}>
                                     <Title heading={6} style={{margin: "0 0 .5rem"}}>
                                         标签类型
                                     </Title>
@@ -70,6 +114,9 @@ class Entry extends React.Component {
                                         </Title>
                                         <Input placeholder={"密钥（留空则无加密）"}/>
                                     </Collapsible>
+                                    <div style={{textAlign: "right", marginTop: "1rem"}}>
+                                        <Button type={"primary"} onClick={this.add}>撕一张</Button>
+                                    </div>
                                 </Card>
                             </Collapsible>
                         </div>
