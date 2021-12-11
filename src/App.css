@@ -1,0 +1,43 @@
+body[theme-mode="dark"] {
+    background: #16161a;
+}
+
+.App {
+    display: flex;
+    min-width: 100vw;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+}
+
+.dark {
+    position: fixed;
+    right: 1rem;
+    top: 1rem;
+}
+
+.addNote {
+    margin-top: 1rem;
+    width: 300px;
+    text-align: left;
+}
+
+.local, .Online {
+    width: 800px;
+    margin: 3rem auto;
+}
+
+.local-header, .Online-header {
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 830px) {
+
+    .addNote, .local, .entry, .Online {
+        width: 95%;
+    }
+
+    .local, .Online {
+        margin: 1rem auto;
+    }
+}
