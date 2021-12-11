@@ -3,7 +3,7 @@
  * @date 2021-12-10
  */
 import React from 'react';
-import {Empty, Button, Input, Collapsible, RadioGroup, Radio, Typography, InputGroup, Select, AutoComplete} from '@douyinfe/semi-ui';
+import {Toast, Empty, Button, Input, Collapsible, RadioGroup, Radio, Typography, InputGroup, Select, AutoComplete} from '@douyinfe/semi-ui';
 import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
 import {IllustrationNoContent, IllustrationNoContentDark} from '@douyinfe/semi-illustrations';
 
@@ -25,7 +25,10 @@ class Entry extends React.Component {
     }
 
     jump = () => {
-        alert("Jumping to " + this.state.jumpId);
+        if(this.state.jumpId === '')
+            Toast.warning({content:'ID呐？'});
+        else
+            alert("Jumping to " + this.state.jumpId);
     }
 
     switchMode = (e) => {
