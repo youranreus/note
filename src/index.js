@@ -4,9 +4,9 @@ import App from './App';
 import 'normalize.css/normalize.css';
 
 ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  //<React.StrictMode>
+    <App />,
+  //</React.StrictMode>,
   document.getElementById('root')
 );
 

@@ -3,7 +3,7 @@
  * @date 2021-12-10
  */
 import React from 'react';
-import {Empty, Button, Input, Collapsible, Card, RadioGroup, Radio, Typography} from '@douyinfe/semi-ui';
+import {Empty, Button, Input, Collapsible, RadioGroup, Radio, Typography, InputGroup, Select, AutoComplete} from '@douyinfe/semi-ui';
 import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
 import {IllustrationNoContent, IllustrationNoContentDark} from '@douyinfe/semi-illustrations';
 
@@ -18,12 +18,14 @@ class Entry extends React.Component {
                 mode: 'online',
                 key: '',
                 lock: ''
-            }
+            },
+            jumpMode: 'local',
+            jumpId: ''
         }
     }
 
-    jump = (e) => {
-        alert("Jumping to " + e.target.value);
+    jump = () => {
+        alert("Jumping to " + this.state.jumpId);
     }
 
     switchMode = (e) => {
@@ -47,7 +49,7 @@ class Entry extends React.Component {
 
     addLocal = () => {
         //获取当前本地便签清单
-        let localArr = localStorage.getItem("localArr").split(",");
+        let localArr = this.localData;
 
         //生成新便签id并添加进入本地便签清单
         let newNoteId = this.randomString(5);
@@ -71,10 +73,18 @@ class Entry extends React.Component {
     componentDidMount() {
         if(localStorage.getItem('localArr') === null)
             localStorage.setItem("localArr", "");
+        if(localStorage.getItem('onlineArr') === null)
+            localStorage.setItem("onlineArr", "");
+        this.localData = localStorage.getItem('localArr').split(",").filter((item)=>{
+            return item !== ''
+        });
+        this.onlineData = localStorage.getItem('onlineArr').split(",").filter((item)=>{
+            return item !== ''
+        });
     }
 
     render() {
-        const {Title} = Typography;
+        const {Title,Paragraph} = Typography;
         return (
             <div className="entry">
                 <div>
@@ -97,10 +107,27 @@ class Entry extends React.Component {
                             </Button>
                             <br/>
                             <Collapsible isOpen={this.state.findFlag}>
-                                <Input placeholder={"便签ID（回车跳转）"} onEnterPress={this.jump}/>
+                                <div>
+                                    <InputGroup>
+                                        <Select defaultValue='local' onSelect={(value)=>{this.setState({jumpMode: value})}}>
+                                            <Select.Option value='online'>在线</Select.Option>
+                                            <Select.Option value='local'>本地</Select.Option>
+                                        </Select>
+                                        <AutoComplete
+                                            data={this.state.jumpMode === 'local' ? this.localData : this.onlineData}
+                                            placeholder={"便签ID"}
+                                            onEnterPress={this.jump}
+                                            emptyContent={<Paragraph style={{padding: "6px 12px"}} >没有记录噢</Paragraph>}
+                                            onChange={(v)=>this.setState({jumpId: v})}
+                                        />
+                                    </InputGroup>
+                                    <div style={{textAlign: "right", marginTop: "1rem"}}>
+                                        <Button type={"primary"} onClick={this.jump}>找一下</Button>
+                                    </div>
+                                </div>
                             </Collapsible>
                             <Collapsible isOpen={this.state.addFlag}>
-                                <Card className={"addNote"}>
+                                <div className={"addNote"}>
                                     <Title heading={6} style={{margin: "0 0 .5rem"}}>
                                         标签类型
                                     </Title>
@@ -117,7 +144,7 @@ class Entry extends React.Component {
                                     <div style={{textAlign: "right", marginTop: "1rem"}}>
                                         <Button type={"primary"} onClick={this.add}>撕一张</Button>
                                     </div>
-                                </Card>
+                                </div>
                             </Collapsible>
                         </div>
                     </Empty>
