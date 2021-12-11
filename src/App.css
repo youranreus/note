@@ -1,9 +1,19 @@
+body[theme-mode="dark"] {
+    background: #16161a;
+}
+
 .entry {
     display: flex;
     width: 100vw;
     height: 100vh;
     align-items: center;
     justify-content: center;
+}
+
+.dark {
+    position: fixed;
+    right: 1rem;
+    top: 1rem;
 }
 
 .addNote {
