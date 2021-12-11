@@ -3,7 +3,7 @@
  * @date 2021-12-11
  */
 import React from 'react';
-import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast, Popconfirm} from '@douyinfe/semi-ui';
+import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast} from '@douyinfe/semi-ui';
 import copy from "copy-to-clipboard";
 import {withRouter} from "react-router-dom";
 
@@ -36,8 +36,7 @@ class Local extends React.Component {
         localArr.splice(localArr.indexOf(this.state.id),1);
         localStorage.removeItem(this.state.id);
         localStorage.setItem("localArr", localArr.join(","));
-        
-        
+        Toast.success('删除成功');
         this.props.history.push('/');
     }
 
@@ -58,13 +57,7 @@ class Local extends React.Component {
                         <Button onClick={this.save}>保存</Button>
                         <Button onClick={this.copyContent}>复制</Button>
                         <Button onClick={this.upload}>上传</Button>
-                        <Popconfirm
-                            title="真的要删掉吗？"
-                            content="此修改将不可逆"
-                            onConfirm={this.delete}
-                        >
-                            <Button type={"danger"}>删除</Button>
-                        </Popconfirm>
+                        <Button type={"danger"} onClick={this.delete}>删除</Button>
                     </ButtonGroup>
                 </div>
             </div>

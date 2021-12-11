@@ -8,7 +8,6 @@ body[theme-mode="dark"] {
     min-height: 100vh;
     align-items: center;
     justify-content: center;
-    overflow: auto;
 }
 
 .dark {
@@ -33,12 +32,12 @@ body[theme-mode="dark"] {
 }
 
 @media (max-width: 830px) {
-    .addNote {
+
+    .addNote, .local, .entry {
         width: 95%;
     }
 
     .local {
         margin: 1rem auto;
-        width: 95%;
     }
 }
