@@ -20,7 +20,9 @@ class Entry extends React.Component {
                 lock: ''
             },
             jumpMode: 'local',
-            jumpId: ''
+            jumpId: '',
+            onlineArr: [],
+            localArr: []
         }
     }
 
@@ -43,23 +45,37 @@ class Entry extends React.Component {
         if (this.state.newNote.mode === 'local')
             this.addLocal();
         else
-            this.addLocal();
+            this.addOnline();
     }
 
     addOnline = () => {
+        let onlineData = this.state.onlineArr;
+        //生成新便签id并添加进入本地便签清单
+        let newNoteId = this.randomString(5);
+        onlineData.push(newNoteId);
 
+        this.setState({
+            onlineArr: onlineData
+        });
+
+        //更新便签localStorage储存
+        localStorage.setItem("onlineArr", onlineData.join(","));
     }
 
     addLocal = () => {
         //获取当前本地便签清单
-        let localArr = this.localData;
+        let localData = this.state.localArr;
 
         //生成新便签id并添加进入本地便签清单
         let newNoteId = this.randomString(5);
-        localArr.push(newNoteId);
+        localData.push(newNoteId);
+
+        this.setState({
+            localArr: localData
+        });
 
         //更新便签localStorage储存
-        localStorage.setItem("localArr", localArr.join(","));
+        localStorage.setItem("localArr", localData.join(","));
         localStorage.setItem(newNoteId, "Begin your story");
     }
 
@@ -78,11 +94,13 @@ class Entry extends React.Component {
             localStorage.setItem("localArr", "");
         if(localStorage.getItem('onlineArr') === null)
             localStorage.setItem("onlineArr", "");
-        this.localData = localStorage.getItem('localArr').split(",").filter((item)=>{
-            return item !== ''
-        });
-        this.onlineData = localStorage.getItem('onlineArr').split(",").filter((item)=>{
-            return item !== ''
+        this.setState({
+            localArr: localStorage.getItem('localArr').split(",").filter((item)=>{
+                return item !== ''
+            }),
+            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item)=>{
+                return item !== ''
+            })
         });
     }
 
@@ -117,9 +135,8 @@ class Entry extends React.Component {
                                             <Select.Option value='local'>本地</Select.Option>
                                         </Select>
                                         <AutoComplete
-                                            data={this.state.jumpMode === 'local' ? this.localData : this.onlineData}
+                                            data={this.state.jumpMode === 'local' ? this.state.localArr : this.state.onlineArr}
                                             placeholder={"便签ID"}
-                                            onEnterPress={this.jump}
                                             emptyContent={<Paragraph style={{padding: "6px 12px"}} >没有记录噢</Paragraph>}
                                             onChange={(v)=>this.setState({jumpId: v})}
                                         />
