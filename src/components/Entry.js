@@ -54,7 +54,9 @@ class Entry extends React.Component {
     switchMode = (e) => {
         this.setState({
             newNote: {
-                mode: e.target.value
+                mode: e.target.value,
+                lock: this.state.newNote.lock,
+                key: this.state.newNote.key
             }
         });
     }
