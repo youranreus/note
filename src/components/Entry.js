@@ -19,6 +19,7 @@ import {
 import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
 import {IllustrationNoContent} from '@douyinfe/semi-illustrations';
 import {withRouter} from "react-router-dom";
+import axios from "axios";
 
 class Entry extends React.Component {
     constructor(props) {
@@ -67,17 +68,25 @@ class Entry extends React.Component {
 
     addOnline = () => {
         let onlineData = this.state.onlineArr;
-        //生成新便签id并添加进入本地便签清单
+
+        //生成新便签id
         let newNoteId = this.randomString(7);
-        onlineData.push(newNoteId);
+        axios.get('https://i.exia.xyz/note/get/'+newNoteId+'?key='+this.state.newNote.key)
+            .then(data=>{
+                if(data.data.msg)
+                    Toast.error(data.data.msg);
+                else {
+                    onlineData.push(newNoteId);
 
-        this.setState({
-            onlineArr: onlineData
-        });
+                    this.setState({
+                        onlineArr: onlineData
+                    });
 
-        //更新便签localStorage储存
-        localStorage.setItem("onlineArr", onlineData.join(","));
-        this.props.history.push('/o/' + newNoteId);
+                    //更新便签localStorage储存
+                    localStorage.setItem("onlineArr", onlineData.join(","));
+                    this.props.history.push('/o/' + newNoteId);
+                }
+            });
     }
 
     addLocal = () => {
@@ -178,7 +187,7 @@ class Entry extends React.Component {
                                     <Title heading={6} style={{margin: "1rem 0 .5rem"}}>
                                         加密
                                     </Title>
-                                    <Input placeholder={"密钥（留空则无加密）"}/>
+                                    <Input placeholder={"密钥（留空则无加密）"} value={this.state.newNote.key} onChange={v=>this.setState({newNote:{key: v, mode:'online', lock: this.state.newNote.lock}})}/>
                                 </Collapsible>
                                 <div style={{textAlign: "right", marginTop: "1rem"}}>
                                     <Button type={"primary"} onClick={this.add}>撕一张</Button>
