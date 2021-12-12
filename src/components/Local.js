@@ -5,7 +5,7 @@
 import React from 'react';
 import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast} from '@douyinfe/semi-ui';
 import copy from "copy-to-clipboard";
-import {withRouter} from "react-router-dom";
+import {Redirect, withRouter} from "react-router-dom";
 
 class Local extends React.Component {
     constructor(props) {
@@ -42,6 +42,12 @@ class Local extends React.Component {
 
     render() {
         const {Title} = Typography;
+        if(!localStorage.getItem(this.props.match.params.id)) {
+            Toast.error('好像没有这张便签噢');
+            localStorage.removeItem(this.props.match.params.id);
+            return (<Redirect to={'/'}/>);
+        }
+
         return (
             <div className="local">
                 <div className={"local-header"}>
