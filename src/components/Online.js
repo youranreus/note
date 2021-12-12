@@ -74,6 +74,12 @@ class Online extends React.Component {
         });
     }
 
+    showDelete = () => {
+        this.setState({
+            deleteVisible: !this.state.deleteVisible
+        });
+    }
+
     copyContent = ()=>{
         copy(this.state.content);
         Toast.info('复制成功');
@@ -118,13 +124,17 @@ class Online extends React.Component {
                         <Input value={this.state.key} onChange={v=>this.setState({key: v})} placeholder={"密钥"} style={{maxWidth: 200, marginRight: "1rem"}}/>
                         <Button onClick={this.update}>send</Button>
                     </Collapsible>
+                    <Collapsible isOpen={this.state.deleteVisible}>
+                        <Input value={this.state.key} onChange={v=>this.setState({key: v})} placeholder={"密钥"} style={{maxWidth: 200, marginRight: "1rem"}}/>
+                        <Button type={"danger"} onClick={this.delete}>delete</Button>
+                    </Collapsible>
                     <br/>
                     <ButtonGroup>
                         <Button onClick={this.state.lock ? this.showLock : this.update}>保存</Button>
                         <Button onClick={this.copyContent}>复制</Button>
                         <Button onClick={this.copyUrl}>分享</Button>
                         {!this.state.lock?<Button onClick={this.showLock}>上锁</Button>:''}
-                        <Button type={"danger"} onClick={this.delete}>删除</Button>
+                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete}>删除</Button>
                     </ButtonGroup>
                 </div>
             </div>
