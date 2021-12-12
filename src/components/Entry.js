@@ -68,7 +68,7 @@ class Entry extends React.Component {
     addOnline = () => {
         let onlineData = this.state.onlineArr;
         //生成新便签id并添加进入本地便签清单
-        let newNoteId = this.randomString(5);
+        let newNoteId = this.randomString(7);
         onlineData.push(newNoteId);
 
         this.setState({
