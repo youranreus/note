@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast, Input, Collapsible} from '@douyinfe/semi-ui';
+import {IconDelete, IconLock, IconLink, IconCopy, IconSave, IconChevronLeft} from '@douyinfe/semi-icons';
 import copy from "copy-to-clipboard";
 import axios from "axios";
 import qs from 'qs';
@@ -131,15 +132,15 @@ class Online extends React.Component {
                     </Collapsible>
                     <Collapsible isOpen={this.state.deleteVisible}>
                         <Input value={this.state.key} onChange={v=>this.setState({key: v})} placeholder={"密钥"} style={{maxWidth: 200, marginRight: "1rem"}}/>
-                        <Button type={"danger"} onClick={this.delete}>delete</Button>
+                        <Button type={"danger"} onClick={this.delete}>删除</Button>
                     </Collapsible>
                     <br/>
                     <ButtonGroup>
-                        <Button onClick={this.state.lock ? this.showLock : this.update}>保存</Button>
-                        <Button onClick={this.copyContent}>复制</Button>
-                        <Button onClick={this.copyUrl}>分享</Button>
-                        {!this.state.lock?<Button onClick={this.showLock}>上锁</Button>:''}
-                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete}>删除</Button>
+                        <Button onClick={this.state.lock ? this.showLock : this.update} icon={<IconSave />}/>
+                        <Button onClick={this.copyContent} icon={<IconCopy />}/>
+                        <Button onClick={this.copyUrl} icon={<IconLink />}/>
+                        {!this.state.lock?<Button onClick={this.showLock} icon={<IconLock />}/>:''}
+                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete} icon={<IconDelete />}/>
                     </ButtonGroup>
                 </div>
             </div>
