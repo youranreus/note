@@ -4,7 +4,6 @@ body[theme-mode="dark"] {
 
 .App {
     display: flex;
-    min-width: 100vw;
     min-height: 100vh;
     align-items: center;
     justify-content: center;
