@@ -61,6 +61,9 @@ class Online extends React.Component {
                         Toast.success('加密成功');
                     }
                     else {
+                        this.setState({
+                            lockVisible: false
+                        });
                         Toast.success('更新成功');
                     }
 
@@ -70,13 +73,15 @@ class Online extends React.Component {
 
     showLock = () => {
         this.setState({
-            lockVisible: !this.state.lockVisible
+            lockVisible: !this.state.lockVisible,
+            deleteVisible: false
         });
     }
 
     showDelete = () => {
         this.setState({
-            deleteVisible: !this.state.deleteVisible
+            deleteVisible: !this.state.deleteVisible,
+            lockVisible: false
         });
     }
 
