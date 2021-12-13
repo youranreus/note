@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast, Input, Collapsible} from '@douyinfe/semi-ui';
+import {IconDelete, IconLock, IconLink, IconCopy, IconSave, IconChevronLeft} from '@douyinfe/semi-icons';
 import copy from "copy-to-clipboard";
 import axios from "axios";
 import qs from 'qs';
@@ -61,6 +62,9 @@ class Online extends React.Component {
                         Toast.success('加密成功');
                     }
                     else {
+                        this.setState({
+                            lockVisible: false
+                        });
                         Toast.success('更新成功');
                     }
 
@@ -70,13 +74,15 @@ class Online extends React.Component {
 
     showLock = () => {
         this.setState({
-            lockVisible: !this.state.lockVisible
+            lockVisible: !this.state.lockVisible,
+            deleteVisible: false
         });
     }
 
     showDelete = () => {
         this.setState({
-            deleteVisible: !this.state.deleteVisible
+            deleteVisible: !this.state.deleteVisible,
+            lockVisible: false
         });
     }
 
@@ -116,6 +122,7 @@ class Online extends React.Component {
                         <Tag size={"large"} color={"green"}>在线便签</Tag>
                         <Tag size={"large"} color={"violet"}>len: {this.state.content.length}</Tag>
                         <Tag size={"large"} color={"red"}>{this.state.lock ? 'locked' : 'unlock'}</Tag>
+                        <Button icon={<IconChevronLeft />} size={"small"} onClick={()=>{this.props.history.push('/');}}/>
                     </Space>
                 </div>
                 <TextArea rows={30} value={this.state.content} onChange={(v)=>this.setState({content: v})}/>
@@ -126,15 +133,15 @@ class Online extends React.Component {
                     </Collapsible>
                     <Collapsible isOpen={this.state.deleteVisible}>
                         <Input value={this.state.key} onChange={v=>this.setState({key: v})} placeholder={"密钥"} style={{maxWidth: 200, marginRight: "1rem"}}/>
-                        <Button type={"danger"} onClick={this.delete}>delete</Button>
+                        <Button type={"danger"} onClick={this.delete}>删除</Button>
                     </Collapsible>
                     <br/>
                     <ButtonGroup>
-                        <Button onClick={this.state.lock ? this.showLock : this.update}>保存</Button>
-                        <Button onClick={this.copyContent}>复制</Button>
-                        <Button onClick={this.copyUrl}>分享</Button>
-                        {!this.state.lock?<Button onClick={this.showLock}>上锁</Button>:''}
-                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete}>删除</Button>
+                        <Button onClick={this.state.lock ? this.showLock : this.update} icon={<IconSave />}/>
+                        <Button onClick={this.copyContent} icon={<IconCopy />}/>
+                        <Button onClick={this.copyUrl} icon={<IconLink />}/>
+                        {!this.state.lock?<Button onClick={this.showLock} icon={<IconLock />}/>:''}
+                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete} icon={<IconDelete />}/>
                     </ButtonGroup>
                 </div>
             </div>

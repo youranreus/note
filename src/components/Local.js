@@ -6,6 +6,7 @@ import React from 'react';
 import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast} from '@douyinfe/semi-ui';
 import copy from "copy-to-clipboard";
 import {Redirect, withRouter} from "react-router-dom";
+import {IconChevronLeft, IconCopy, IconDelete, IconSave, IconUpload} from "@douyinfe/semi-icons";
 
 class Local extends React.Component {
     constructor(props) {
@@ -55,15 +56,16 @@ class Local extends React.Component {
                     <Space>
                         <Tag size={"large"} color={"blue"}>本地便签</Tag>
                         <Tag size={"large"} color={"violet"}>len: {this.state.content.length}</Tag>
+                        <Button icon={<IconChevronLeft />} size={"small"} onClick={()=>{this.props.history.push('/');}}/>
                     </Space>
                 </div>
                 <TextArea rows={30} value={this.state.content} onChange={(v)=>this.setState({content: v})}/>
                 <div style={{textAlign: "right", marginTop: "1rem"}}>
                     <ButtonGroup>
-                        <Button onClick={this.save}>保存</Button>
-                        <Button onClick={this.copyContent}>复制</Button>
-                        <Button onClick={this.upload}>上传</Button>
-                        <Button type={"danger"} onClick={this.delete}>删除</Button>
+                        <Button onClick={this.save} icon={<IconSave />}/>
+                        <Button onClick={this.copyContent} icon={<IconCopy />}/>
+                        <Button onClick={this.upload} icon={<IconUpload />}/>
+                        <Button type={"danger"} onClick={this.delete} icon={<IconDelete />}/>
                     </ButtonGroup>
                 </div>
             </div>
