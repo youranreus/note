@@ -122,6 +122,7 @@ class Online extends React.Component {
                         <Tag size={"large"} color={"green"}>在线便签</Tag>
                         <Tag size={"large"} color={"violet"}>len: {this.state.content.length}</Tag>
                         <Tag size={"large"} color={"red"}>{this.state.lock ? 'locked' : 'unlock'}</Tag>
+                        <Button icon={<IconChevronLeft />} size={"small"} onClick={()=>{this.props.history.push('/');}}/>
                     </Space>
                 </div>
                 <TextArea rows={30} value={this.state.content} onChange={(v)=>this.setState({content: v})}/>
