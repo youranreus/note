@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast, Input, Collapsible} from '@douyinfe/semi-ui';
-import {IconDelete, IconLock, IconLink, IconCopy, IconSave, IconChevronLeft} from '@douyinfe/semi-icons';
+import {IconDelete, IconLock, IconLink, IconCopy, IconSave, IconChevronLeft, IconCopyAdd} from '@douyinfe/semi-icons';
 import copy from "copy-to-clipboard";
 import axios from "axios";
 import qs from 'qs';
@@ -96,6 +96,44 @@ class Online extends React.Component {
         Toast.info('链接已复制');
     }
 
+    copyNew = ()=>{
+        let newId = this.randomString(8);
+        axios.get('https://i.exia.xyz/note/get/'+newId)
+            .then(data=>{
+                if(data.data.id === newId) {
+                    axios.post('https://i.exia.xyz/note/modify/'+newId+'?key=', qs.stringify({content: this.state.content}))
+                        .then(data=>{
+                            if(data.data === 1 || data.data === 0){
+                                Toast.success('转存成功');
+                                this.setState({
+                                    id: newId,
+                                    lock: false
+                                });
+                                this.props.history.push('/o/'+newId);
+                            }
+                            else{
+                                console.log(data);
+                                Toast.error("转存失败");
+                            }
+                        });
+                }
+                else{
+                    console.log(data);
+                    Toast.error("转存失败");
+                }
+            });
+    }
+
+    randomString = (s) => {
+        s = s || 32;
+        let t = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678",
+            a = t.length,
+            n = "",
+            i = 0;
+        for (; i < s; i++) n += t.charAt(Math.floor(Math.random() * a));
+        return n;
+    }
+
     delete = ()=>{
         let OnlineArr = localStorage.getItem('onlineArr').split(",");
 
@@ -139,6 +177,7 @@ class Online extends React.Component {
                     <ButtonGroup>
                         <Button onClick={this.state.lock ? this.showLock : this.update} icon={<IconSave />}/>
                         <Button onClick={this.copyContent} icon={<IconCopy />}/>
+                        <Button onClick={this.copyNew} icon={<IconCopyAdd />}/>
                         <Button onClick={this.copyUrl} icon={<IconLink />}/>
                         {!this.state.lock?<Button onClick={this.showLock} icon={<IconLock />}/>:''}
                         <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete} icon={<IconDelete />}/>
