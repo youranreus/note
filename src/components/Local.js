@@ -41,6 +41,13 @@ class Local extends React.Component {
         this.props.history.push('/');
     }
 
+    quickSave = (e)=>{
+        if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            this.save();
+        }
+    }
+
     render() {
         const {Title} = Typography;
         if(!localStorage.getItem(this.props.match.params.id)) {
@@ -59,7 +66,7 @@ class Local extends React.Component {
                         <Button icon={<IconChevronLeft />} size={"small"} onClick={()=>{this.props.history.push('/');}}/>
                     </Space>
                 </div>
-                <TextArea rows={30} value={this.state.content} onChange={(v)=>this.setState({content: v})}/>
+                <TextArea rows={30} onKeyDown={this.quickSave} value={this.state.content} onChange={(v)=>this.setState({content: v})}/>
                 <div style={{textAlign: "right", marginTop: "1rem"}}>
                     <ButtonGroup>
                         <Button onClick={this.save} icon={<IconSave />}/>
