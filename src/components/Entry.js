@@ -156,7 +156,7 @@ class Entry extends React.Component {
                         </Button>
                         <br/>
                         <Collapsible isOpen={this.state.findFlag}>
-                            <div onKeyDown={this.jump}>
+                            <div onKeyDown={e=>{if(e.keyCode === 13) this.jump();}}>
                                 <InputGroup>
                                     <Select defaultValue='local' onSelect={(value) => {
                                         this.setState({jumpMode: value})
