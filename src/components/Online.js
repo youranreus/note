@@ -152,6 +152,16 @@ class Online extends React.Component {
         this.props.history.push('/');
     }
 
+    quickSave = (e)=>{
+        if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if(!this.state.lock || (this.state.key && this.state.lock))
+                this.update();
+            else
+                Toast.info('请先输入密钥');
+        }
+    }
+
     render() {
         const {Title} = Typography;
         return (
@@ -167,7 +177,7 @@ class Online extends React.Component {
                         }}/>
                     </Space>
                 </div>
-                <TextArea rows={30} value={this.state.content} onChange={(v) => this.setState({content: v})}/>
+                <TextArea onKeyDown={this.quickSave} rows={30} value={this.state.content} onChange={(v) => this.setState({content: v})}/>
                 <div style={{textAlign: "right", marginTop: "1rem"}}>
                     <Collapsible isOpen={this.state.lockVisible}>
                         <div onKeyDown={e=>{if(e.keyCode === 13) this.update();}}>
