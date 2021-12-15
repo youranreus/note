@@ -21,20 +21,25 @@ class Online extends React.Component {
             deleteVisible: false,
             lockVisible: false
         }
+        let onlineArr = localStorage.getItem('onlineArr').split(",").filter((item) => {
+            return item !== ''
+        });
+        if (onlineArr.indexOf(props.match.params.id) === -1) {
+            onlineArr.push(props.match.params.id);
+            localStorage.setItem('onlineArr', onlineArr.join(','));
+        }
     }
 
     componentDidMount() {
         let that = this;
-        axios.get('https://i.exia.xyz/note/get/'+this.state.id)
-            .then(data=>{
-                if(Array.isArray(data.data)) {
+        axios.get('https://i.exia.xyz/note/get/' + this.state.id)
+            .then(data => {
+                if (Array.isArray(data.data)) {
                     that.setState({
                         content: data.data[0].content,
                         lock: data.data[0].lock
                     });
-                }
-                else
-                {
+                } else {
                     that.setState({
                         content: data.data.content,
                         lock: data.data.lock
@@ -48,20 +53,19 @@ class Online extends React.Component {
         Toast.success('保存成功');
     }
 
-    update = ()=>{
-        axios.post('https://i.exia.xyz/note/modify/'+this.state.id+'?key='+this.state.key, qs.stringify({content: this.state.content}))
-            .then(data=>{
-                if(data.data.msg)
+    update = () => {
+        axios.post('https://i.exia.xyz/note/modify/' + this.state.id + '?key=' + this.state.key, qs.stringify({content: this.state.content}))
+            .then(data => {
+                if (data.data.msg)
                     Toast.error(data.data.msg);
                 else {
-                    if(this.state.lock === false && this.state.key !== '') {
+                    if (this.state.lock === false && this.state.key !== '') {
                         this.setState({
                             lock: true,
                             lockVisible: false
                         });
                         Toast.success('加密成功');
-                    }
-                    else {
+                    } else {
                         this.setState({
                             lockVisible: false
                         });
@@ -86,38 +90,36 @@ class Online extends React.Component {
         });
     }
 
-    copyContent = ()=>{
+    copyContent = () => {
         copy(this.state.content);
         Toast.info('复制成功');
     }
 
-    copyUrl = ()=>{
+    copyUrl = () => {
         copy(window.location.href);
         Toast.info('链接已复制');
     }
 
-    copyNew = ()=>{
+    copyNew = () => {
         let newId = this.randomString(8);
-        axios.get('https://i.exia.xyz/note/get/'+newId)
-            .then(data=>{
-                if(data.data.id === newId) {
-                    axios.post('https://i.exia.xyz/note/modify/'+newId+'?key=', qs.stringify({content: this.state.content}))
-                        .then(data=>{
-                            if(data.data === 1 || data.data === 0){
+        axios.get('https://i.exia.xyz/note/get/' + newId)
+            .then(data => {
+                if (data.data.id === newId) {
+                    axios.post('https://i.exia.xyz/note/modify/' + newId + '?key=', qs.stringify({content: this.state.content}))
+                        .then(data => {
+                            if (data.data === 1 || data.data === 0) {
                                 Toast.success('转存成功');
                                 this.setState({
                                     id: newId,
                                     lock: false
                                 });
-                                this.props.history.push('/o/'+newId);
-                            }
-                            else{
+                                this.props.history.push('/o/' + newId);
+                            } else {
                                 console.log(data);
                                 Toast.error("转存失败");
                             }
                         });
-                }
-                else{
+                } else {
                     console.log(data);
                     Toast.error("转存失败");
                 }
@@ -134,15 +136,15 @@ class Online extends React.Component {
         return n;
     }
 
-    delete = ()=>{
+    delete = () => {
         let OnlineArr = localStorage.getItem('onlineArr').split(",");
 
-        axios.get('https://i.exia.xyz/note/delete/'+this.state.id+'?key='+this.state.key)
-            .then(data=>{
-                if(data.data.msg)
+        axios.get('https://i.exia.xyz/note/delete/' + this.state.id + '?key=' + this.state.key)
+            .then(data => {
+                if (data.data.msg)
                     Toast.error(data.data.msg);
                 else {
-                    OnlineArr.splice(OnlineArr.indexOf(this.state.id),1);
+                    OnlineArr.splice(OnlineArr.indexOf(this.state.id), 1);
                     localStorage.setItem("onlineArr", OnlineArr.join(","));
                     Toast.success('删除成功');
                 }
@@ -160,27 +162,32 @@ class Online extends React.Component {
                         <Tag size={"large"} color={"green"}>在线便签</Tag>
                         <Tag size={"large"} color={"violet"}>len: {this.state.content.length}</Tag>
                         <Tag size={"large"} color={"red"}>{this.state.lock ? 'locked' : 'unlock'}</Tag>
-                        <Button icon={<IconChevronLeft />} size={"small"} onClick={()=>{this.props.history.push('/');}}/>
+                        <Button icon={<IconChevronLeft/>} size={"small"} onClick={() => {
+                            this.props.history.push('/');
+                        }}/>
                     </Space>
                 </div>
-                <TextArea rows={30} value={this.state.content} onChange={(v)=>this.setState({content: v})}/>
+                <TextArea rows={30} value={this.state.content} onChange={(v) => this.setState({content: v})}/>
                 <div style={{textAlign: "right", marginTop: "1rem"}}>
                     <Collapsible isOpen={this.state.lockVisible}>
-                        <Input value={this.state.key} onChange={v=>this.setState({key: v})} placeholder={"密钥"} style={{maxWidth: 200, marginRight: "1rem"}}/>
+                        <Input value={this.state.key} onChange={v => this.setState({key: v})} placeholder={"密钥"}
+                               style={{maxWidth: 200, marginRight: "1rem"}}/>
                         <Button onClick={this.update}>send</Button>
                     </Collapsible>
                     <Collapsible isOpen={this.state.deleteVisible}>
-                        <Input value={this.state.key} onChange={v=>this.setState({key: v})} placeholder={"密钥"} style={{maxWidth: 200, marginRight: "1rem"}}/>
+                        <Input value={this.state.key} onChange={v => this.setState({key: v})} placeholder={"密钥"}
+                               style={{maxWidth: 200, marginRight: "1rem"}}/>
                         <Button type={"danger"} onClick={this.delete}>删除</Button>
                     </Collapsible>
                     <br/>
                     <ButtonGroup>
-                        <Button onClick={this.state.lock ? this.showLock : this.update} icon={<IconSave />}/>
-                        <Button onClick={this.copyContent} icon={<IconCopy />}/>
-                        <Button onClick={this.copyNew} icon={<IconCopyAdd />}/>
-                        <Button onClick={this.copyUrl} icon={<IconLink />}/>
-                        {!this.state.lock?<Button onClick={this.showLock} icon={<IconLock />}/>:''}
-                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete} icon={<IconDelete />}/>
+                        <Button onClick={this.state.lock ? this.showLock : this.update} icon={<IconSave/>}/>
+                        <Button onClick={this.copyContent} icon={<IconCopy/>}/>
+                        <Button onClick={this.copyNew} icon={<IconCopyAdd/>}/>
+                        <Button onClick={this.copyUrl} icon={<IconLink/>}/>
+                        {!this.state.lock ? <Button onClick={this.showLock} icon={<IconLock/>}/> : ''}
+                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete}
+                                icon={<IconDelete/>}/>
                     </ButtonGroup>
                 </div>
             </div>
