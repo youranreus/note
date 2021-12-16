@@ -21,12 +21,22 @@ class Online extends React.Component {
             deleteVisible: false,
             lockVisible: false
         }
-        let onlineArr = localStorage.getItem('onlineArr').split(",").filter((item) => {
-            return item !== ''
-        });
-        if (onlineArr.indexOf(props.match.params.id) === -1) {
-            onlineArr.push(props.match.params.id);
-            localStorage.setItem('onlineArr', onlineArr.join(','));
+
+        let onlineArr = null;
+        if(localStorage.getItem('onlineArr') != null)
+        {
+            onlineArr = localStorage.getItem('onlineArr').split(",").filter((item) => {
+                return item !== ''
+            });
+
+            if (onlineArr.indexOf(props.match.params.id) === -1) {
+                onlineArr.push(props.match.params.id);
+                localStorage.setItem('onlineArr', onlineArr.join(','));
+            }
+        }
+        else
+        {
+            localStorage.setItem('onlineArr', [props.match.params.id].join(','));
         }
     }
 
