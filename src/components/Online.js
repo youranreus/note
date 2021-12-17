@@ -157,9 +157,9 @@ class Online extends React.Component {
                     OnlineArr.splice(OnlineArr.indexOf(this.state.id), 1);
                     localStorage.setItem("onlineArr", OnlineArr.join(","));
                     Toast.success('删除成功');
+                    this.props.history.push('/');
                 }
             });
-        this.props.history.push('/');
     }
 
     quickSave = (e)=>{
