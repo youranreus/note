@@ -7,6 +7,8 @@ import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast} from '@dou
 import copy from "copy-to-clipboard";
 import {Redirect, withRouter} from "react-router-dom";
 import {IconChevronLeft, IconCopy, IconDelete, IconSave, IconUpload} from "@douyinfe/semi-icons";
+import axios from "axios";
+import qs from "qs";
 
 class Local extends React.Component {
     constructor(props) {
@@ -28,8 +30,35 @@ class Local extends React.Component {
         Toast.info('复制成功');
     }
 
+    randomString = (s) => {
+        s = s || 32;
+        let t = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678",
+            a = t.length,
+            n = "",
+            i = 0;
+        for (; i < s; i++) n += t.charAt(Math.floor(Math.random() * a));
+        return n;
+    }
+
     upload = ()=>{
-        Toast.error('还没有开发完成噢');
+        let newId = this.randomString(6);
+        axios.get('https://i.exia.xyz/note/get/'+newId)
+            .then(data=>{
+                if(data.data.id === newId) {
+                    axios.post('https://i.exia.xyz/note/modify/' + newId + '?key=', qs.stringify({content: this.state.content}))
+                        .then(data => {
+                            if (data.data === 1 || data.data === 0) {
+                                Toast.success('上传成功');
+                                this.props.history.push('/o/' + newId);
+                            } else {
+                                console.log(data);
+                                Toast.error("上传失败");
+                            }
+                        });
+                }
+                else
+                    Toast.error("上传失败");
+            })
     }
 
     delete = ()=>{
