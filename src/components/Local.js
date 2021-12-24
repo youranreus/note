@@ -44,10 +44,10 @@ class Local extends React.Component {
         let newId = this.randomString(6);
         axios.get('https://i.exia.xyz/note/get/'+newId)
             .then(data=>{
-                if(data.data.id === newId) {
+                if(data.data.content.id === newId) {
                     axios.post('https://i.exia.xyz/note/modify/' + newId + '?key=', qs.stringify({content: this.state.content}))
                         .then(data => {
-                            if (data.data === 1 || data.data === 0) {
+                            if (data.data.content === 1 || data.data.content === 0) {
                                 Toast.success('上传成功');
                                 this.props.history.push('/o/' + newId);
                             } else {

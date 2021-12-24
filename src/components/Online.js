@@ -23,8 +23,7 @@ class Online extends React.Component {
         }
 
         let onlineArr = null;
-        if(localStorage.getItem('onlineArr') != null)
-        {
+        if (localStorage.getItem('onlineArr') != null) {
             onlineArr = localStorage.getItem('onlineArr').split(",").filter((item) => {
                 return item !== ''
             });
@@ -33,9 +32,7 @@ class Online extends React.Component {
                 onlineArr.push(props.match.params.id);
                 localStorage.setItem('onlineArr', onlineArr.join(','));
             }
-        }
-        else
-        {
+        } else {
             localStorage.setItem('onlineArr', [props.match.params.id].join(','));
         }
     }
@@ -44,18 +41,10 @@ class Online extends React.Component {
         let that = this;
         axios.get('https://i.exia.xyz/note/get/' + this.state.id)
             .then(data => {
-                if (Array.isArray(data.data)) {
-                    that.setState({
-                        content: data.data[0].content,
-                        lock: data.data[0].lock
-                    });
-                } else {
-                    that.setState({
-                        content: data.data.content,
-                        lock: data.data.lock
-                    });
-                }
-
+                that.setState({
+                    content: data.data.content.content,
+                    lock: data.data.content.lock
+                });
             })
     }
 
@@ -81,8 +70,10 @@ class Online extends React.Component {
                         });
                         Toast.success('更新成功');
                     }
-
                 }
+            })
+            .catch((error) => {
+                Toast.error(error.response.data.code + ': ' + error.response.data.msg);
             });
     }
 
@@ -114,10 +105,10 @@ class Online extends React.Component {
         let newId = this.randomString(8);
         axios.get('https://i.exia.xyz/note/get/' + newId)
             .then(data => {
-                if (data.data.id === newId) {
+                if (data.data.content.id === newId) {
                     axios.post('https://i.exia.xyz/note/modify/' + newId + '?key=', qs.stringify({content: this.state.content}))
                         .then(data => {
-                            if (data.data === 1 || data.data === 0) {
+                            if (data.data.content === 1 || data.data.content === 0) {
                                 Toast.success('转存成功');
                                 this.setState({
                                     id: newId,
@@ -159,13 +150,16 @@ class Online extends React.Component {
                     Toast.success('删除成功');
                     this.props.history.push('/');
                 }
+            })
+            .catch((error) => {
+                Toast.error(error.response.data.code + ': ' + error.response.data.msg);
             });
     }
 
-    quickSave = (e)=>{
+    quickSave = (e) => {
         if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
-            if(!this.state.lock || (this.state.key && this.state.lock))
+            if (!this.state.lock || (this.state.key && this.state.lock))
                 this.update();
             else
                 Toast.info('请先输入密钥');
@@ -187,17 +181,22 @@ class Online extends React.Component {
                         }}/>
                     </Space>
                 </div>
-                <TextArea onKeyDown={this.quickSave} rows={30} value={this.state.content} onChange={(v) => this.setState({content: v})}/>
+                <TextArea onKeyDown={this.quickSave} rows={30} value={this.state.content}
+                          onChange={(v) => this.setState({content: v})}/>
                 <div style={{textAlign: "right", marginTop: "1rem"}}>
                     <Collapsible isOpen={this.state.lockVisible}>
-                        <div onKeyDown={e=>{if(e.keyCode === 13) this.update();}}>
+                        <div onKeyDown={e => {
+                            if (e.keyCode === 13) this.update();
+                        }}>
                             <Input value={this.state.key} onChange={v => this.setState({key: v})} placeholder={"密钥"}
                                    style={{maxWidth: 200, marginRight: "1rem"}}/>
                             <Button onClick={this.update}>send</Button>
                         </div>
                     </Collapsible>
                     <Collapsible isOpen={this.state.deleteVisible}>
-                        <div onKeyDown={e=>{if(e.keyCode === 13) this.delete();}}>
+                        <div onKeyDown={e => {
+                            if (e.keyCode === 13) this.delete();
+                        }}>
                             <Input value={this.state.key} onChange={v => this.setState({key: v})} placeholder={"密钥"}
                                    style={{maxWidth: 200, marginRight: "1rem"}}/>
                             <Button type={"danger"} onClick={this.delete}>删除</Button>
