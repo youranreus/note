@@ -1,0 +1,13 @@
+name: Note
+des: 便签
+enable: true
+func:
+  - 新增便签
+  - 修改便签
+  - 删除便签
+route:
+  - get:
+      note/get/(:any): App\Module\Note\Note@getNote
+      note/delete/(:any): App\Module\Note\Note@deleteNote
+  - post:
+      note/modify/(:any): App\Module\Note\Note@modifyNote
