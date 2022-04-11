@@ -55,6 +55,7 @@ body[theme-mode="dark"] {
         cursor: pointer;
         border: 1px solid var(--semi-color-border);
         left: 50%;
+        color: var(--semi-color-text-3);
         transform: translateX(-50%);
         border-radius: 10000rem;
         background: var(--semi-color-bg-2);

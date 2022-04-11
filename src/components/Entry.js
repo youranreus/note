@@ -14,10 +14,12 @@ import {
     Typography,
     InputGroup,
     Select,
-    AutoComplete
+    AutoComplete,
+    Tabs,
+    TabPane
 } from '@douyinfe/semi-ui';
-import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
-import {IllustrationNoContent} from '@douyinfe/semi-illustrations';
+import {IconPlus, IconSearch, IconChevronUpDown, IconStar, IconHistory} from '@douyinfe/semi-icons';
+import {IllustrationNoContent, IllustrationConstruction} from '@douyinfe/semi-illustrations';
 import {withRouter} from "react-router-dom";
 import axios from "axios";
 
@@ -36,7 +38,8 @@ class Entry extends React.Component {
             jumpMode: 'local',
             jumpId: '',
             onlineArr: [],
-            localArr: []
+            localArr: [],
+            showQuickBar: false
         }
     }
 
@@ -119,18 +122,20 @@ class Entry extends React.Component {
         return n;
     }
 
+    openQuickBar = () => {
+        this.setState({
+            showQuickBar: !this.state.showQuickBar
+        })
+    }
+
     componentDidMount() {
         if (localStorage.getItem('localArr') === null)
             localStorage.setItem("localArr", "");
         if (localStorage.getItem('onlineArr') === null)
             localStorage.setItem("onlineArr", "");
         this.setState({
-            localArr: localStorage.getItem('localArr').split(",").filter((item) => {
-                return item !== ''
-            }),
-            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => {
-                return item !== ''
-            })
+            localArr: localStorage.getItem('localArr').split(",").filter((item) => item !== ''),
+            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => item !== '')
         });
     }
 
@@ -198,6 +203,25 @@ class Entry extends React.Component {
                         </Collapsible>
                     </div>
                 </Empty>
+
+                <div className={["QuickBar", (this.state.showQuickBar ? "open" : " ")].join(' ')}>
+                    <div className={"switch"} onClick={this.openQuickBar}>
+                        <IconChevronUpDown size={"extra-large"} />
+                    </div>
+                    <Tabs type="button">
+                        <TabPane tab={<span><IconHistory/>最近</span>} itemKey="1">
+
+                        </TabPane>
+                        <TabPane tab={<span><IconStar/>收藏</span>} itemKey="2">
+
+                        </TabPane>
+                    </Tabs>
+                    <Empty
+                        image={<IllustrationConstruction style={{width: 150, height: 150}} />}
+                        title={'施工中'}
+                        description="嘿咻嘿咻..."
+                    />
+                </div>
             </div>
         );
     }
