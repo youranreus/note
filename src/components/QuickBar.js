@@ -13,7 +13,10 @@ export default function QuickBar(props) {
     const [likes, setLikes] = useState([])
 
     useEffect(() => {
-        setLikes(JSON.parse(localStorage.getItem('liked_note')) || "[]")
+        if(JSON.parse(localStorage.getItem('liked_note')))
+            setLikes(JSON.parse(localStorage.getItem('liked_note')))
+        else
+            localStorage.setItem('liked_note', '[]')
     }, [])
 
     return (
