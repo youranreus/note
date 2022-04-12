@@ -2,7 +2,7 @@ import React from 'react';
 import {BrowserRouter as Router} from 'react-router-dom';
 import {renderRoutes} from "react-router-config";
 import route from "./route.js";
-import './App.css';
+import './App.scss';
 import {Button} from "@douyinfe/semi-ui";
 import { IconSun } from '@douyinfe/semi-icons';
 

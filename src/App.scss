@@ -1,0 +1,128 @@
+body[theme-mode="dark"] {
+    background: #16161a;
+}
+
+.App {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+}
+
+.dark {
+    position: fixed;
+    right: 1rem;
+    top: 1rem;
+}
+
+.addNote {
+    margin-top: 1rem;
+    width: 300px;
+    text-align: left;
+}
+
+.local, .Online {
+    width: 800px;
+    margin: 3rem auto;
+}
+
+.local-header, .Online-header {
+    margin-bottom: 1rem;
+}
+
+.QuickBar {
+    box-sizing: border-box;
+    position: fixed;
+    bottom: calc(-75vh - 3rem);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60vw;
+    height: 80vh;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: var(--semi-shadow-elevated);
+    background: var(--semi-color-bg-1);
+    transition: bottom .25s ease;
+
+    &.open {
+        bottom: -10vh;
+
+        &:hover {
+            bottom: -10vh;
+        }
+    }
+
+    &:hover {
+        bottom: -75vh;
+    }
+
+    .switch {
+        position: absolute;
+        top: -20px;
+        padding: 8px 8px 6px 8px;
+        cursor: pointer;
+        border: 1px solid var(--semi-color-border);
+        left: 50%;
+        color: var(--semi-color-text-3);
+        transform: translateX(-50%);
+        border-radius: 10000rem;
+        background: var(--semi-color-bg-2);
+    }
+
+    .content {
+        margin-top: 1rem;
+        height: calc(60vh - 1rem);
+        overflow-y: auto;
+
+        &::-webkit-scrollbar-thumb {
+            display: none;
+        }
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        .item {
+            width: calc((60vw - 4rem - 45px) / 4);
+
+            p {
+                margin-bottom: 0;
+                line-height: 1.2;
+                height: 3.6em;
+                display:-webkit-box;
+                -webkit-line-clamp:3;
+                -webkit-box-orient:vertical;
+                overflow:hidden;
+                cursor: pointer;
+                word-break: break-word;
+            }
+        }
+    }
+}
+
+@media (max-width: 830px) {
+
+    .addNote, .local, .entry, .Online {
+        width: 95%;
+    }
+
+    .local, .Online {
+        margin: 1rem auto;
+    }
+
+    .QuickBar {
+        width: 100vw;
+        box-shadow: none;
+        padding: 2rem 1rem;
+        background: var(--semi-color-bg-1);
+        border-top: 1px solid var(--semi-color-border);
+        bottom: -70vh;
+
+        .content {
+            height: calc(60vh - 3rem);
+            .item {
+                width: calc((100vw - 2rem - 15px) / 2);
+            }
+        }
+    }
+}

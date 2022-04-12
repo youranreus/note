@@ -14,12 +14,16 @@ import {
     Typography,
     InputGroup,
     Select,
-    AutoComplete
+    AutoComplete,
+    Tabs,
+    TabPane,
+    CardGroup
 } from '@douyinfe/semi-ui';
-import {IconPlus, IconSearch} from '@douyinfe/semi-icons';
+import {IconPlus, IconSearch, IconChevronUpDown, IconStar, IconHistory} from '@douyinfe/semi-icons';
 import {IllustrationNoContent} from '@douyinfe/semi-illustrations';
 import {withRouter} from "react-router-dom";
 import axios from "axios";
+import NoteItem from "./NoteItem.js";
 
 class Entry extends React.Component {
     constructor(props) {
@@ -36,7 +40,10 @@ class Entry extends React.Component {
             jumpMode: 'local',
             jumpId: '',
             onlineArr: [],
-            localArr: []
+            localArr: [],
+            onlineHis: [],
+            localHis: [],
+            showQuickBar: false
         }
     }
 
@@ -119,18 +126,22 @@ class Entry extends React.Component {
         return n;
     }
 
+    openQuickBar = () => {
+        this.setState({
+            showQuickBar: !this.state.showQuickBar
+        })
+    }
+
     componentDidMount() {
         if (localStorage.getItem('localArr') === null)
             localStorage.setItem("localArr", "");
         if (localStorage.getItem('onlineArr') === null)
             localStorage.setItem("onlineArr", "");
         this.setState({
-            localArr: localStorage.getItem('localArr').split(",").filter((item) => {
-                return item !== ''
-            }),
-            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => {
-                return item !== ''
-            })
+            localArr: localStorage.getItem('localArr').split(",").filter((item) => item !== ''),
+            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => item !== ''),
+            localHis: localStorage.getItem('localArr').split(",").filter((item) => item !== '').reverse(),
+            onlineHis: localStorage.getItem('onlineArr').split(",").filter((item) => item !== '').reverse()
         });
     }
 
@@ -198,6 +209,40 @@ class Entry extends React.Component {
                         </Collapsible>
                     </div>
                 </Empty>
+
+                <div className={["QuickBar", (this.state.showQuickBar ? "open" : " ")].join(' ')}>
+                    <div className={"switch"} onClick={this.openQuickBar}>
+                        <IconChevronUpDown size={"extra-large"} />
+                    </div>
+
+                        <Tabs type="button">
+                            <TabPane tab={<span><IconHistory/>本地历史</span>} itemKey="local">
+                                <div className="content">
+                                    <CardGroup spacing={15}>
+                                        {
+                                            this.state.localHis.map(item => (
+                                                <NoteItem type={"local"} nid={item} key={item}/>
+                                            ))
+                                        }
+                                    </CardGroup>
+                                </div>
+                            </TabPane>
+                            <TabPane tab={<span><IconHistory/>在线历史</span>} itemKey="online">
+                                <div className="content">
+                                    <CardGroup spacing={15}>
+                                        {
+                                            this.state.onlineHis.map(item => (
+                                                <NoteItem type={"online"} nid={item} key={item}/>
+                                            ))
+                                        }
+                                    </CardGroup>
+                                </div>
+                            </TabPane>
+                            <TabPane tab={<span><IconStar/>收藏</span>} itemKey="like">
+
+                            </TabPane>
+                        </Tabs>
+                </div>
             </div>
         );
     }
