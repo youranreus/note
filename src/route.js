@@ -4,9 +4,9 @@
  */
 import React from "react";
 import {Redirect} from "react-router-dom";
-import Entry from "./components/Entry.js";
-import Local from "./components/Local.js";
-import Online from "./components/Online.js";
+import Entry from "./pages/Entry.js";
+import Local from "./pages/Local.js";
+import Online from "./pages/Online.js";
 
 const route = [
     {

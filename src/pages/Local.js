@@ -25,7 +25,7 @@ class Local extends React.Component {
         Toast.success('保存成功');
     }
 
-    copyContent = ()=>{
+    copyContent = () => {
         copy(this.state.content);
         Toast.info('复制成功');
     }
