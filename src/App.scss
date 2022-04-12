@@ -33,7 +33,7 @@ body[theme-mode="dark"] {
 .QuickBar {
     box-sizing: border-box;
     position: fixed;
-    bottom: -70vh;
+    bottom: calc(-75vh - 3rem);
     left: 50%;
     transform: translateX(-50%);
     width: 60vw;
@@ -46,6 +46,14 @@ body[theme-mode="dark"] {
 
     &.open {
         bottom: -10vh;
+
+        &:hover {
+            bottom: -10vh;
+        }
+    }
+
+    &:hover {
+        bottom: -75vh;
     }
 
     .switch {
@@ -108,6 +116,7 @@ body[theme-mode="dark"] {
         padding: 2rem 1rem;
         background: var(--semi-color-bg-1);
         border-top: 1px solid var(--semi-color-border);
+        bottom: -70vh;
 
         .content {
             height: calc(60vh - 3rem);
