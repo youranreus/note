@@ -4,9 +4,9 @@
  */
 
 import {Button, ButtonGroup, Space, Tag, TextArea, Toast, Typography} from "@douyinfe/semi-ui";
-import {useHistory, useParams} from "react-router-dom";
+import {Redirect, useHistory, useParams} from "react-router-dom";
 import {IconChevronLeft, IconCopy, IconDelete, IconSave, IconUpload} from "@douyinfe/semi-icons";
-import React, {useEffect, useState} from "react";
+import {useState} from "react";
 import {copyContent, randomString} from "../utils";
 import axios from "axios";
 import qs from "qs";
@@ -17,14 +17,6 @@ function Local() {
     const his = useHistory()
     const [nid, setNID] = useState(params.id)
     const [content, setContent] = useState(localStorage.getItem(params.id))
-
-    useEffect(() => {
-        if (!localStorage.getItem(params.id)) {
-            Toast.error('好像没有这张便签噢');
-            localStorage.removeItem(params.id);
-            his.push('/')
-        }
-    }, [])
 
     const save = () => {
         localStorage.setItem(nid, content);
@@ -65,6 +57,12 @@ function Local() {
         localStorage.setItem("localArr", localArr.join(","));
         Toast.success('删除成功');
         his.push('/');
+    }
+
+    if (!localStorage.getItem(params.id)) {
+        Toast.error('好像没有这张便签噢');
+        localStorage.removeItem(params.id);
+        return (<Redirect to={'/'}/>)
     }
 
     return (
