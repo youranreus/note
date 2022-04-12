@@ -80,12 +80,13 @@ body[theme-mode="dark"] {
             p {
                 margin-bottom: 0;
                 line-height: 1.2;
-                max-height: 3.6em;
+                height: 3.6em;
                 display:-webkit-box;
                 -webkit-line-clamp:3;
                 -webkit-box-orient:vertical;
                 overflow:hidden;
                 cursor: pointer;
+                word-break: break-word;
             }
         }
     }

@@ -15,7 +15,7 @@ function NoteItem(props) {
     const [data, setData] = useState('加载中')
     const [loading, setLoading] = useState(true)
 
-    const getData = () => {
+    useEffect(() => {
         if (type === 'local') {
             setData(localStorage.getItem(nid))
             setLoading(false)
@@ -26,11 +26,7 @@ function NoteItem(props) {
                     setLoading(false)
                 })
         }
-    }
-
-    useEffect(() => {
-        getData()
-    }, [])
+    }, [nid, type])
 
     const jump = () => {
         his.push('/' + (type === 'online' ? 'o/' : 'l/') + nid)

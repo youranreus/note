@@ -41,6 +41,8 @@ class Entry extends React.Component {
             jumpId: '',
             onlineArr: [],
             localArr: [],
+            onlineHis: [],
+            localHis: [],
             showQuickBar: false
         }
     }
@@ -137,7 +139,9 @@ class Entry extends React.Component {
             localStorage.setItem("onlineArr", "");
         this.setState({
             localArr: localStorage.getItem('localArr').split(",").filter((item) => item !== ''),
-            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => item !== '')
+            onlineArr: localStorage.getItem('onlineArr').split(",").filter((item) => item !== ''),
+            localHis: localStorage.getItem('localArr').split(",").filter((item) => item !== '').reverse(),
+            onlineHis: localStorage.getItem('onlineArr').split(",").filter((item) => item !== '').reverse()
         });
     }
 
@@ -216,7 +220,7 @@ class Entry extends React.Component {
                                 <div className="content">
                                     <CardGroup spacing={15}>
                                         {
-                                            this.state.localArr.map(item => (
+                                            this.state.localHis.map(item => (
                                                 <NoteItem type={"local"} nid={item} key={item}/>
                                             ))
                                         }
@@ -227,7 +231,7 @@ class Entry extends React.Component {
                                 <div className="content">
                                     <CardGroup spacing={15}>
                                         {
-                                            this.state.onlineArr.map(item => (
+                                            this.state.onlineHis.map(item => (
                                                 <NoteItem type={"online"} nid={item} key={item}/>
                                             ))
                                         }
