@@ -16,12 +16,14 @@ import {
     Select,
     AutoComplete,
     Tabs,
-    TabPane
+    TabPane,
+    CardGroup
 } from '@douyinfe/semi-ui';
 import {IconPlus, IconSearch, IconChevronUpDown, IconStar, IconHistory} from '@douyinfe/semi-icons';
-import {IllustrationNoContent, IllustrationConstruction} from '@douyinfe/semi-illustrations';
+import {IllustrationNoContent} from '@douyinfe/semi-illustrations';
 import {withRouter} from "react-router-dom";
 import axios from "axios";
+import NoteItem from "./NoteItem.js";
 
 class Entry extends React.Component {
     constructor(props) {
@@ -208,19 +210,34 @@ class Entry extends React.Component {
                     <div className={"switch"} onClick={this.openQuickBar}>
                         <IconChevronUpDown size={"extra-large"} />
                     </div>
-                    <Tabs type="button">
-                        <TabPane tab={<span><IconHistory/>最近</span>} itemKey="1">
 
-                        </TabPane>
-                        <TabPane tab={<span><IconStar/>收藏</span>} itemKey="2">
+                        <Tabs type="button">
+                            <TabPane tab={<span><IconHistory/>本地历史</span>} itemKey="local">
+                                <div className="content">
+                                    <CardGroup spacing={15}>
+                                        {
+                                            this.state.localArr.map(item => (
+                                                <NoteItem type={"local"} nid={item} key={item}/>
+                                            ))
+                                        }
+                                    </CardGroup>
+                                </div>
+                            </TabPane>
+                            <TabPane tab={<span><IconHistory/>在线历史</span>} itemKey="online">
+                                <div className="content">
+                                    <CardGroup spacing={15}>
+                                        {
+                                            this.state.onlineArr.map(item => (
+                                                <NoteItem type={"online"} nid={item} key={item}/>
+                                            ))
+                                        }
+                                    </CardGroup>
+                                </div>
+                            </TabPane>
+                            <TabPane tab={<span><IconStar/>收藏</span>} itemKey="like">
 
-                        </TabPane>
-                    </Tabs>
-                    <Empty
-                        image={<IllustrationConstruction style={{width: 150, height: 150}} />}
-                        title={'施工中'}
-                        description="嘿咻嘿咻..."
-                    />
+                            </TabPane>
+                        </Tabs>
                 </div>
             </div>
         );
