@@ -7,8 +7,17 @@ import React, {useEffect, useState} from "react";
 import axios from "axios";
 import {Button, ButtonGroup, Collapsible, Input, Space, Tag, TextArea, Toast, Typography} from "@douyinfe/semi-ui";
 import qs from "qs";
-import {copyContent, randomString} from "../utils";
-import {IconChevronLeft, IconCopy, IconCopyAdd, IconDelete, IconLink, IconLock, IconSave} from "@douyinfe/semi-icons";
+import {addLike, copyContent, delLike, isLiked, randomString} from "../utils";
+import {
+    IconChevronLeft,
+    IconCopy,
+    IconCopyAdd,
+    IconDelete,
+    IconLink,
+    IconLock,
+    IconSave,
+    IconStar
+} from "@douyinfe/semi-icons";
 
 function Online() {
     const params = useParams()
@@ -20,6 +29,7 @@ function Online() {
     const [lock, setLock] = useState(false)
     const [deleteVisible, setDeleteVisible] = useState(false)
     const [lockVisible, setlockVisible] = useState(false)
+    const [liked, setLiked] = useState(isLiked('online', params.id))
 
     useEffect(() => {
         let onlineArr = null;
@@ -133,6 +143,13 @@ function Online() {
                     <Tag size={"large"} color={"green"}>在线便签</Tag>
                     <Tag size={"large"} color={"violet"}>len: {content.length}</Tag>
                     <Tag size={"large"} color={"red"}>{lock ? 'locked' : 'unlock'}</Tag>
+                    <Button icon={<IconStar/>} size={"small"} style={{color: (liked ? 'rgba(var(--semi-pink-5), 1)' : 'rgba(var(--semi-blue-5), 1)')}} onClick={() => {
+                        if(!liked)
+                            addLike('online', nid)
+                        else
+                            delLike('online', nid)
+                        setLiked(!liked)
+                    }}/>
                     <Button icon={<IconChevronLeft/>} size={"small"} onClick={() => {
                         his.push('/');
                     }}/>

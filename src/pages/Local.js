@@ -5,9 +5,9 @@
 
 import {Button, ButtonGroup, Space, Tag, TextArea, Toast, Typography} from "@douyinfe/semi-ui";
 import {Redirect, useHistory, useParams} from "react-router-dom";
-import {IconChevronLeft, IconCopy, IconDelete, IconSave, IconUpload} from "@douyinfe/semi-icons";
+import {IconChevronLeft, IconCopy, IconDelete, IconSave, IconUpload, IconStar} from "@douyinfe/semi-icons";
 import {useState} from "react";
-import {copyContent, randomString} from "../utils";
+import {addLike, copyContent, delLike, isLiked, randomString} from "../utils";
 import axios from "axios";
 import qs from "qs";
 
@@ -17,6 +17,7 @@ function Local() {
     const his = useHistory()
     const [nid] = useState(params.id)
     const [content, setContent] = useState(localStorage.getItem(params.id))
+    const [liked, setLiked] = useState(isLiked('local', params.id))
 
     const save = () => {
         localStorage.setItem(nid, content);
@@ -72,6 +73,13 @@ function Local() {
                 <Space>
                     <Tag size={"large"} color={"blue"}>本地便签</Tag>
                     <Tag size={"large"} color={"violet"}>len: {content.length}</Tag>
+                    <Button icon={<IconStar/>} size={"small"} style={{color: (liked ? 'rgba(var(--semi-pink-5), 1)' : 'rgba(var(--semi-blue-5), 1)')}} onClick={() => {
+                        if(!liked)
+                            addLike('local', nid)
+                        else
+                            delLike('local', nid)
+                        setLiked(!liked)
+                    }}/>
                     <Button icon={<IconChevronLeft/>} size={"small"} onClick={() => {
                         his.push('/');
                     }}/>
