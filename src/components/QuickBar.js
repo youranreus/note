@@ -2,7 +2,7 @@
  * @author 季悠然
  * @date 2022-04-12
  */
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {Tabs, TabPane, CardGroup} from '@douyinfe/semi-ui';
 import {IconChevronUpDown, IconStar, IconHistory} from '@douyinfe/semi-icons';
 import NoteItem from "../components/NoteItem.js";
@@ -10,6 +10,11 @@ import NoteItem from "../components/NoteItem.js";
 export default function QuickBar(props) {
     const [display, setDisplay] = useState(false)
     const {onlineHis, localHis} = props
+    const [likes, setLikes] = useState([])
+
+    useEffect(() => {
+        setLikes(JSON.parse(localStorage.getItem('liked_note')) || "[]")
+    }, [])
 
     return (
         <div className={["QuickBar", (display ? "open" : " ")].join(' ')}>
@@ -19,7 +24,15 @@ export default function QuickBar(props) {
 
             <Tabs type="button">
                 <TabPane tab={<span><IconStar/>收藏</span>} itemKey="like">
-
+                    <div className="content">
+                        <CardGroup spacing={15}>
+                            {
+                                likes.map(item => (
+                                    <NoteItem type={item.type} nid={item.id} key={item.id}/>
+                                ))
+                            }
+                        </CardGroup>
+                    </div>
                 </TabPane>
                 <TabPane tab={<span><IconHistory/>本地历史</span>} itemKey="local">
                     <div className="content">
