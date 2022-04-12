@@ -15,7 +15,7 @@ function Local() {
     const {Title} = Typography;
     const params = useParams()
     const his = useHistory()
-    const [nid, setNID] = useState(params.id)
+    const [nid] = useState(params.id)
     const [content, setContent] = useState(localStorage.getItem(params.id))
 
     const save = () => {
@@ -52,7 +52,7 @@ function Local() {
 
     const del = () => {
         let localArr = localStorage.getItem('localArr').split(",");
-        localArr.splice(localArr.indexOf(this.state.id), 1);
+        localArr.splice(localArr.indexOf(nid), 1);
         localStorage.removeItem(nid);
         localStorage.setItem("localArr", localArr.join(","));
         Toast.success('删除成功');

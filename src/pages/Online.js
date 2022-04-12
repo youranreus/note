@@ -1,221 +1,177 @@
 /**
  * @author 季悠然
- * @date 2021-12-11
+ * @date 2022-04-12
  */
-import React from 'react';
-import {TextArea, Typography, Tag, Space, ButtonGroup, Button, Toast, Input, Collapsible} from '@douyinfe/semi-ui';
-import {IconDelete, IconLock, IconLink, IconCopy, IconSave, IconChevronLeft, IconCopyAdd} from '@douyinfe/semi-icons';
-import copy from "copy-to-clipboard";
+import {useHistory, useParams} from "react-router-dom";
+import React, {useEffect, useState} from "react";
 import axios from "axios";
-import qs from 'qs';
-import {withRouter} from "react-router-dom";
+import {Button, ButtonGroup, Collapsible, Input, Space, Tag, TextArea, Toast, Typography} from "@douyinfe/semi-ui";
+import qs from "qs";
+import {copyContent, randomString} from "../utils";
+import {IconChevronLeft, IconCopy, IconCopyAdd, IconDelete, IconLink, IconLock, IconSave} from "@douyinfe/semi-icons";
 
-class Online extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            id: props.match.params.id,
-            content: '加载中',
-            key: '',
-            lock: false,
-            deleteVisible: false,
-            lockVisible: false
-        }
+function Online() {
+    const params = useParams()
+    const his = useHistory()
+    const {Title} = Typography
+    const [nid, setNID] = useState(params.id)
+    const [content, setContent] = useState('加载中')
+    const [key, setKey] = useState('')
+    const [lock, setLock] = useState(false)
+    const [deleteVisible, setDeleteVisible] = useState(false)
+    const [lockVisible, setlockVisible] = useState(false)
 
+    useEffect(() => {
         let onlineArr = null;
         if (localStorage.getItem('onlineArr') != null) {
-            onlineArr = localStorage.getItem('onlineArr').split(",").filter((item) => {
-                return item !== ''
-            });
+            onlineArr = localStorage.getItem('onlineArr').split(",").filter((item) =>item !== '')
 
-            if (onlineArr.indexOf(props.match.params.id) === -1) {
-                onlineArr.push(props.match.params.id);
-                localStorage.setItem('onlineArr', onlineArr.join(','));
+            if (onlineArr.indexOf(nid + '') === -1) {
+                onlineArr.push(nid + '')
+                localStorage.setItem('onlineArr', onlineArr.join(','))
             }
         } else {
-            localStorage.setItem('onlineArr', [props.match.params.id].join(','));
+            localStorage.setItem('onlineArr', [nid].join(','))
         }
-    }
 
-    componentDidMount() {
-        let that = this;
-        axios.get('https://i.exia.xyz/note/get/' + this.state.id)
+        axios.get('https://i.exia.xyz/note/get/' + nid)
             .then(data => {
-                that.setState({
-                    content: data.data.content.content,
-                    lock: data.data.content.lock
-                });
+                setContent(data.data.content.content)
+                setLock(data.data.content.lock)
             })
-    }
+    }, [nid])
 
-    save = () => {
-        Toast.success('保存成功');
-    }
-
-    update = () => {
-        axios.post('https://i.exia.xyz/note/modify/' + this.state.id + '?key=' + this.state.key, qs.stringify({content: this.state.content}))
+    const update = () => {
+        axios.post('https://i.exia.xyz/note/modify/' + nid + '?key=' + key, qs.stringify({content}))
             .then(data => {
                 if (data.data.msg)
-                    Toast.error(data.data.msg);
+                    Toast.error(data.data.msg)
                 else {
-                    if (this.state.lock === false && this.state.key !== '') {
-                        this.setState({
-                            lock: true,
-                            lockVisible: false
-                        });
-                        Toast.success('加密成功');
+                    if (lock === false && key !== '') {
+                        setLock(true)
+                        setlockVisible(false)
+                        Toast.success('加密成功')
                     } else {
-                        this.setState({
-                            lockVisible: false
-                        });
-                        Toast.success('更新成功');
+                        setlockVisible(false)
+                        Toast.success('更新成功')
                     }
                 }
             })
             .catch((error) => {
-                Toast.error(error.response.data.code + ': ' + error.response.data.msg);
+                Toast.error(error.response.data.code + ': ' + error.response.data.msg)
             });
     }
 
-    showLock = () => {
-        this.setState({
-            lockVisible: !this.state.lockVisible,
-            deleteVisible: false
-        });
+    const showLock = () => {
+        setlockVisible(!lockVisible)
+        setDeleteVisible(false)
     }
 
-    showDelete = () => {
-        this.setState({
-            deleteVisible: !this.state.deleteVisible,
-            lockVisible: false
-        });
+    const showDelete = () => {
+        setlockVisible(false)
+        setDeleteVisible(!deleteVisible)
     }
 
-    copyContent = () => {
-        copy(this.state.content);
-        Toast.info('复制成功');
-    }
-
-    copyUrl = () => {
-        copy(window.location.href);
-        Toast.info('链接已复制');
-    }
-
-    copyNew = () => {
-        let newId = this.randomString(8);
+    const copyNew = () => {
+        let newId = randomString(8)
         axios.get('https://i.exia.xyz/note/get/' + newId)
             .then(data => {
                 if (data.data.content.id === newId) {
-                    axios.post('https://i.exia.xyz/note/modify/' + newId + '?key=', qs.stringify({content: this.state.content}))
+                    axios.post('https://i.exia.xyz/note/modify/' + newId + '?key=', qs.stringify({content}))
                         .then(data => {
                             if (data.data.content === 1 || data.data.content === 0) {
                                 Toast.success('转存成功');
-                                this.setState({
-                                    id: newId,
-                                    lock: false
-                                });
-                                this.props.history.push('/o/' + newId);
+                                setNID(newId)
+                                setLock(false)
+                                his.push('/o/' + newId)
                             } else {
-                                console.log(data);
-                                Toast.error("转存失败");
+                                console.log(data)
+                                Toast.error("转存失败")
                             }
-                        });
+                        })
                 } else {
                     console.log(data);
-                    Toast.error("转存失败");
+                    Toast.error("转存失败")
                 }
-            });
+            })
     }
 
-    randomString = (s) => {
-        s = s || 32;
-        let t = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678",
-            a = t.length,
-            n = "",
-            i = 0;
-        for (; i < s; i++) n += t.charAt(Math.floor(Math.random() * a));
-        return n;
-    }
+    const del = () => {
+        let OnlineArr = localStorage.getItem('onlineArr').split(",")
 
-    delete = () => {
-        let OnlineArr = localStorage.getItem('onlineArr').split(",");
-
-        axios.get('https://i.exia.xyz/note/delete/' + this.state.id + '?key=' + this.state.key)
+        axios.get('https://i.exia.xyz/note/delete/' + nid + '?key=' + key)
             .then(data => {
                 if (data.data.msg)
-                    Toast.error(data.data.msg);
+                    Toast.error(data.data.msg)
                 else {
-                    OnlineArr.splice(OnlineArr.indexOf(this.state.id), 1);
-                    localStorage.setItem("onlineArr", OnlineArr.join(","));
-                    Toast.success('删除成功');
-                    this.props.history.push('/');
+                    OnlineArr.splice(OnlineArr.indexOf(nid), 1)
+                    localStorage.setItem("onlineArr", OnlineArr.join(","))
+                    Toast.success('删除成功')
+                    his.push('/')
                 }
             })
             .catch((error) => {
-                Toast.error(error.response.data.code + ': ' + error.response.data.msg);
+                Toast.error(error.response.data.code + ': ' + error.response.data.msg)
             });
     }
 
-    quickSave = (e) => {
+    const quickSave = (e) => {
         if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            if (!this.state.lock || (this.state.key && this.state.lock))
-                this.update();
+            e.preventDefault()
+            if (!lock || (key && lock))
+                update()
             else
-                Toast.info('请先输入密钥');
+                Toast.info('请先输入密钥')
         }
     }
 
-    render() {
-        const {Title} = Typography;
-        return (
-            <div className="Online">
-                <div className={"Online-header"}>
-                    <Title heading={1}>#{this.state.id}</Title>
-                    <Space>
-                        <Tag size={"large"} color={"green"}>在线便签</Tag>
-                        <Tag size={"large"} color={"violet"}>len: {this.state.content.length}</Tag>
-                        <Tag size={"large"} color={"red"}>{this.state.lock ? 'locked' : 'unlock'}</Tag>
-                        <Button icon={<IconChevronLeft/>} size={"small"} onClick={() => {
-                            this.props.history.push('/');
-                        }}/>
-                    </Space>
-                </div>
-                <TextArea onKeyDown={this.quickSave} rows={30} value={this.state.content}
-                          onChange={(v) => this.setState({content: v})}/>
-                <div style={{textAlign: "right", marginTop: "1rem"}}>
-                    <Collapsible isOpen={this.state.lockVisible}>
-                        <div onKeyDown={e => {
-                            if (e.keyCode === 13) this.update();
-                        }}>
-                            <Input value={this.state.key} onChange={v => this.setState({key: v})} placeholder={"密钥"}
-                                   style={{maxWidth: 200, marginRight: "1rem"}}/>
-                            <Button onClick={this.update}>send</Button>
-                        </div>
-                    </Collapsible>
-                    <Collapsible isOpen={this.state.deleteVisible}>
-                        <div onKeyDown={e => {
-                            if (e.keyCode === 13) this.delete();
-                        }}>
-                            <Input value={this.state.key} onChange={v => this.setState({key: v})} placeholder={"密钥"}
-                                   style={{maxWidth: 200, marginRight: "1rem"}}/>
-                            <Button type={"danger"} onClick={this.delete}>删除</Button>
-                        </div>
-                    </Collapsible>
-                    <br/>
-                    <ButtonGroup>
-                        <Button onClick={this.state.lock ? this.showLock : this.update} icon={<IconSave/>}/>
-                        <Button onClick={this.copyContent} icon={<IconCopy/>}/>
-                        <Button onClick={this.copyNew} icon={<IconCopyAdd/>}/>
-                        <Button onClick={this.copyUrl} icon={<IconLink/>}/>
-                        {!this.state.lock ? <Button onClick={this.showLock} icon={<IconLock/>}/> : ''}
-                        <Button type={"danger"} onClick={this.state.lock ? this.showDelete : this.delete}
-                                icon={<IconDelete/>}/>
-                    </ButtonGroup>
-                </div>
+    return (
+        <div className="Online">
+            <div className={"Online-header"}>
+                <Title heading={1}>#{nid}</Title>
+                <Space>
+                    <Tag size={"large"} color={"green"}>在线便签</Tag>
+                    <Tag size={"large"} color={"violet"}>len: {content.length}</Tag>
+                    <Tag size={"large"} color={"red"}>{lock ? 'locked' : 'unlock'}</Tag>
+                    <Button icon={<IconChevronLeft/>} size={"small"} onClick={() => {
+                        his.push('/');
+                    }}/>
+                </Space>
             </div>
-        );
-    }
+            <TextArea onKeyDown={quickSave} rows={30} value={content}
+                      onChange={(v) => {setContent(v)}}/>
+            <div style={{textAlign: "right", marginTop: "1rem"}}>
+                <Collapsible isOpen={lockVisible}>
+                    <div onKeyDown={e => {
+                        if (e.keyCode === 13) update()
+                    }}>
+                        <Input value={key} onChange={v => {setKey(v)}} placeholder={"密钥"}
+                               style={{maxWidth: 200, marginRight: "1rem"}}/>
+                        <Button onClick={update}>send</Button>
+                    </div>
+                </Collapsible>
+                <Collapsible isOpen={deleteVisible}>
+                    <div onKeyDown={e => {
+                        if (e.keyCode === 13) del()
+                    }}>
+                        <Input value={key} onChange={v => setKey(v)} placeholder={"密钥"}
+                               style={{maxWidth: 200, marginRight: "1rem"}}/>
+                        <Button type={"danger"} onClick={del}>删除</Button>
+                    </div>
+                </Collapsible>
+                <br/>
+                <ButtonGroup>
+                    <Button onClick={lock ? showLock : update} icon={<IconSave/>}/>
+                    <Button onClick={()=>{copyContent(content)}} icon={<IconCopy/>}/>
+                    <Button onClick={copyNew} icon={<IconCopyAdd/>}/>
+                    <Button onClick={()=>{copyContent(window.location.href)}} icon={<IconLink/>}/>
+                    {!lock ? <Button onClick={showLock} icon={<IconLock/>}/> : ''}
+                    <Button type={"danger"} onClick={lock ? showDelete : del}
+                            icon={<IconDelete/>}/>
+                </ButtonGroup>
+            </div>
+        </div>
+    )
 }
 
-export default withRouter(Online);
+export default Online
