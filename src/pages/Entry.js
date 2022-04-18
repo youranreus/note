@@ -49,6 +49,7 @@ function Entry() {
         setOnlineArr(localStorage.getItem('onlineArr').split(",").filter((item) => item !== ''))
         setLocalHis(localStorage.getItem('localArr').split(",").filter((item) => item !== '').reverse())
         setOnlineHis(localStorage.getItem('onlineArr').split(",").filter((item) => item !== '').reverse())
+        // console.log('made with ❤️ by youranreus')
     }, [])
 
     const switchMode = (e) => {
