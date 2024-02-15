@@ -8,7 +8,19 @@ export default defineNuxtConfig({
   css: [
     'assets/global.css',
   ],
-  modules: ['@nuxtjs/tailwindcss'],
+  modules: [
+    '@nuxtjs/tailwindcss',
+    [
+      "@pinia/nuxt",
+      {
+        autoImports: [
+          // 自动引入 `defineStore(), storeToRefs()`
+          "defineStore",
+          "storeToRefs"
+        ],
+      },
+    ]
+  ],
   build: {
     transpile:
       process.env.NODE_ENV === 'production'
@@ -39,5 +51,14 @@ export default defineNuxtConfig({
         resolvers: [NaiveUiResolver()]
       })
     ]
+  },
+  app: {
+    head: {
+      title: "Memo",
+      meta: [
+        { name: "description", content: "季悠然の便签" },
+        { name: "keywords", content: "nuxt,vue,ts,note" },
+      ]
+    },
   }
 })
