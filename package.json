@@ -13,5 +13,13 @@
     "nuxt": "^3.10.1",
     "vue": "^3.4.15",
     "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@css-render/vue3-ssr": "^0.15.12",
+    "@nuxtjs/tailwindcss": "^6.11.4",
+    "naive-ui": "^2.37.3",
+    "unplugin-auto-import": "^0.17.5",
+    "unplugin-vue-components": "^0.26.0",
+    "vfonts": "^0.1.0"
   }
 }
