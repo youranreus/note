@@ -1,0 +1,33 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Note {
+  id                Int           @id @default(autoincrement())
+  key               String
+  content           String        @db.Text
+  sid               String        @unique
+  CategoriesOnPosts NoteOnUsers[]
+}
+
+model User {
+  id                Int           @id @default(autoincrement())
+  ssoId             Int           @unique
+  CategoriesOnPosts NoteOnUsers[]
+}
+
+model NoteOnUsers {
+  note       Note     @relation(fields: [noteId], references: [id])
+  noteId     Int
+  user       User     @relation(fields: [userId], references: [ssoId])
+  userId     Int
+  assignedAt DateTime @default(now())
+  assignedBy String
+
+  @@id([noteId, userId])
+}
