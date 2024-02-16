@@ -4,6 +4,11 @@ import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  runtimeConfig: {
+    public: {
+      configHost: '',
+    }
+  },
   devtools: { enabled: true },
   ssr: false,
   css: [

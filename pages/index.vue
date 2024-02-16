@@ -6,7 +6,7 @@
       >
         <n-space vertical>
           <n-p>
-            {{ infoText }}
+            {{ infoTextRes.data.value?.data || '加载中' }}
           </n-p>
         </n-space>
         
@@ -55,14 +55,13 @@
 </template>
 <script setup lang="ts">
 import { LogoGithub, LinkOutline, GlobeOutline, SaveOutline } from '@vicons/ionicons5'
-const infoText = '这是一个烂大街的pastebin项目，但是被季悠然又拿起来炒了一遍。你可以创建在线的便签，或是本地便签，点击下面的按钮开始使用吧😄';
+const infoTextRes = await useConfig<Record<'data', string>>('memo-info-text')
 
-const jumpLinkMap = {
-  home: 'https://mitsuha.space',
-  github: 'https://github.com/youranreus/note'
-} as const;
+const jumpLinkRes = await useConfig<Record<string, string>>('memo-jumplink')
 
 const jumpLink = (btn: 'home' | 'github') => {
-  window.location.href = jumpLinkMap[btn];
+  if (jumpLinkRes.data.value?.[btn]) {
+    window.location.href = jumpLinkRes.data.value?.[btn];
+  }
 }
 </script>
