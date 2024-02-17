@@ -1,10 +1,12 @@
 <template>
   <n-config-provider :theme="theme">
-    <n-el tag="div" style="background: var(--body-color); transition: .3s var(--cubic-bezier-ease-in-out);">
-      <NuxtLayout>
-        <NuxtPage />
-      </NuxtLayout>
-    </n-el>
+    <n-message-provider>
+      <n-el tag="div" style="background: var(--body-color); transition: .3s var(--cubic-bezier-ease-in-out);">
+        <NuxtLayout>
+          <NuxtPage />
+        </NuxtLayout>
+      </n-el>
+    </n-message-provider>
   </n-config-provider>
 </template>
 <script setup lang="ts">

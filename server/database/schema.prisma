@@ -9,9 +9,9 @@ generator client {
 
 model Note {
   id                Int           @id @default(autoincrement())
-  key               String
   content           String        @db.Text
-  sid               String        @unique
+  key               String?       @db.Text
+  sid               String        @db.Text
   CategoriesOnPosts NoteOnUsers[]
 }
 
