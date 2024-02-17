@@ -12,7 +12,6 @@ export function useQuery<T = unknown>(
   opts?: FetchOptions,
 ) {
   const token = useCookie('token')
-  const message = useMessage()
 
   const defaultOpts = {
     method,
@@ -21,30 +20,30 @@ export function useQuery<T = unknown>(
     onRequestError() {
       console.error('请求出错，请重试！')
     },
-    onResponseError({ response }) {
-      console.log(response)
+    // onResponseError({ response }) {
+    //   console.log(response)
 
-      switch (response.status) {
-        case 400:
-          message.error('参数错误')
-          break
-        case 401:
-          message.error('没有访问权限')
-          break
-        case 403:
-          message.error('服务器拒绝访问')
-          break
-        case 404:
-          message.error('请求地址错误')
-          break
-        case 500:
-          message.error('服务器故障')
-          break
-        default:
-          message.error('网络连接故障')
-          break
-      }
-    },
+    //   switch (response.status) {
+    //     case 400:
+    //       message.error('参数错误')
+    //       break
+    //     case 401:
+    //       message.error('没有访问权限')
+    //       break
+    //     case 403:
+    //       message.error('服务器拒绝访问')
+    //       break
+    //     case 404:
+    //       message.error('请求地址错误')
+    //       break
+    //     case 500:
+    //       message.error('服务器故障')
+    //       break
+    //     default:
+    //       message.error('网络连接故障')
+    //       break
+    //   }
+    // },
   } as FetchOptions
 
   return $fetch<T>(url, merge(defaultOpts, opts))

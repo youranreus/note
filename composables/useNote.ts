@@ -1,4 +1,5 @@
 import type { Note } from "@prisma/client";
+import { useMessage } from "naive-ui";
 
 export const useMemo = (sid?: string) => {
   const memo = ref<Note>({
@@ -9,6 +10,8 @@ export const useMemo = (sid?: string) => {
   })
 
   const loading = ref(false)
+  const router = useRouter()
+  const msg = useMessage()
 
   const setContent = (value: string) => {
     memo.value.content = value;
@@ -34,14 +37,27 @@ export const useMemo = (sid?: string) => {
     }
   })
 
+  const save = async () => {
+    msg.success('保存成功')
+  }
+
+  const del = async () => {
+    console.log('删除')
+    msg.success('删除成功')
+    router.push('/')
+  }
+
   if (sid) {
     loading.value = true;
     useGet<Note>('/api/getNote', { query: { sid } }).then((res) => {
       memo.value = res;
+    }).catch((e) => {
+      memo.value.sid = sid;
+      memo.value.content = '';
     }).finally(() => {
       loading.value = false;
     })
   }
 
-  return { memo, loading, setContent, setKey, bindInput, bindKeyInput }
+  return { memo, loading, setContent, setKey, bindInput, bindKeyInput, save, del }
 }
