@@ -14,14 +14,25 @@
 
       <template #action>
         <n-space justify="end">
+          <n-input v-if="memo.locked" v-bind="bindKeyInput" placeholder="秘钥">
+            <template #prefix>
+              <n-icon :component="Key"/>
+            </template>
+          </n-input>
           <n-button-group>
-            <n-button type="default" @click="save">
+            <n-button type="default" secondary v-bind="bindToolbar" @click="setLocked()">
+              <template #icon>
+                <n-icon :component="LockClosedOutline"/>
+              </template>
+              加密
+            </n-button>
+            <n-button type="default" secondary v-bind="bindToolbar" @click="save">
               <template #icon>
                 <n-icon :component="SaveOutline"/>
               </template>
               保存
             </n-button>
-            <n-button type="default" @click="del">
+            <n-button type="error" secondary  @click="del">
               <template #icon>
                 <n-icon :component="TrashOutline"/>
               </template>
@@ -34,13 +45,13 @@
   </div>
 </template>
 <script setup lang="ts">
-import { TrashOutline, SaveOutline } from '@vicons/ionicons5'
+import { TrashOutline, SaveOutline, Key, LockClosedOutline } from '@vicons/ionicons5'
 
 definePageMeta({
   name: 'OnlineNote'
 })
 const route = useRoute();
 const sid = computed(() => route.params.id as string);
-const { bindInput, save, del } = useMemo(sid.value);
+const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked } = useMemo(sid.value);
 
 </script>

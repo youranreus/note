@@ -10,10 +10,7 @@ export default defineEventHandler(async (e) => {
     const note = await queryNote(`${sid}`)
 
     if (!note) {
-      return sendError(e, createError({
-        statusCode: 401,
-        statusMessage: 'note not exist!',
-      }))
+      return { msg: 'ok' }
     }
 
     if (note.key && note.key !== key)

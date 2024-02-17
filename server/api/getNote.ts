@@ -20,6 +20,7 @@ export default defineEventHandler(async (e) => {
       content: note.content,
       sid: note.sid,
       id: note.id,
+      locked: !!note.key
     }
   } catch (error) {
     console.error(error)

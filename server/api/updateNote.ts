@@ -17,12 +17,13 @@ export default defineEventHandler(async (e) => {
     if (note.key && note.key !== data.key)
       return sendError(e, createError('key error!'))
 
-    await updateNote(note.id, data.content, data.key)
+    note = await updateNote(note.id, data.content, data.key)
 
     return {
       content: note.content,
       sid: note.sid,
       id: note.id,
+      locked: !!note.key,
     }
   } catch (error) {
     console.error(error)

@@ -1,12 +1,21 @@
 import type { Note } from "@prisma/client";
 import { useMessage } from "naive-ui";
 
+export interface MemoRes extends Omit<Note, 'key'> {
+  locked: boolean;
+}
+
+export interface MemoData extends Note {
+  locked: boolean;
+}
+
 export const useMemo = (sid?: string) => {
-  const memo = ref<Note>({
+  const memo = ref<MemoData>({
     sid: '',
     content: '加载中',
     key: '',
     id: 0,
+    locked: false,
   })
 
   const loading = ref(false)
@@ -37,9 +46,13 @@ export const useMemo = (sid?: string) => {
     }
   })
 
+  const bindToolbar = computed(() => ({
+    disabled: loading.value || !memo.value.content,
+  }))
+
   const save = async () => {
     loading.value = true;
-    usePost<Omit<Note, 'key'>>('/api/updateNote', {
+    usePost<MemoRes>('/api/updateNote', {
       content: memo.value.content,
       key: memo.value.key,
     }, { query: { sid } }).then((res) => {
@@ -53,9 +66,19 @@ export const useMemo = (sid?: string) => {
   }
 
   const del = async () => {
-    console.log('删除')
-    msg.success('删除成功')
-    router.push('/')
+    loading.value = true;
+    useGet<MemoRes>('/api/delNote', { query: { sid, key: memo.value.key } }).then((res) => {
+      msg.success('删除成功')
+      loading.value = false;
+      router.push('/')
+    }).catch((e) => {
+      msg.error('删除失败')
+      loading.value = false;
+    })
+  }
+
+  const setLocked = (value = true) => {
+    memo.value.locked = value;
   }
 
   if (sid) {
@@ -70,5 +93,5 @@ export const useMemo = (sid?: string) => {
     })
   }
 
-  return { memo, loading, setContent, setKey, bindInput, bindKeyInput, save, del }
+  return { memo, loading, setContent, setKey, setLocked, bindInput, bindKeyInput, bindToolbar, save, del }
 }
