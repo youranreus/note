@@ -20,7 +20,7 @@
             </template>
           </n-input>
           <n-button-group>
-            <n-button type="default" secondary v-bind="bindToolbar" @click="setLocked()">
+            <n-button v-if="!memo.locked" type="default" secondary v-bind="bindToolbar" @click="setLocked()">
               <template #icon>
                 <n-icon :component="LockClosedOutline"/>
               </template>
