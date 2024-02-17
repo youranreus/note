@@ -38,7 +38,18 @@ export const useMemo = (sid?: string) => {
   })
 
   const save = async () => {
-    msg.success('保存成功')
+    loading.value = true;
+    usePost<Omit<Note, 'key'>>('/api/updateNote', {
+      content: memo.value.content,
+      key: memo.value.key,
+    }, { query: { sid } }).then((res) => {
+      Object.assign(memo.value, res)
+      msg.success('保存成功')
+    }).catch((e) => {
+      msg.error('保存失败')
+    }).finally(() => {
+      loading.value = false;
+    })
   }
 
   const del = async () => {
@@ -49,8 +60,8 @@ export const useMemo = (sid?: string) => {
 
   if (sid) {
     loading.value = true;
-    useGet<Note>('/api/getNote', { query: { sid } }).then((res) => {
-      memo.value = res;
+    useGet<Omit<Note, 'key'>>('/api/getNote', { query: { sid } }).then((res) => {
+      Object.assign(memo.value, res)
     }).catch((e) => {
       memo.value.sid = sid;
       memo.value.content = '';
