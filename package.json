@@ -9,7 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "init:db": "pnpx prisma migrate dev --name init --schema server/database/schema.prisma",
-    "start": "pnpm run build && pnpm run preview"
+    "start": "pnpx prisma generate --schema server/database/schema.prisma && pnpm run build && pnpm run preview"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
