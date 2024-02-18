@@ -64,7 +64,8 @@ export default defineNuxtConfig({
       meta: [
         { name: "description", content: "季悠然の便签" },
         { name: "keywords", content: "nuxt,vue,ts,note" },
-      ]
+      ],
+      link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }]
     },
   }
 })
