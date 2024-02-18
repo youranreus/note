@@ -20,7 +20,7 @@
             </template>
           </n-input>
           <n-button-group>
-            <n-button v-if="!memo.locked" type="default" secondary v-bind="bindToolbar" @click="setLocked()">
+            <n-button v-if="!memo.locked && type === NoteType.ONLINE" type="default" secondary v-bind="bindToolbar" @click="setLocked()">
               <template #icon>
                 <n-icon :component="LockClosedOutline"/>
               </template>
@@ -46,12 +46,13 @@
 </template>
 <script setup lang="ts">
 import { TrashOutline, SaveOutline, Key, LockClosedOutline } from '@vicons/ionicons5'
+import { NoteType } from '~/types'
 
 definePageMeta({
-  name: 'OnlineNote'
+  name: 'NoteDetail',
 })
-const route = useRoute();
-const sid = computed(() => route.params.id as string);
-const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked } = useMemo(sid.value);
-
+const route = useRoute()
+const type = computed(() => route.params.type as NoteType)
+const sid = computed(() => route.params.id as string)
+const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked } = useMemo(sid.value, type.value);
 </script>

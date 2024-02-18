@@ -35,7 +35,7 @@
               <n-icon :component="Search"/>
             </template>
           </n-input>
-          <n-button secondary type="primary" @click="handleClickBtn('online')">
+          <n-button secondary type="primary" @click="handleClickBtn('o')">
             <template #icon>
               <n-icon>
                 <globe-outline />
@@ -43,7 +43,7 @@
             </template>
             在线便签
           </n-button>
-          <n-button secondary type="info" @click="handleClickBtn('local')">
+          <n-button secondary type="info" @click="handleClickBtn('l')">
             <template #icon>
               <n-icon>
                 <save-outline />
@@ -80,9 +80,8 @@ const randomString = (s: number) => {
   return n;
 }
 
-const handleClickBtn = (type: 'online' | 'local') => {
+const handleClickBtn = (type: 'o' | 'l') => {
   const target = sid.value || randomString(10)
-
-  router.push({ name: 'OnlineNote', params: { id: target } });
+  router.push({ name: 'NoteDetail', params: { id: target, type } });
 }
 </script>
