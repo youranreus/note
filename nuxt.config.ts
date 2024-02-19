@@ -9,7 +9,7 @@ export default defineNuxtConfig({
       configHost: '',
     }
   },
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   ssr: false,
   css: [
     'assets/global.css',
@@ -25,7 +25,8 @@ export default defineNuxtConfig({
           "storeToRefs"
         ],
       },
-    ]
+    ],
+    '@pinia-plugin-persistedstate/nuxt',
   ],
   build: {
     transpile:
