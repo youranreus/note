@@ -8,17 +8,20 @@ generator client {
 }
 
 model Note {
-  id                Int           @id @default(autoincrement())
-  content           String        @db.Text
-  key               String?       @db.Text
-  sid               String        @db.Text
-  CategoriesOnPosts NoteOnUsers[]
+  id       Int           @id @default(autoincrement())
+  content  String        @db.Text
+  key      String?       @db.Text
+  sid      String        @db.Text
+  favourBy NoteOnUsers[]
+  author   User?         @relation(fields: [authorId], references: [ssoId])
+  authorId Int?
 }
 
 model User {
-  id                Int           @id @default(autoincrement())
-  ssoId             Int           @unique
-  CategoriesOnPosts NoteOnUsers[]
+  id      Int           @id @default(autoincrement())
+  ssoId   Int           @unique
+  favours NoteOnUsers[]
+  notes   Note[]
 }
 
 model NoteOnUsers {
