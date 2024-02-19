@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <n-space vertical>
     <div class="user-panel-header">
       <n-space justify="space-between" align="center">
         <n-thing>
@@ -27,7 +27,16 @@
         </n-button>
       </n-space>
     </div>
-  </div>
+
+    <n-tabs type="bar">
+      <n-tab-pane name="favour" tab="收藏">
+        Wonderwall
+      </n-tab-pane>
+      <n-tab-pane name="created" tab="创建的">
+        Hey Jude
+      </n-tab-pane>
+    </n-tabs>
+  </n-space>
 </template>
 <script setup lang="ts">
 import { IdCard, Exit } from '@vicons/ionicons5'
