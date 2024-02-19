@@ -1,0 +1,38 @@
+<template>
+  <div>
+    <div class="user-panel-header">
+      <n-space justify="space-between" align="center">
+        <n-thing>
+          <template #avatar>
+            <n-avatar round :size="48">
+              <n-icon class="tw-m-2" :component="IdCard" />
+            </n-avatar>
+          </template>
+          <template #header>
+            User #{{ userData.id }}
+          </template>
+          <template #description>
+            <n-space>
+              <n-tag :bordered="false" type="info" size="tiny">{{ userData.role === UserRole.ADMIN ? '管理员' : '用户' }}</n-tag>
+              <n-tag :bordered="false" size="tiny">{{ userData.email }}</n-tag>
+            </n-space>
+          </template>
+        </n-thing>
+        
+        <n-button secondary type="error" @click="clear">
+          <template #icon>
+            <n-icon :component="Exit" />
+          </template>
+          登出
+        </n-button>
+      </n-space>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import { IdCard, Exit } from '@vicons/ionicons5'
+import { UserRole } from '@reus-able/types'
+
+const { userData, clear } = useUser()
+
+</script>

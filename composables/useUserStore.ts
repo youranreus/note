@@ -33,10 +33,8 @@ export const useUserStore = defineStore('user', () => {
     loading.value = true
     const data = await useGet<UserJwtPayload>('/api/login', { query: { ticket } })
     update(data)
-    setTimeout(() => {
-      msg.success('登录成功')
-      loading.value = false
-    }, 500)
+    msg.success('登录成功')
+    loading.value = false
   }
 
   return { loading, userData, isLogged, panelActive, update, clear, login, togglePanel };

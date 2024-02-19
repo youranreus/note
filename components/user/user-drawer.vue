@@ -16,6 +16,7 @@
       <div class="tw-w-full tw-h-full tw-flex tw-justify-center">
         <n-el ref="panelRef" tag="div" class="tw-w-[768px] tw-rounded-t-xl tw-p-4 tw-shadow-xl" style="background: var(--modal-color); transition: .3s var(--cubic-bezier-ease-in-out);">
           <user-login-hint v-if="!isLogged || loading" />
+          <user-panel v-else />
         </n-el>
       </div>
     </n-drawer>
