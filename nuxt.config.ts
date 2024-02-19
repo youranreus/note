@@ -7,7 +7,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       configHost: '',
-    }
+      ssoHost: '',
+      ssoKey: '',
+    },
+    ssoApi: '',
   },
   devtools: { enabled: false },
   ssr: false,
