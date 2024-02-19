@@ -16,6 +16,7 @@
     "@prisma/client": "^5.9.1",
     "localforage": "^1.10.0",
     "nuxt": "^3.10.1",
+    "prisma-extension-pagination": "^0.6.0",
     "vue": "^3.4.15",
     "vue-router": "^4.2.5"
   },

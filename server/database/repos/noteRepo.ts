@@ -27,3 +27,15 @@ export async function createNote(sid: string, author?: number) {
 export async function deleteNote(sid: string) {
   return await prisma.note.deleteMany({ where: { sid } })
 }
+
+export async function getUserNote(ssoId: number, page = 1, limit = 100) {
+  return await prisma.note.paginate({
+    where: {
+      authorId: ssoId,
+    },
+  }).withPages({
+    page,
+    limit,
+    includePageCount: true,
+  })
+}
