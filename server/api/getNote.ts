@@ -1,4 +1,5 @@
 import { queryNote } from "../database/repos/noteRepo"
+import { NOTE_NOT_FOUND } from '~/constants'
 
 export default defineEventHandler(async (e) => {
   const { sid } = getQuery(e)
@@ -12,7 +13,7 @@ export default defineEventHandler(async (e) => {
     if (!note) {
       return sendError(e, createError({
         statusCode: 401,
-        statusMessage: 'note not exist!',
+        statusMessage: NOTE_NOT_FOUND,
       }))
     }
 

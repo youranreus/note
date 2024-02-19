@@ -1,5 +1,6 @@
 import { merge } from 'lodash'
 import { useMessage } from 'naive-ui'
+import { NOTE_NOT_FOUND } from '~/constants'
 
 type FetchType = typeof $fetch
 type ReqType = Parameters<FetchType>[0]
@@ -11,39 +12,22 @@ export function useQuery<T = unknown>(
   body?: any,
   opts?: FetchOptions,
 ) {
-  const token = useCookie('token')
+  const { token } = useUser()
+  const message = useMessage()
 
   const defaultOpts = {
     method,
-    headers: { token: token.value } as any,
+    headers: { authorization: token.value ? `Bearer ${token.value}` : undefined },
     body,
     onRequestError() {
-      console.error('请求出错，请重试！')
+      message.error('请求出错，请重试！')
     },
-    // onResponseError({ response }) {
-    //   console.log(response)
-
-    //   switch (response.status) {
-    //     case 400:
-    //       message.error('参数错误')
-    //       break
-    //     case 401:
-    //       message.error('没有访问权限')
-    //       break
-    //     case 403:
-    //       message.error('服务器拒绝访问')
-    //       break
-    //     case 404:
-    //       message.error('请求地址错误')
-    //       break
-    //     case 500:
-    //       message.error('服务器故障')
-    //       break
-    //     default:
-    //       message.error('网络连接故障')
-    //       break
-    //   }
-    // },
+    onResponseError({ response }) {
+      if (response.statusText === NOTE_NOT_FOUND) {
+        return;
+      }
+      message.error('响应出错，请重试！')
+    },
   } as FetchOptions
 
   return $fetch<T>(url, merge(defaultOpts, opts))

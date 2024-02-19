@@ -20,8 +20,8 @@ export async function updateNote(id: number, content: string, key?: string) {
   })
 }
 
-export async function createNote(sid: string) {
-  return await prisma.note.create({ data: {sid, content: ''} })
+export async function createNote(sid: string, author?: number) {
+  return await prisma.note.create({ data: {sid, content: '', authorId: author} })
 }
 
 export async function deleteNote(sid: string) {

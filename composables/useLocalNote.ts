@@ -10,6 +10,7 @@ export const useLocalNote = (sid?: string) => {
     id: 0,
     locked: false,
     editing: false,
+    authorId: null,
   })
 
   const loading = ref(false)

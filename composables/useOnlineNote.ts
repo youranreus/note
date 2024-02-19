@@ -9,6 +9,7 @@ export const useOnlineNote = (sid?: string) => {
     id: 0,
     locked: false,
     editing: false,
+    authorId: null,
   })
 
   const loading = ref(false)

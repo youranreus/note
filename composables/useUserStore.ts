@@ -10,6 +10,7 @@ const INIT_USER_DATA = {
 
 export const useUserStore = defineStore('user', () => {
   const userData = ref<UserJwtPayload>({ ...INIT_USER_DATA });
+  const token = ref('')
   const loading = ref(false);
   const panelActive = ref(false);
   const msg = useMessage();
@@ -20,6 +21,7 @@ export const useUserStore = defineStore('user', () => {
 
   const clear = () => {
     userData.value = { ...INIT_USER_DATA };
+    token.value = ''
   }
 
   const isLogged = computed(() => !!userData.value.id)
@@ -32,12 +34,13 @@ export const useUserStore = defineStore('user', () => {
     togglePanel()
     loading.value = true
     const data = await useGet<UserJwtPayload>('/api/login', { query: { ticket } })
+    token.value = ticket
     update(data)
     msg.success('登录成功')
     loading.value = false
   }
 
-  return { loading, userData, isLogged, panelActive, update, clear, login, togglePanel };
+  return { token, loading, userData, isLogged, panelActive, update, clear, login, togglePanel };
 }, {
   persist: process.client && {
     storage: persistedState.localStorage,

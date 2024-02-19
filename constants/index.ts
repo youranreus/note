@@ -1,0 +1,1 @@
+export const NOTE_NOT_FOUND = 'note not exist!'
