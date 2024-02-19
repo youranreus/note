@@ -8,6 +8,7 @@ export const useOnlineNote = (sid?: string) => {
     key: '',
     id: 0,
     locked: false,
+    editing: false,
   })
 
   const loading = ref(false)
@@ -26,7 +27,10 @@ export const useOnlineNote = (sid?: string) => {
     return {
       value: memo.value.content,
       disabled: loading.value,
-      'on-update:value': setContent,
+      'on-update:value': (val: string) => {
+        setContent(val)
+        memo.value.editing = true
+      },
     }
   })
 
@@ -49,6 +53,7 @@ export const useOnlineNote = (sid?: string) => {
       key: memo.value.key,
     }, { query: { sid } }).then((res) => {
       Object.assign(memo.value, res)
+      memo.value.editing = false
       msg.success('保存成功')
     }).catch((e) => {
       msg.error('保存失败')

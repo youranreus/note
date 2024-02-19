@@ -9,6 +9,7 @@ export const useLocalNote = (sid?: string) => {
     key: '',
     id: 0,
     locked: false,
+    editing: false,
   })
 
   const loading = ref(false)
@@ -27,7 +28,10 @@ export const useLocalNote = (sid?: string) => {
     return {
       value: memo.value.content,
       disabled: loading.value,
-      'on-update:value': setContent,
+      'on-update:value': (val: string) => {
+        setContent(val)
+        memo.value.editing = true
+      },
     }
   })
 
@@ -45,7 +49,8 @@ export const useLocalNote = (sid?: string) => {
 
   const save = async () => {
     loading.value = true;
-    localforage.setItem(`memo-${sid}`, {...memo.value}).then(() => {
+    localforage.setItem(`memo-${sid}`, {...memo.value, editing: false}).then(() => {
+      memo.value.editing = false
       msg.success('保存成功')
     }).finally(() => {
       loading.value = false;

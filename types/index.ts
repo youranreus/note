@@ -11,4 +11,5 @@ export interface MemoRes extends Omit<Note, 'key'> {
 
 export interface MemoData extends Note {
   locked: boolean;
+  editing: boolean;
 }

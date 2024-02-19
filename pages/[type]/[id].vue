@@ -1,6 +1,14 @@
 <template>
   <div class="tw-w-[768px]">
-    <n-h2>便签 #{{ sid }}</n-h2>
+    <n-h2 class="tw-mb-2">
+      #{{ sid }}
+      <n-button quaternary size="tiny" @click="returnHome">
+        <template #icon>
+          <n-icon :component="ReturnDownBackOutline"/>
+        </template>
+      </n-button>
+    </n-h2>
+    <detail-bar class="tw-mb-3" :memo="memo" :type="type"/>
     <n-card :bordered="false" embedded size="small">
       <n-input
         v-bind="bindInput"
@@ -45,14 +53,19 @@
   </div>
 </template>
 <script setup lang="ts">
-import { TrashOutline, SaveOutline, Key, LockClosedOutline } from '@vicons/ionicons5'
+import { TrashOutline, SaveOutline, Key, LockClosedOutline, ReturnDownBackOutline } from '@vicons/ionicons5'
 import { NoteType } from '~/types'
 
 definePageMeta({
   name: 'NoteDetail',
 })
 const route = useRoute()
+const router = useRouter()
 const type = computed(() => route.params.type as NoteType)
 const sid = computed(() => route.params.id as string)
-const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked } = useMemo(sid.value, type.value);
+const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked } = useMemo(sid.value, type.value)
+
+const returnHome = () => {
+  router.push('/')
+}
 </script>

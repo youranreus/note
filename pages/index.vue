@@ -38,7 +38,7 @@
           <n-button secondary type="primary" @click="handleClickBtn('o')">
             <template #icon>
               <n-icon>
-                <globe-outline />
+                <online-icon />
               </n-icon>
             </template>
             在线便签
@@ -46,7 +46,7 @@
           <n-button secondary type="info" @click="handleClickBtn('l')">
             <template #icon>
               <n-icon>
-                <save-outline />
+                <local-icon />
               </n-icon>
             </template>
             本地便签
@@ -57,7 +57,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { LogoGithub, LinkOutline, GlobeOutline, SaveOutline, Search } from '@vicons/ionicons5'
+import { LogoGithub, LinkOutline, CloudOfflineOutline as LocalIcon, CloudOutline as OnlineIcon, Search } from '@vicons/ionicons5'
 
 const router = useRouter()
 const sid = ref('')
