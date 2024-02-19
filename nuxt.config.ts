@@ -27,6 +27,7 @@ export default defineNuxtConfig({
       },
     ],
     '@pinia-plugin-persistedstate/nuxt',
+    '@vueuse/nuxt',
   ],
   build: {
     transpile:
