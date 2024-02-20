@@ -33,7 +33,7 @@
         <note-list :loading="userNoteLoading" :notes="userNote" v-model:pagination="userNotePagi" :height="626" />
       </n-tab-pane>
       <n-tab-pane name="favour" tab="收藏">
-        Wonderwall
+        <note-list :loading="favourLoading" :notes="favourNote" v-model:pagination="favourPagination" :height="626" />
       </n-tab-pane>
     </n-tabs>
   </n-space>
@@ -44,8 +44,10 @@ import { UserRole } from '@reus-able/types'
 
 const { userData, clear } = useUser()
 const { loading: userNoteLoading, pagination: userNotePagi, data: userNote, load: loadUserNote } = useUserNote()
+const { loading: favourLoading, pagination: favourPagination, data: favourNote, load: loadFavourNote } = useUserNote()
 
 onMounted(async () => {
   await loadUserNote()
+  await loadFavourNote()
 })
 </script>
