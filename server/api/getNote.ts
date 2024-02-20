@@ -12,14 +12,13 @@ export default defineEventHandler(async (e) => {
 
     if (!note) {
       return sendError(e, createError({
-        statusCode: 401,
+        statusCode: 404,
         statusMessage: NOTE_NOT_FOUND,
       }))
     }
 
     return transformNote(note)
   } catch (error) {
-    console.error(error)
-    return sendError(e, createError('Failed to retrieve data!'))
+    return handleError(error, e)
   }
 })

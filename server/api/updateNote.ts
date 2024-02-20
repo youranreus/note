@@ -33,7 +33,6 @@ export default defineEventHandler(async (e) => {
 
     return transformNote(note)
   } catch (error) {
-    console.error(error)
-    return sendError(e, createError('Failed to retrieve data!'))
+    return handleError(error, e)
   }
 })

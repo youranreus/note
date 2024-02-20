@@ -1,4 +1,4 @@
-import { UserJwtPayload } from "@reus-able/types";
+import { UserJwtPayload } from "@reus-able/types"
 import { getUserNote } from "../database/repos/noteRepo"
 
 export default defineEventHandler(async (e) => {
@@ -22,8 +22,7 @@ export default defineEventHandler(async (e) => {
       total: meta.totalCount,
       data: data.map(transformNote),
     }
-  } catch (error) {
-    console.error(error)
-    return sendError(e, createError('Failed to retrieve data!'))
+  } catch (error: any) {
+    return handleError(error, e)
   }
 })
