@@ -44,7 +44,7 @@ import { UserRole } from '@reus-able/types'
 
 const { userData, clear } = useUser()
 const { loading: userNoteLoading, pagination: userNotePagi, data: userNote, load: loadUserNote } = useUserNote()
-const { loading: favourLoading, pagination: favourPagination, data: favourNote, load: loadFavourNote } = useUserNote()
+const { loading: favourLoading, pagination: favourPagination, data: favourNote, load: loadFavourNote } = useFavourNote()
 
 onMounted(async () => {
   await loadUserNote()
