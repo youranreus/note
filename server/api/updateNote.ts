@@ -31,12 +31,7 @@ export default defineEventHandler(async (e) => {
 
     note = await updateNote(note.id, data.content, data.key)
 
-    return {
-      content: note.content,
-      sid: note.sid,
-      id: note.id,
-      locked: !!note.key,
-    }
+    return transformNote(note)
   } catch (error) {
     console.error(error)
     return sendError(e, createError('Failed to retrieve data!'))

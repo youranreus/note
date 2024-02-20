@@ -11,7 +11,7 @@
       :mask-closable="false"
       placement="bottom"
       class="tw-bg-transparent tw-shadow-none"
-      :default-height="500"
+      :height="isLogged ? 768 : 500"
     >
       <div class="tw-w-full tw-h-full tw-flex tw-justify-center">
         <n-el ref="panelRef" tag="div" class="tw-w-[768px] tw-rounded-t-xl tw-p-4 tw-shadow-xl" style="background: var(--modal-color); transition: .3s var(--cubic-bezier-ease-in-out);">

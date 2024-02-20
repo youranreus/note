@@ -17,12 +17,7 @@ export default defineEventHandler(async (e) => {
       }))
     }
 
-    return {
-      content: note.content,
-      sid: note.sid,
-      id: note.id,
-      locked: !!note.key
-    }
+    return transformNote(note)
   } catch (error) {
     console.error(error)
     return sendError(e, createError('Failed to retrieve data!'))

@@ -20,7 +20,7 @@ export default defineEventHandler(async (e) => {
 
     return {
       total: meta.totalCount,
-      data,
+      data: data.map(transformNote),
     }
   } catch (error) {
     console.error(error)
