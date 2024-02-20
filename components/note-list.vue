@@ -1,6 +1,6 @@
 <template>
-  <n-space vertical>
-    <n-scrollbar :style="scrollStyle" trigger="none">
+  <n-space :style="{ height: `${height}px` }" vertical>
+    <n-scrollbar :style="{ height: `${height - 36}px` }" trigger="none">
       <n-list hoverable clickable>
         <n-list-item v-for="note in notes" :key="note.id" @click="navigateNote(note.sid)">
           <n-thing :title="note.sid" content-style="margin-top: 10px;">
@@ -30,6 +30,7 @@ const props = defineProps<{
   notes: MemoData[] | MemoRes[];
   pagination: PaginationData;
   scrollStyle?: string;
+  height: number;
 }>()
 
 const emit = defineEmits<{
