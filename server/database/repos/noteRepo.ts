@@ -43,12 +43,15 @@ export async function getUserNote(ssoId: number, page = 1, limit = 100) {
 export async function getUserFavourNote(ssoId: number, page = 1, limit = 100) {
   return await prisma.note.paginate({
     include: {
+      favourBy: true
+    },
+    where: {
       favourBy: {
-        where: {
-          userId: ssoId
+        some: {
+          userId: ssoId,
         }
       }
-    },
+    }
   }).withPages({
     page,
     limit,
