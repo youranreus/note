@@ -12,12 +12,15 @@ export function useQuery<T = unknown>(
   body?: any,
   opts?: FetchOptions,
 ) {
-  const { token, clear, togglePanel } = useUser()
+  const { userData, token, clear, togglePanel } = useUser()
   const message = useMessage()
 
   const defaultOpts = {
     method,
-    headers: { authorization: token.value ? `Bearer ${token.value}` : '' },
+    headers: {
+      authorization: token.value ? `Bearer ${token.value}` : '',
+      'x-user-id': userData.value.id,
+    } as any,
     body,
     onRequestError() {
       message.error('请求出错，请重试！')

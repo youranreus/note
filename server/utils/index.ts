@@ -1,12 +1,13 @@
-import type { Note } from "@prisma/client";
+import type { Note, NoteOnUsers } from "@prisma/client";
 import { TOKEN_EXPIRED } from "~/constants";
 
-export const transformNote = (note: Note) => {
+export const transformNote = (note: Note & { favourBy: NoteOnUsers[] }, ssoId?: number) => {
   return {
     content: note.content,
     sid: note.sid,
     id: note.id,
     locked: !!note.key,
+    favoured: note.favourBy.some((row) => row.userId === Number(ssoId))
   }
 }
 

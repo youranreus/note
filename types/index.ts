@@ -7,6 +7,7 @@ export enum NoteType {
 
 export interface MemoRes extends Omit<Note, 'key' | 'authorId'> {
   locked: boolean;
+  favoured: boolean;
 }
 
 export interface MemoData extends Omit<Note, 'authorId'> {

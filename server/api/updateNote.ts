@@ -4,6 +4,7 @@ import { createNote, queryNote, updateNote } from "../database/repos/noteRepo"
 export default defineEventHandler(async (e) => {
   const { sid } = getQuery(e)
   const token = getHeader(e, 'authorization')
+  const ssoId = getHeader(e, 'x-user-id')
   const data = await readBody(e)
   const api = useRuntimeConfig().ssoApi;
 
@@ -31,7 +32,7 @@ export default defineEventHandler(async (e) => {
 
     note = await updateNote(note.id, data.content, data.key)
 
-    return transformNote(note)
+    return transformNote(note, Number(ssoId))
   } catch (error) {
     return handleError(error, e)
   }

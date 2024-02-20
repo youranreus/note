@@ -5,6 +5,9 @@ export async function queryNote(sid: string) {
     where: {
       sid,
     },
+    include: {
+      favourBy: true,
+    }
   })
 }
 
@@ -16,12 +19,20 @@ export async function updateNote(id: number, content: string, key?: string) {
     },
     where: {
       id,
-    }
+    },
+    include: {
+      favourBy: true
+    },
   })
 }
 
 export async function createNote(sid: string, author?: number) {
-  return await prisma.note.create({ data: {sid, content: '', authorId: author} })
+  return await prisma.note.create({
+    data: {sid, content: '', authorId: author},
+    include: {
+      favourBy: true
+    },
+  })
 }
 
 export async function deleteNote(sid: string) {
@@ -32,6 +43,9 @@ export async function getUserNote(ssoId: number, page = 1, limit = 100) {
   return await prisma.note.paginate({
     where: {
       authorId: ssoId,
+    },
+    include: {
+      favourBy: true
     },
   }).withPages({
     page,

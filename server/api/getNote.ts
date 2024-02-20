@@ -3,6 +3,7 @@ import { NOTE_NOT_FOUND } from '~/constants'
 
 export default defineEventHandler(async (e) => {
   const { sid } = getQuery(e)
+  const ssoId = getHeader(e, 'x-user-id')
 
   if (!sid)
     return sendError(e, createError('sid required!'))
@@ -17,7 +18,7 @@ export default defineEventHandler(async (e) => {
       }))
     }
 
-    return transformNote(note)
+    return transformNote(note, Number(ssoId))
   } catch (error) {
     return handleError(error, e)
   }
