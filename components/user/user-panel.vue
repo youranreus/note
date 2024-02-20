@@ -30,7 +30,7 @@
 
     <n-tabs type="bar">
       <n-tab-pane name="created" tab="创建的">
-        <note-list :notes="userNote" v-model:pagination="userNotePagi" scroll-style="max-height: 590px" />
+        <note-list :notes="userNote" v-model:pagination="userNotePagi" scroll-style="height: 590px" />
       </n-tab-pane>
       <n-tab-pane name="favour" tab="收藏">
         Wonderwall
