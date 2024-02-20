@@ -30,7 +30,7 @@
 
     <n-tabs type="bar">
       <n-tab-pane name="created" tab="创建的">
-        <note-list :notes="userNote" v-model:pagination="userNotePagi" :height="626" />
+        <note-list :loading="userNoteLoading" :notes="userNote" v-model:pagination="userNotePagi" :height="626" />
       </n-tab-pane>
       <n-tab-pane name="favour" tab="收藏">
         Wonderwall
@@ -43,7 +43,7 @@ import { IdCard, Exit } from '@vicons/ionicons5'
 import { UserRole } from '@reus-able/types'
 
 const { userData, clear } = useUser()
-const { pagination: userNotePagi,data: userNote, load: loadUserNote } = useUserNote()
+const { loading: userNoteLoading, pagination: userNotePagi, data: userNote, load: loadUserNote } = useUserNote()
 
 onMounted(async () => {
   await loadUserNote()

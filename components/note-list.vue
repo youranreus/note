@@ -1,5 +1,5 @@
 <template>
-  <n-space :style="{ height: `${height}px` }" vertical>
+  <n-space v-if="!loading" :style="{ height: `${height}px` }" vertical>
     <n-scrollbar :style="{ height: `${height - 36}px` }" trigger="none">
       <n-list hoverable clickable>
         <n-list-item v-for="note in notes" :key="note.id" @click="navigateNote(note.sid)">
@@ -22,6 +22,9 @@
       <n-pagination v-model:page="computedPage" :page-size="pagination.limit" :item-count="pagination.total" :page-slot="7" />
     </n-space>
   </n-space>
+  <div v-else class="tw-flex tw-justify-center tw-items-center" :style="{ height: `${height}px` }">
+    <n-spin size="large" />
+  </div>
 </template>
 <script setup lang="ts">
 import { NoteType, type MemoData, type MemoRes, type PaginationData } from '~/types';
@@ -29,8 +32,8 @@ import { NoteType, type MemoData, type MemoRes, type PaginationData } from '~/ty
 const props = defineProps<{
   notes: MemoData[] | MemoRes[];
   pagination: PaginationData;
-  scrollStyle?: string;
   height: number;
+  loading?: boolean;
 }>()
 
 const emit = defineEmits<{
