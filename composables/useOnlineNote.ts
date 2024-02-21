@@ -13,6 +13,7 @@ export const useOnlineNote = (sid?: string) => {
   })
 
   const loading = ref(false)
+  const hasSynced = ref(false)
   const router = useRouter()
   const msg = useMessage()
 
@@ -55,6 +56,7 @@ export const useOnlineNote = (sid?: string) => {
     }, { query: { sid } }).then((res) => {
       Object.assign(memo.value, res)
       memo.value.editing = false
+      hasSynced.value = true
       msg.success('保存成功')
     }).catch((e) => {
       msg.error('保存失败')
@@ -80,13 +82,17 @@ export const useOnlineNote = (sid?: string) => {
   }
 
   const toggleFavour = (status = true) => {
+    if (!hasSynced.value) {
+      msg.warning("新创建的便签请先保存后再操作")
+      return;
+    }
+
     loading.value = true
     useGet<{ msg: string }>('/api/addFavourNote', { query: { id: memo.value.id } })
       .then(() => {
         msg.success('操作成功')
         memo.value.favoured = status
       }).catch((e) => {
-        console.log(e)
         msg.error('操作失败')
       }).finally(() => {
         loading.value = false
@@ -98,6 +104,7 @@ export const useOnlineNote = (sid?: string) => {
     useGet<MemoRes>('/api/getNote', { query: { sid } })
       .then((res) => {
         Object.assign(memo.value, res)
+        hasSynced.value = true
       }).catch((e) => {
         memo.value.sid = sid;
         memo.value.content = '';
