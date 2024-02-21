@@ -1,6 +1,6 @@
 import type { MemoRes, PaginationRes, PaginationData } from "~/types"
 
-export const useUserNote = () => {
+const useStore = defineStore('user-note-store', () => {
   const pagination = ref<PaginationData>({
     page: 1,
     limit: 10,
@@ -8,8 +8,11 @@ export const useUserNote = () => {
   })
   const data = ref<MemoRes[]>([])
   const loading = ref(false)
+  const { isLogged } = useUser()
 
   const load = async () => {
+    if (!isLogged.value) return;
+
     loading.value = true
     const res = await useGet<PaginationRes<MemoRes>>('/api/getUserNote', {
       query: {
@@ -31,4 +34,18 @@ export const useUserNote = () => {
   )
   
   return { data, pagination, loading, load }
+}, {
+  persist: process.client && {
+    storage: persistedState.localStorage,
+    key: 'user-note-store'
+  },
+})
+
+export const useUserNote = () => {
+  const store = useStore();
+
+  return {
+    ...store,
+    ...storeToRefs(store),
+  }
 }

@@ -9,6 +9,7 @@
     <n-drawer
       :show="panelActive"
       :mask-closable="false"
+      display-directive="show"
       placement="bottom"
       class="tw-bg-transparent tw-shadow-none"
       :height="isLogged ? 768 : 500"

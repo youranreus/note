@@ -16,6 +16,8 @@ export const useOnlineNote = (sid?: string) => {
   const hasSynced = ref(false)
   const router = useRouter()
   const msg = useMessage()
+  const { load: reloadUserNote, data: userNote } = useUserNote()
+  const { load: reloadFavourNote, data: userFavour } = useFavourNote()
 
   const setContent = (value: string) => {
     memo.value.content = value;
@@ -48,6 +50,16 @@ export const useOnlineNote = (sid?: string) => {
     disabled: loading.value || !memo.value.content,
   }))
 
+  const reloadUserPanel = () => {
+    if (userFavour.value.some((n) => n.sid === sid)) {
+      reloadFavourNote()
+    }
+
+    if (userNote.value.some((n) => n.sid === sid)) {
+      reloadUserNote()
+    }
+  }
+
   const save = async () => {
     loading.value = true;
     usePost<MemoRes>('/api/updateNote', {
@@ -58,6 +70,8 @@ export const useOnlineNote = (sid?: string) => {
       memo.value.editing = false
       hasSynced.value = true
       msg.success('保存成功')
+
+      reloadUserPanel()
     }).catch((e) => {
       msg.error('保存失败')
     }).finally(() => {
@@ -69,6 +83,7 @@ export const useOnlineNote = (sid?: string) => {
     loading.value = true;
     useGet<MemoRes>('/api/delNote', { query: { sid, key: memo.value.key } }).then((res) => {
       msg.success('删除成功')
+      reloadUserPanel()
       loading.value = false;
       router.push('/')
     }).catch((e) => {
@@ -92,6 +107,7 @@ export const useOnlineNote = (sid?: string) => {
       .then(() => {
         msg.success('操作成功')
         memo.value.favoured = status
+        reloadUserPanel()
       }).catch((e) => {
         msg.error('操作失败')
       }).finally(() => {
