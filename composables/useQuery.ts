@@ -26,16 +26,17 @@ export function useQuery<T = unknown>(
       message.error('请求出错，请重试！')
     },
     onResponseError({ response }) {
-      if (response.statusText === NOTE_NOT_FOUND) {
+      if (response._data.statusMessage === NOTE_NOT_FOUND) {
         return;
       }
-      if (response.statusText === TOKEN_EXPIRED && response.status === 401) {
+      if (response._data.statusMessage === TOKEN_EXPIRED && response.status === 401) {
         message.error('登录已过期，请重新登陆')
         clear()
         togglePanel()
         return;
       }
       console.log('🤔 response 是 ', response)
+      message.error('响应出错，请重试！')
     },
   } as FetchOptions
 
