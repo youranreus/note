@@ -24,6 +24,7 @@ declare module 'vue' {
     NMessageProvider: typeof import('naive-ui')['NMessageProvider']
     NP: typeof import('naive-ui')['NP']
     NPagination: typeof import('naive-ui')['NPagination']
+    NPopover: typeof import('naive-ui')['NPopover']
     NResult: typeof import('naive-ui')['NResult']
     NScrollbar: typeof import('naive-ui')['NScrollbar']
     NSpace: typeof import('naive-ui')['NSpace']

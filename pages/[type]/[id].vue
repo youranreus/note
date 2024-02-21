@@ -28,6 +28,16 @@
                 <n-icon :component="HeartOutline"/>
               </template>
             </n-button>
+            <n-popover trigger="hover" :show-arrow="false">
+              <template #trigger>
+                <n-button type="default" secondary v-bind="bindToolbar" @click="copyUrl">
+                  <template #icon>
+                    <n-icon :component="CopyOutline"/>
+                  </template>
+                </n-button>
+              </template>
+              <span>复制链接</span>
+            </n-popover>
           </n-button-group>
 
           <n-space>
@@ -63,8 +73,17 @@
   </div>
 </template>
 <script setup lang="ts">
-import { TrashOutline, SaveOutline, Key, LockClosedOutline, ReturnDownBackOutline, HeartOutline } from '@vicons/ionicons5'
+import {
+  TrashOutline,
+  SaveOutline,
+  Key,
+  LockClosedOutline,
+  ReturnDownBackOutline,
+  HeartOutline,
+  CopyOutline,
+} from '@vicons/ionicons5'
 import { NoteType } from '~/types'
+import { useClipboard } from '@vueuse/core'
 
 definePageMeta({
   name: 'NoteDetail',
@@ -74,9 +93,14 @@ const router = useRouter()
 const type = computed(() => route.params.type as NoteType)
 const sid = computed(() => route.params.id as string)
 const { isLogged } = useUser()
+const { copy } = useClipboard()
 const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked, toggleFavour } = useMemo(sid.value, type.value)
 
 const returnHome = () => {
   router.push('/')
+}
+
+const copyUrl = () => {
+  copy(window.location.href)
 }
 </script>
