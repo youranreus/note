@@ -13,7 +13,6 @@ declare module 'vue' {
     NCard: typeof import('naive-ui')['NCard']
     NConfigProvider: typeof import('naive-ui')['NConfigProvider']
     NDrawer: typeof import('naive-ui')['NDrawer']
-    NDrawerContent: typeof import('naive-ui')['NDrawerContent']
     NEl: typeof import('naive-ui')['NEl']
     NEmpty: typeof import('naive-ui')['NEmpty']
     NH2: typeof import('naive-ui')['NH2']

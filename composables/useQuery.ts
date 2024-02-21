@@ -35,7 +35,7 @@ export function useQuery<T = unknown>(
         togglePanel()
         return;
       }
-      message.error('响应出错，请重试！')
+      console.log('🤔 response 是 ', response)
     },
   } as FetchOptions
 
