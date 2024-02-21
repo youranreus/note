@@ -13,6 +13,7 @@ export interface MemoRes extends Omit<Note, 'key' | 'authorId'> {
 export interface MemoData extends Omit<Note, 'authorId'> {
   locked: boolean;
   editing: boolean;
+  favoured: boolean;
 }
 
 export interface PaginationRes<T> {

@@ -72,3 +72,15 @@ export async function getUserFavourNote(ssoId: number, page = 1, limit = 100) {
     includePageCount: true,
   })
 }
+
+export async function userFavourNote(ssoId: number, noteId: number) {
+  await prisma.noteOnUsers.create({
+    data: {
+      noteId,
+      userId: ssoId,
+      assignedBy: `${ssoId}`
+    }
+  })
+
+  return true
+}

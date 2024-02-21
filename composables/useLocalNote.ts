@@ -10,6 +10,7 @@ export const useLocalNote = (sid?: string) => {
     id: 0,
     locked: false,
     editing: false,
+    favoured: false,
   })
 
   const loading = ref(false)
@@ -73,6 +74,10 @@ export const useLocalNote = (sid?: string) => {
     memo.value.locked = true;
   }
 
+  const toggleFavour = (value = true) => {
+    memo.value.favoured = value;
+  }
+
   if (sid) {
     loading.value = true;
     localforage.getItem(`memo-${sid}`).then((data) => {
@@ -83,5 +88,5 @@ export const useLocalNote = (sid?: string) => {
     })
   }
 
-  return { memo, loading, setContent, setKey, setLocked, bindInput, bindKeyInput, bindToolbar, save, del }
+  return { memo, loading, setContent, setKey, setLocked, bindInput, bindKeyInput, bindToolbar, save, del, toggleFavour }
 }

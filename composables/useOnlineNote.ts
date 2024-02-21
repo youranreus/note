@@ -9,6 +9,7 @@ export const useOnlineNote = (sid?: string) => {
     id: 0,
     locked: false,
     editing: false,
+    favoured: false,
   })
 
   const loading = ref(false)
@@ -78,17 +79,32 @@ export const useOnlineNote = (sid?: string) => {
     memo.value.locked = value;
   }
 
-  if (sid) {
-    loading.value = true;
-    useGet<MemoRes>('/api/getNote', { query: { sid } }).then((res) => {
-      Object.assign(memo.value, res)
-    }).catch((e) => {
-      memo.value.sid = sid;
-      memo.value.content = '';
-    }).finally(() => {
-      loading.value = false;
-    })
+  const toggleFavour = (status = true) => {
+    loading.value = true
+    useGet<{ msg: string }>('/api/addFavourNote', { query: { id: memo.value.id } })
+      .then(() => {
+        msg.success('操作成功')
+        memo.value.favoured = status
+      }).catch((e) => {
+        console.log(e)
+        msg.error('操作失败')
+      }).finally(() => {
+        loading.value = false
+      })
   }
 
-  return { memo, loading, setContent, setKey, setLocked, bindInput, bindKeyInput, bindToolbar, save, del }
+  if (sid) {
+    loading.value = true;
+    useGet<MemoRes>('/api/getNote', { query: { sid } })
+      .then((res) => {
+        Object.assign(memo.value, res)
+      }).catch((e) => {
+        memo.value.sid = sid;
+        memo.value.content = '';
+      }).finally(() => {
+        loading.value = false;
+      })
+  }
+
+  return { memo, loading, setContent, setKey, setLocked, bindInput, bindKeyInput, bindToolbar, save, del, toggleFavour }
 }
