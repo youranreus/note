@@ -4,9 +4,12 @@
       title="📒季悠然的便签"
     >
       <n-space vertical>
-        <n-p>
-          {{ infoTextRes.data.value?.data || '加载中' }}
-        </n-p>
+        <template v-if="infoTextRes.data.value?.data">
+          <n-p v-for="(line, index) in infoTextRes.data.value?.data" :key="index">
+            {{ line }}
+          </n-p>
+        </template>
+        <n-p v-else>加载中</n-p>
       </n-space>
       
       <template #header-extra>
@@ -61,7 +64,7 @@ import { LogoGithub, LinkOutline, CloudOfflineOutline as LocalIcon, CloudOutline
 
 const router = useRouter()
 const sid = ref('')
-const infoTextRes = await useConfig<Record<'data', string>>('memo-info-text')
+const infoTextRes = await useConfig<Record<'data', string[]>>('memo-info-text')
 const jumpLinkRes = await useConfig<Record<string, string>>('memo-jumplink')
 
 const jumpLink = (btn: 'home' | 'github') => {
