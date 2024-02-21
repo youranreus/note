@@ -23,7 +23,7 @@
       <template #action>
         <n-space justify="space-between">
           <n-button-group>
-            <n-button v-if="type === NoteType.ONLINE" :type="memo.favoured ? 'error' : 'default'" secondary v-bind="bindToolbar" @click="toggleFavour(!memo.favoured)">
+            <n-button v-if="type === NoteType.ONLINE && isLogged" :type="memo.favoured ? 'error' : 'default'" secondary v-bind="bindToolbar" @click="toggleFavour(!memo.favoured)">
               <template #icon>
                 <n-icon :component="HeartOutline"/>
               </template>
@@ -73,6 +73,7 @@ const route = useRoute()
 const router = useRouter()
 const type = computed(() => route.params.type as NoteType)
 const sid = computed(() => route.params.id as string)
+const { isLogged } = useUser()
 const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked, toggleFavour } = useMemo(sid.value, type.value)
 
 const returnHome = () => {
