@@ -16,8 +16,8 @@ export const useOnlineNote = (sid?: string) => {
   const hasSynced = ref(false)
   const router = useRouter()
   const msg = useMessage()
-  const { load: reloadUserNote, data: userNote } = useUserNote()
-  const { load: reloadFavourNote, data: userFavour } = useFavourNote()
+  const { load: reloadUserNote} = useUserNote()
+  const { load: reloadFavourNote } = useFavourNote()
 
   const setContent = (value: string) => {
     memo.value.content = value;
@@ -51,13 +51,8 @@ export const useOnlineNote = (sid?: string) => {
   }))
 
   const reloadUserPanel = () => {
-    if (userFavour.value.some((n) => n.sid === sid)) {
-      reloadFavourNote()
-    }
-
-    if (userNote.value.some((n) => n.sid === sid)) {
-      reloadUserNote()
-    }
+    reloadFavourNote()
+    reloadUserNote()
   }
 
   const save = async () => {
@@ -103,7 +98,8 @@ export const useOnlineNote = (sid?: string) => {
     }
 
     loading.value = true
-    useGet<{ msg: string }>('/api/addFavourNote', { query: { id: memo.value.id } })
+    const url = status ? '/api/addFavourNote' : '/api/delFavourNote';
+    useGet<{ msg: string }>(url, { query: { id: memo.value.id } })
       .then(() => {
         msg.success('操作成功')
         memo.value.favoured = status

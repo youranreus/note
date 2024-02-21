@@ -84,3 +84,16 @@ export async function userFavourNote(ssoId: number, noteId: number) {
 
   return true
 }
+
+export async function userUnFavourNote(ssoId: number, noteId: number) {
+  await prisma.noteOnUsers.delete({
+    where: {
+      noteId_userId: {
+        noteId,
+        userId: ssoId,
+      }
+    }
+  })
+
+  return true
+}
