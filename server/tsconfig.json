@@ -1,3 +1,9 @@
 {
-  "extends": "../.nuxt/tsconfig.server.json"
+  "extends": "../.nuxt/tsconfig.server.json",
+  "exclude": [
+    "../tailwind.config.js",
+    "../node_modules",
+    "../node_modules/.pnpm/nuxt@3.10.1_vite@5.0.12/node_modules/nuxt/node_modules",
+    "../dist"
+  ]
 }
