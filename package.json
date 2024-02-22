@@ -3,13 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
+    "build": "pnpx prisma generate --schema server/database/schema.prisma && nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "init:db": "pnpx prisma migrate dev --name init --schema server/database/schema.prisma",
-    "start": "pnpx prisma generate --schema server/database/schema.prisma && pnpm run build && pnpm run preview"
+    "init:db": "pnpx prisma migrate dev --name init --schema server/database/schema.prisma"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
