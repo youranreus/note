@@ -6,4 +6,4 @@ pnpm add -g dotenv-cli esno
 pnpm -v
 pnpm run build
 
-dotenv -c esno .output/server/index.mjs
+dotenv -c .env esno .output/server/index.mjs
