@@ -13,19 +13,25 @@ export function useQuery<T = unknown>(
   opts?: FetchOptions,
 ) {
   const { userData, token, clear, togglePanel } = useUser()
+  const origin = useRuntimeConfig().public.publicUrl;
   const message = useMessage()
+  const headers = {
+    authorization: token.value ? `Bearer ${token.value}` : '',
+    'x-user-id': userData.value.id,
+  } as any
+
+  if (process.server) {
+    headers.origin = origin
+  }
 
   const defaultOpts = {
     method,
-    headers: {
-      authorization: token.value ? `Bearer ${token.value}` : '',
-      'x-user-id': userData.value.id,
-    } as any,
+    headers,
     body,
     onRequestError() {
       message.error('请求出错，请重试！')
     },
-    onResponseError({ response }) {
+    onResponseError({ response, request }) {
       if (response._data.statusMessage === NOTE_NOT_FOUND) {
         return;
       }
@@ -36,6 +42,7 @@ export function useQuery<T = unknown>(
         return;
       }
       console.log('🤔 response 是 ', response)
+      console.log('🤔 request 是 ',request)
       message.error('响应出错，请重试！')
     },
   } as FetchOptions

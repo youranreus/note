@@ -9,11 +9,12 @@ export default defineNuxtConfig({
       configHost: '',
       ssoHost: '',
       ssoKey: '',
+      publicUrl: '',
     },
     ssoApi: '',
   },
   devtools: { enabled: false },
-  ssr: false,
+  ssr: true,
   css: [
     'assets/global.css',
   ],

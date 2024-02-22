@@ -4,8 +4,8 @@
       title="📒季悠然的便签"
     >
       <n-space vertical>
-        <template v-if="infoTextRes.data.value?.data">
-          <n-p v-for="(line, index) in infoTextRes.data.value?.data" :key="index">
+        <template v-if="infoTextRes?.data">
+          <n-p v-for="(line, index) in infoTextRes.data" :key="index">
             {{ line }}
           </n-p>
         </template>
@@ -68,8 +68,8 @@ const infoTextRes = await useConfig<Record<'data', string[]>>('memo-info-text')
 const jumpLinkRes = await useConfig<Record<string, string>>('memo-jumplink')
 
 const jumpLink = (btn: 'home' | 'github') => {
-  if (jumpLinkRes.data.value?.[btn]) {
-    window.location.href = jumpLinkRes.data.value?.[btn];
+  if (jumpLinkRes?.[btn]) {
+    window.location.href = jumpLinkRes[btn];
   }
 }
 
