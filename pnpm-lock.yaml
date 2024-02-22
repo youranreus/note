@@ -11,6 +11,9 @@ dependencies:
   '@prisma/client':
     specifier: ^5.9.1
     version: 5.9.1(prisma@5.9.1)
+  '@reus-able/const':
+    specifier: ^1.0.6
+    version: 1.0.6
   localforage:
     specifier: ^1.10.0
     version: 1.10.0
@@ -1488,6 +1491,12 @@ packages:
     resolution: {integrity: sha512-6OQsNxTyhvG+T2Ksr8FPFpuPeL4r9u0JF0OZHUBI/Uy9SS43sPyAIutt4ZEAyqWQt104ERh70EZedkHZKsnNbg==}
     dependencies:
       '@prisma/debug': 5.9.1
+
+  /@reus-able/const@1.0.6:
+    resolution: {integrity: sha512-2tuSWlTOTBqYy5ZWQcVEOd6lkeySFzUrB5jLO7q32zt/qLnmWG+RuPlLA+FwhET3fmPZNYr5oF/4zOCLhDzSjw==}
+    dependencies:
+      typescript: 5.3.3
+    dev: false
 
   /@reus-able/types@1.0.5(reflect-metadata@0.2.1)(rxjs@7.8.1):
     resolution: {integrity: sha512-AFs2zFp/tvRg5rKiPVo54iefIuNjITHtD7//JdiTTrYPPNDCgCa/4yHBlJIcblCzD2/ynV6VIIkXS40gRaPF6w==}
@@ -5855,7 +5864,6 @@ packages:
     resolution: {integrity: sha512-pXWcraxM0uxAS+tN0AG/BF2TyqmHO014Z070UsJ+pFvYuRSq8KH8DmWpnbXe0pEPDHXZV3FcAbJkijJ5oNEnWw==}
     engines: {node: '>=14.17'}
     hasBin: true
-    dev: true
 
   /ufo@1.3.2:
     resolution: {integrity: sha512-o+ORpgGwaYQXgqGDwd+hkS4PuZ3QnmqMMxRuajK/a38L6fTpcE5GPIfrf+L/KemFzfUpeUQc1rRS1iDBozvnFA==}

@@ -14,6 +14,7 @@
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
     "@prisma/client": "^5.9.1",
+    "@reus-able/const": "^1.0.6",
     "localforage": "^1.10.0",
     "nuxt": "^3.10.1",
     "prisma-extension-pagination": "^0.6.0",

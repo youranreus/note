@@ -1,4 +1,5 @@
 import type { Note, NoteOnUsers } from "@prisma/client";
+import { BUSINESS_ERROR_CODE } from "@reus-able/const";
 import { TOKEN_EXPIRED } from "~/constants";
 
 export const transformNote = (note: Note & { favourBy: NoteOnUsers[] }, ssoId?: number) => {
@@ -12,7 +13,7 @@ export const transformNote = (note: Note & { favourBy: NoteOnUsers[] }, ssoId?: 
 }
 
 export const handleError = (error: any, e: any) => {
-  if (error?.data?.code === 20003 && error?.status === 401) {
+  if (error?.data?.code === BUSINESS_ERROR_CODE.EXPIRED_TOKEN && error?.status === 401) {
     return sendError(e, createError({
       statusCode: 401,
       statusMessage: TOKEN_EXPIRED,
