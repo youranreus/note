@@ -21,4 +21,12 @@ watch(
     colorModePreference.set(val)
   }
 )
+
+onMounted(() => {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  if (prefersDark) {
+    colorModePreference.set('dark')
+  }
+});
 </script>
