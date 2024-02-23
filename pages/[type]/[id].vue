@@ -83,7 +83,6 @@ import {
   CopyOutline,
 } from '@vicons/ionicons5'
 import { NoteType } from '~/types'
-import { useClipboard } from '@vueuse/core'
 
 definePageMeta({
   name: 'NoteDetail',
@@ -93,14 +92,9 @@ const router = useRouter()
 const type = computed(() => route.params.type as NoteType)
 const sid = computed(() => route.params.id as string)
 const { isLogged } = useUser()
-const { copy } = useClipboard()
-const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked, toggleFavour } = useMemo(sid.value, type.value)
+const { memo, bindInput, save, del, bindKeyInput, bindToolbar, setLocked, toggleFavour, copyUrl } = useMemo(sid.value, type.value)
 
 const returnHome = () => {
   router.push('/')
-}
-
-const copyUrl = () => {
-  copy(window.location.href)
 }
 </script>
