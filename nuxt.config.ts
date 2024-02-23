@@ -1,7 +1,3 @@
-import AutoImport from 'unplugin-auto-import/vite';
-import Components from 'unplugin-vue-components/vite';
-import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
-
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   runtimeConfig: {
@@ -25,7 +21,6 @@ export default defineNuxtConfig({
       "@pinia/nuxt",
       {
         autoImports: [
-          // 自动引入 `defineStore(), storeToRefs()`
           "defineStore",
           "storeToRefs"
         ],
@@ -34,17 +29,6 @@ export default defineNuxtConfig({
     '@pinia-plugin-persistedstate/nuxt',
     '@vueuse/nuxt',
   ],
-  vite: {
-    // plugins: [
-    //   AutoImport({
-    //     imports: [
-    //       {
-    //         'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'],
-    //       },
-    //     ],
-    //   }),
-    // ]
-  },
   app: {
     head: {
       title: "Memo",

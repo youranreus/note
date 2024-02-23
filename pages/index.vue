@@ -14,14 +14,14 @@
       
       <template #header-extra>
         <n-space>
-          <n-button secondary @click="jumpLink('github')">
+          <n-button quaternary @click="jumpLink('github')">
             <template #icon>
               <n-icon>
                 <logo-github />
               </n-icon>
             </template>
           </n-button>
-          <n-button secondary @click="jumpLink('home')">
+          <n-button quaternary @click="jumpLink('home')">
             <template #icon>
               <n-icon>
                 <link-outline />
