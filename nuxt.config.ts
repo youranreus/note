@@ -14,7 +14,7 @@ export default defineNuxtConfig({
     ssoApi: '',
   },
   devtools: { enabled: false },
-  ssr: true,
+  ssr: false,
   css: [
     'assets/global.css',
   ],
