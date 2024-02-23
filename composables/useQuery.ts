@@ -1,4 +1,4 @@
-import { merge } from 'lodash'
+import { merge } from 'lodash-es'
 import { useMessage } from 'naive-ui'
 import { NOTE_NOT_FOUND, TOKEN_EXPIRED } from '~/constants'
 

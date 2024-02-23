@@ -16,6 +16,7 @@
     "@prisma/client": "^5.9.1",
     "@reus-able/const": "^1.0.6",
     "localforage": "^1.10.0",
+    "lodash-es": "^4.17.21",
     "nuxt": "^3.10.1",
     "prisma-extension-pagination": "^0.6.0",
     "vue": "^3.4.15",
