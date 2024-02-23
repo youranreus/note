@@ -14,11 +14,12 @@ export default defineNuxtConfig({
     ssoApi: '',
   },
   devtools: { enabled: false },
-  ssr: false,
+  ssr: true,
   css: [
     'assets/global.css',
   ],
   modules: [
+    "@bg-dev/nuxt-naiveui",
     '@nuxtjs/tailwindcss',
     [
       "@pinia/nuxt",
@@ -33,36 +34,16 @@ export default defineNuxtConfig({
     '@pinia-plugin-persistedstate/nuxt',
     '@vueuse/nuxt',
   ],
-  build: {
-    transpile:
-      process.env.NODE_ENV === 'production'
-        ? [
-            'naive-ui',
-            'vueuc',
-            '@css-render/vue3-ssr',
-            '@juggle/resize-observer'
-          ]
-        : ['@juggle/resize-observer']
-  },
   vite: {
-    optimizeDeps: {
-      include:
-        process.env.NODE_ENV === 'development'
-          ? ['naive-ui', 'vueuc', 'date-fns-tz/formatInTimeZone']
-          : []
-    },
-    plugins: [
-      AutoImport({
-        imports: [
-          {
-            'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'],
-          },
-        ],
-      }),
-      Components({
-        resolvers: [NaiveUiResolver()]
-      })
-    ]
+    // plugins: [
+    //   AutoImport({
+    //     imports: [
+    //       {
+    //         'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'],
+    //       },
+    //     ],
+    //   }),
+    // ]
   },
   app: {
     head: {
