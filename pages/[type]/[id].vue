@@ -1,5 +1,5 @@
 <template>
-  <div class="tw-w-[768px]">
+  <div class="tw-w-[95vw] sm:tw-w-[768px]">
     <n-h2 class="tw-mb-2">
       #{{ sid }}
       <n-button quaternary size="tiny" @click="returnHome">

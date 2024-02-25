@@ -1,5 +1,5 @@
 <template>
-  <div class="tw-w-[768px]">
+  <div class="tw-w-[90vw] sm:tw-w-[768px]">
     <n-card
       title="📒季悠然的便签"
     >
