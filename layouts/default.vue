@@ -1,6 +1,7 @@
 <template>
-  <div class="tw-flex tw-w-screen tw-h-screen tw-items-center tw-justify-center">
-    <slot />
+  <div class="min-h-screen" style="background: var(--color-bg-base);">
+    <UApp>
+      <slot />
+    </UApp>
   </div>
-  <user-drawer />
 </template>

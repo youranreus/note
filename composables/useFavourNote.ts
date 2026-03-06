@@ -1,51 +1,31 @@
-import type { MemoRes, PaginationRes, PaginationData } from "~/types"
+import type { MemoRes, PaginationData, PaginationRes } from '~/types'
 
-const useStore = defineStore('user-favour-store', () => {
-  const pagination = ref<PaginationData>({
-    page: 1,
-    limit: 10,
-    total: 0,
-  })
+const useStore = defineStore('user-favour', () => {
+  const { get } = useRequest()
+  const { isLogged } = useAuth()
+  const pagination = ref<PaginationData>({ page: 1, limit: 10, total: 0 })
   const data = ref<MemoRes[]>([])
   const loading = ref(false)
-  const { isLogged } = useUser()
 
   const load = async () => {
-    if (!isLogged.value) return;
-
+    if (!isLogged.value) return
     loading.value = true
-    const res = await useGet<PaginationRes<MemoRes>>('/api/getFavourNote', {
-      query: {
-        page: pagination.value.page,
-        limit: pagination.value.limit,
-      }
+    const res = await get<PaginationRes<MemoRes>>('/api/user/favourites', {
+      query: { page: pagination.value.page, limit: pagination.value.limit },
     })
-
     pagination.value.total = res.total
-    data.value = [...res.data]
+    data.value = res.data
     loading.value = false
   }
 
-  watch(
-    [() => pagination.value.page, () => pagination.value.limit],
-    async () => {
-      await load()
-    }
-  )
-  
+  watch([() => pagination.value.page], load)
+
   return { data, pagination, loading, load }
 }, {
-  persist: process.client && {
-    storage: persistedState.localStorage,
-    key: 'user-favour-store'
-  },
+  persist: process.client && { storage: persistedState.localStorage, key: 'user-favour' },
 })
 
 export const useFavourNote = () => {
-  const store = useStore();
-
-  return {
-    ...store,
-    ...storeToRefs(store),
-  }
+  const store = useStore()
+  return { ...store, ...storeToRefs(store) }
 }

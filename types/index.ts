@@ -1,28 +1,36 @@
-import type { Note } from "@prisma/client";
+import type { Note } from 'drizzle-orm/mysql-core'
 
 export enum NoteType {
   LOCAL = 'l',
   ONLINE = 'o',
 }
 
-export interface MemoRes extends Omit<Note, 'key' | 'authorId'> {
-  locked: boolean;
-  favoured: boolean;
+export interface MemoRes {
+  id: number
+  sid: string
+  content: string
+  locked: boolean
+  favoured: boolean
 }
 
-export interface MemoData extends Omit<Note, 'authorId'> {
-  locked: boolean;
-  editing: boolean;
-  favoured: boolean;
+export interface MemoData extends MemoRes {
+  key: string
+  editing: boolean
 }
 
 export interface PaginationRes<T> {
-  data: T[];
-  total: number;
+  data: T[]
+  total: number
 }
 
 export interface PaginationData {
-  page: number;
-  limit: number;
-  total: number;
+  page: number
+  limit: number
+  total: number
+}
+
+export interface UserInfo {
+  id: number
+  email: string
+  role: 'USER' | 'ADMIN'
 }

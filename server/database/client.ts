@@ -1,5 +1,13 @@
-import { PrismaClient } from '@prisma/client'
-import { pagination } from 'prisma-extension-pagination'
+import { drizzle } from 'drizzle-orm/mysql2'
+import mysql from 'mysql2/promise'
+import * as schema from './schema'
 
-const prisma = new PrismaClient().$extends(pagination())
-export default prisma
+let _db: ReturnType<typeof drizzle> | null = null
+
+export function useDB() {
+  if (!_db) {
+    const pool = mysql.createPool(process.env.DATABASE_URL || '')
+    _db = drizzle(pool, { schema, mode: 'default' })
+  }
+  return _db
+}
