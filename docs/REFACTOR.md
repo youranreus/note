@@ -46,9 +46,9 @@
 
 ---
 
-### 2.2 UI 组件库：迁移到 Nuxt UI v3
+### 2.2 UI 组件库：迁移到 Nuxt UI v3 + @reus-able/theme
 
-**决策**：Naive UI → **Nuxt UI v3**
+**决策**：Naive UI → **Nuxt UI v3**，设计风格层引入 **@reus-able/theme**
 
 | | Naive UI | Nuxt UI v3 | shadcn-vue |
 |---|---------|-----------|-----------|
@@ -64,6 +64,59 @@
 - 基于 Tailwind CSS v4 + Reka UI（无障碍友好）
 - 125+ 组件完全覆盖便签应用需求
 - 内置 Dark Mode、响应式
+
+#### @reus-able/theme 集成方案
+
+`@reus-able/theme` 是项目组自有的设计 Token 包（提取自 Applog），提供统一的 CSS 变量和排版规范。在重构中作为**设计风格层**叠加在 Nuxt UI v3 之上：
+
+**包含内容**：
+
+| 模块 | 引入路径 | 用途 |
+|------|---------|------|
+| 全量 | `@reus-able/theme` | 引入所有模块 |
+| Design Token | `@reus-able/theme/tokens` | CSS 变量（颜色、字体） |
+| 文章排版 | `@reus-able/theme/article` | `.article-content` 排版类 |
+| 响应式容器 | `@reus-able/theme/container` | `.common-page-container` |
+| 封面图动效 | `@reus-able/theme/cover-image` | shimmer 骨架屏 |
+
+**核心 Token（tokens.css）**：
+
+```css
+/* 颜色 Token */
+--color-link: #0071e3;
+--color-link-hover: rgb(0, 102, 204);
+--color-text-primary: #1d1d1f;
+--color-text-secondary: #6e6e73;
+--color-bg-base: #ffffff;
+--color-bg-muted: #f5f5f7;
+--color-bg-card: #e5e7eb;
+--color-border: #d2d2d7;
+--color-error: #ff3b30;
+
+/* 字体栈 */
+--font-family-base: "SF Pro SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+--font-family-mono: "SF Mono", "Fira Code", monospace;
+```
+
+**与 Nuxt UI v3 的集成方式**：
+
+```css
+/* assets/global.css */
+/* 1. 引入 @reus-able/theme token（先于 Nuxt UI） */
+@import '@reus-able/theme/tokens';
+
+/* 2. 将 token 映射到 Nuxt UI 的 CSS 变量 */
+:root {
+  --ui-color-primary: var(--color-link);         /* 主色 */
+  --ui-text-muted: var(--color-text-secondary);  /* 次要文本 */
+  --ui-bg: var(--color-bg-base);                 /* 背景 */
+  --ui-border: var(--color-border);              /* 边框 */
+}
+```
+
+**布局层使用**：
+- 页面容器使用 `.common-page-container`（响应式宽度，最大 898px）
+- 字体使用 `var(--font-family-base)`，保持与 Applog 一致的风格
 
 ---
 
@@ -103,19 +156,73 @@
 
 ---
 
-### 2.5 认证系统：内置认证（解耦 SSO）
+### 2.5 认证系统：@reus-able/sso-utils 对接 SSO
 
-**决策**：移除强 SSO 依赖 → **nuxt-auth-utils + bcrypt**
+**决策**：强 SSO 耦合 → **@reus-able/sso-utils 标准化对接**
 
-**方案**：
-- 使用 [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils) 管理 Session
-- 支持**邮箱/密码**登录（基础认证，bcrypt 哈希）
-- Session 存储在 httpOnly Cookie，安全可靠
-- 可选：保留 SSO 作为插件式扩展（通过环境变量开关）
+`@reus-able/sso-utils` 是项目组自有的 SSO 工具库，封装了 OAuth 授权码流程，比原来手写的 ticket 验证更规范。
 
-**SSO 兼容策略**：
-- `users` 表保留 `ssoId` 字段，老用户无损迁移
-- 配置 `SSO_ENABLED=true` 时恢复 SSO 登录入口
+**包 API**：
+
+```typescript
+import { UserAPI } from '@reus-able/sso-utils'
+
+const api = UserAPI({
+  SSO_URL: 'https://sso.example.com',   // SSO 服务地址
+  SSO_ID: 'your-client-id',             // OAuth Client ID
+  SSO_SECRET: 'your-client-secret',     // OAuth Client Secret（服务端用）
+  SSO_REDIRECT: 'https://your-app/callback', // 回调地址
+})
+
+// 前端：跳转 SSO 授权页
+api.redirectSSO()           // 当前窗口跳转
+api.redirectSSO(true)       // 新标签页打开
+
+// 前端：获取授权跳转链接
+api.getRedirectLink()       // 返回完整授权 URL
+
+// 服务端：用 code 换取 token
+await api.authorizeToken(code)
+
+// 服务端：用 token 获取用户信息
+await api.getUserInfo(token)
+```
+
+**认证流程（OAuth 授权码模式）**：
+
+```
+前端
+  → api.redirectSSO()  跳转 SSO 授权页
+  → 用户授权后，SSO 回调 /auth/callback?code=xxx
+  → 前端拿到 code，POST /api/auth/login { code }
+
+服务端
+  → api.authorizeToken(code) 换取 access_token
+  → api.getUserInfo(token) 获取用户信息
+  → 查询或创建本地 User 记录
+  → 写入 httpOnly Cookie Session
+  → 返回用户信息
+```
+
+**与旧版的差异**：
+
+| | 旧版 | 新版 |
+|---|------|------|
+| 授权方式 | ticket 直接验证（非标准）| OAuth 授权码流程（标准）|
+| 前端操作 | `window.location.href = sso_url/callback/key` | `api.redirectSSO()` |
+| 服务端验证 | `GET ssoApi/user/validate` + `Authorization: Bearer ticket` | `authorizeToken(code)` → `getUserInfo(token)` |
+| 封装层 | 裸 `$fetch` 手写 | `@reus-able/sso-utils` 统一封装 |
+
+**环境变量**：
+
+```dotenv
+SSO_URL=https://sso.example.com
+SSO_ID=your-client-id
+SSO_SECRET=your-client-secret
+SSO_REDIRECT=https://your-app/auth/callback
+```
+
+**Session 管理**：使用 `nuxt-auth-utils` 处理 httpOnly Cookie Session，sso-utils 只负责 OAuth 流程部分。
 
 ---
 
@@ -158,10 +265,10 @@
 |------|-------|-------|---------|
 | **框架** | Nuxt 3.10 | Nuxt 3（最新） | 升级版本 |
 | **UI 组件** | Naive UI | **Nuxt UI v3** | 替换，Tailwind-first |
-| **样式** | Tailwind CSS v3 | Tailwind CSS v4 | 随 Nuxt UI v3 升级 |
+| **样式/设计Token** | Tailwind CSS v3 | Tailwind CSS v4 + **@reus-able/theme** | 统一设计风格层 |
 | **ORM** | Prisma 5 | **Drizzle ORM** | 替换，更轻量 |
 | **数据库** | MySQL（裸服务器） | **MySQL 8.0（Docker）** | 容器化，数据自托管 |
-| **认证** | 强依赖外部 SSO | **nuxt-auth-utils** | 内置认证，SSO 可选 |
+| **认证** | 强依赖外部 SSO（手写 ticket）| **@reus-able/sso-utils + nuxt-auth-utils** | 标准 OAuth 流程，统一封装 |
 | **状态管理** | Pinia | Pinia | 保留 |
 | **本地存储** | localforage | localforage | 保留 |
 | **包管理** | pnpm | pnpm | 保留 |
@@ -317,22 +424,29 @@ export const favourites = mysqlTable('favourites', {
 ### 3.4 认证流程
 
 ```
-旧流程：
-  前端 → 跳转外部 SSO → 获取 ticket
+旧流程（非标准 ticket 模式）：
+  前端 → window.location.href = ssoHost/callback/ssoKey
+       → SSO 返回 ticket
        → GET /api/login?ticket=xxx
-       → 服务端向 SSO 验证 ticket → 返回用户信息
-
-新流程（内置认证，默认）：
-  前端登录表单
-       → POST /api/auth/login { email, password }
-       → 服务端 bcrypt 验证密码
-       → 写入 httpOnly Cookie（Session）
+       → 服务端 $fetch(ssoApi/user/validate, { Authorization: Bearer ticket })
        → 返回用户信息
 
-兼容流程（SSO，可选，环境变量 SSO_ENABLED=true）：
-  前端 → 跳转外部 SSO → 获取 ticket
-       → POST /api/auth/sso { ticket }
-       → 服务端验证 ticket → 写入 Session
+新流程（@reus-able/sso-utils，OAuth 授权码模式）：
+  前端
+    → UserAPI.redirectSSO()  // 跳转 SSO 授权页
+    → SSO 授权后回调 /auth/callback?code=xxx
+    → 前端 POST /api/auth/login { code }
+
+  服务端
+    → UserAPI.authorizeToken(code)   // code 换 token
+    → UserAPI.getUserInfo(token)     // token 换用户信息
+    → 查询/创建本地 User 记录
+    → nuxt-auth-utils 写入 httpOnly Cookie Session
+    → 返回用户信息
+
+  登出
+    → POST /api/auth/logout
+    → 清除 Session Cookie
 ```
 
 ---
@@ -386,9 +500,10 @@ services:
     environment:
       - DATABASE_URL=mysql://note:${MYSQL_PASSWORD}@db:3306/note
       - NUXT_SESSION_PASSWORD=${SESSION_PASSWORD}
-      - SSO_ENABLED=${SSO_ENABLED:-false}
-      - SSO_API=${SSO_API:-}
-      - SSO_HOST=${SSO_HOST:-}
+      - SSO_URL=${SSO_URL}
+      - SSO_ID=${SSO_ID}
+      - SSO_SECRET=${SSO_SECRET}
+      - SSO_REDIRECT=${SSO_REDIRECT}
     depends_on:
       db:
         condition: service_healthy
@@ -452,10 +567,11 @@ MYSQL_PASSWORD=your_app_password
 SESSION_PASSWORD=your_very_long_random_session_secret_here
 
 # SSO（可选，不填则使用内置邮箱/密码登录）
-SSO_ENABLED=false
-SSO_API=
-SSO_HOST=
-SSO_KEY=
+# SSO（@reus-able/sso-utils 配置）
+SSO_URL=https://sso.example.com
+SSO_ID=your-client-id
+SSO_SECRET=your-client-secret
+SSO_REDIRECT=https://your-app/auth/callback
 ```
 
 #### 启动命令
@@ -528,12 +644,16 @@ docker compose up -d app
 ┌───────────────────────────────────────────────┐
 │               Browser（用户端）                 │
 │  Nuxt 3 + Vue 3 + Nuxt UI v3                  │
+│  @reus-able/theme（设计 Token + 容器样式）       │
+│  @reus-able/sso-utils（SSO 跳转/回调）          │
 │  Pinia（状态）+ localforage（本地便签）          │
 └────────────────────┬──────────────────────────┘
                      │ HTTP
 ┌────────────────────▼──────────────────────────┐
 │          Docker: note-app（Nuxt Nitro）         │
-│  RESTful API + nuxt-auth-utils（Session）      │
+│  RESTful API                                   │
+│  @reus-able/sso-utils（authorizeToken/getUserInfo）│
+│  nuxt-auth-utils（httpOnly Cookie Session）    │
 │  Drizzle ORM                                   │
 └────────────────────┬──────────────────────────┘
                      │ MySQL Protocol
@@ -558,4 +678,4 @@ docker compose up -d app
 
 ---
 
-*文档由 OpenClaw v3 生成 · 2026-03-05 · v2.0（调整：MySQL 自托管 + Docker 部署）*
+*文档由 OpenClaw v3 生成 · 2026-03-05 · v3.0（调整：@reus-able/theme 设计Token + @reus-able/sso-utils OAuth认证）*
