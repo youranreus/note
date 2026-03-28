@@ -1,0 +1,22 @@
+{
+  "name": "note-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "sync:env": "node scripts/sync-env.mjs",
+    "predev": "pnpm sync:env",
+    "predev:web": "pnpm sync:env",
+    "predev:api": "pnpm sync:env",
+    "prebuild": "pnpm sync:env",
+    "pretest": "pnpm sync:env",
+    "dev": "concurrently -n web,api -c cyan,green \"pnpm dev:web\" \"pnpm dev:api\"",
+    "dev:web": "pnpm --filter @note/web dev",
+    "dev:api": "pnpm --filter @note/api dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "packageManager": "pnpm@10.7.0"
+}

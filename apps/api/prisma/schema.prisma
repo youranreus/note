@@ -1,0 +1,49 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id         BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  ssoId      BigInt         @unique @map("sso_id") @db.UnsignedBigInt
+  notes      Note[]
+  favorites  NoteFavorite[]
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Note {
+  id         BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  sid        String         @unique @db.VarChar(64)
+  content    String         @db.LongText
+  keyHash    String?        @map("key_hash") @db.VarChar(255)
+  authorId   BigInt?        @map("author_id") @db.UnsignedBigInt
+  author     User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  favorites  NoteFavorite[]
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  deletedAt  DateTime?      @map("deleted_at")
+
+  @@index([authorId, updatedAt(sort: Desc)], map: "idx_author_updated")
+  @@map("notes")
+}
+
+model NoteFavorite {
+  noteId     BigInt   @map("note_id") @db.UnsignedBigInt
+  userId     BigInt   @map("user_id") @db.UnsignedBigInt
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  createdBy  BigInt?  @map("created_by") @db.UnsignedBigInt
+
+  @@id([noteId, userId])
+  @@index([userId, createdAt(sort: Desc)], map: "idx_user_created")
+  @@index([noteId], map: "idx_note")
+  @@map("note_favorites")
+}
