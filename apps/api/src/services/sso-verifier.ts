@@ -1,3 +1,4 @@
+import { UserAPI } from "@reus-able/sso-utils";
 import type { AppConfig } from "../config.js";
 import type { UserSummary } from "../types/auth.js";
 
@@ -14,10 +15,26 @@ interface MaybeTokenPayload {
   token_type?: string;
 }
 
-interface SsoClient {
-  authorizeToken: (code: string) => Promise<{ data: MaybeTokenPayload }>;
-  getUserInfo: (token: string) => Promise<{ data: { data?: MaybeUser } | MaybeUser }>;
+/** IdP may wrap OAuth fields in { data, code, msg } instead of raw token JSON. */
+function extractTokenPayload(body: unknown): MaybeTokenPayload {
+  if (!body || typeof body !== "object") {
+    return {};
+  }
+  const o = body as Record<string, unknown>;
+  if (typeof o.access_token === "string" || typeof o.token === "string") {
+    return o as MaybeTokenPayload;
+  }
+  const inner = o.data;
+  if (inner && typeof inner === "object") {
+    const d = inner as Record<string, unknown>;
+    if (typeof d.access_token === "string" || typeof d.token === "string") {
+      return d as MaybeTokenPayload;
+    }
+  }
+  return {};
 }
+
+type SsoClient = ReturnType<typeof UserAPI>;
 
 function normalizeUser(payload: MaybeUser): UserSummary {
   const rawId = payload.ssoId ?? payload.id;
@@ -57,34 +74,19 @@ function ensureSsoConfig(config: AppConfig) {
   }
 }
 
-async function createSsoClient(config: AppConfig): Promise<SsoClient> {
-  const lib = (await import("@reus-able/sso-utils")) as {
-    UserAPI?: (env: {
-      SSO_URL: string;
-      SSO_ID: string;
-      SSO_SECRET?: string;
-      SSO_REDIRECT: string;
-    }) => SsoClient;
-  };
-
-  if (typeof lib.UserAPI !== "function") {
-    throw new Error("UserAPI is not exported by @reus-able/sso-utils");
-  }
-
-  return lib.UserAPI({
-    SSO_URL: config.ssoUrl,
+function createSsoClient(config: AppConfig): SsoClient {
+  return UserAPI({
+    SSO_URL: config.ssoApiBaseUrl || config.ssoUrl,
     SSO_ID: config.ssoId,
     SSO_SECRET: config.ssoSecret,
     SSO_REDIRECT: config.ssoRedirect
   });
 }
 
-async function exchangeCodeForAccessToken(
-  code: string,
-  client: SsoClient
-): Promise<string> {
+async function exchangeCodeForAccessToken(code: string, client: SsoClient): Promise<string> {
   const tokenResponse = await client.authorizeToken(code);
-  const tokenPayload = tokenResponse?.data ?? {};
+  const rawBody = tokenResponse?.data ?? {};
+  const tokenPayload = extractTokenPayload(rawBody);
   const accessToken = tokenPayload.access_token ?? tokenPayload.token;
   if (!accessToken) {
     throw new Error("SSO token response missing access token");
@@ -112,7 +114,7 @@ export async function verifySsoCode(code: string, config: AppConfig): Promise<Us
   }
 
   ensureSsoConfig(config);
-  const client = await createSsoClient(config);
+  const client = createSsoClient(config);
   const token = await exchangeCodeForAccessToken(code, client);
   return getUserByAccessToken(token, client);
 }

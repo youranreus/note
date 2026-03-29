@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "prisma:generate": "prisma generate",
+    "db:init": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev",
     "prisma:smoke": "tsx scripts/prisma-smoke.ts"
   },

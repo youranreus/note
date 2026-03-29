@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@reus-able/sso-utils": "^1.0.0",
     "@alova/adapter-axios": "^1.0.0",
     "alova": "^3.0.6",
     "axios": "^1.7.9",

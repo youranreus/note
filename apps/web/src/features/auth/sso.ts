@@ -1,3 +1,5 @@
+import { UserAPI } from "@reus-able/sso-utils";
+
 export function getSsoLoginUrl() {
   const ssoUrl = import.meta.env.VITE_SSO_URL ?? "";
   const ssoId = import.meta.env.VITE_SSO_ID ?? "";
@@ -8,6 +10,10 @@ export function getSsoLoginUrl() {
   }
 
   const base = ssoUrl.replace(/\/+$/, "");
-  // 不使用 URLSearchParams，避免 redirect_uri 被 percent-encode（与 SSO 侧约定一致）
-  return `${base}/oauth/authorize?client_id=${ssoId}&redirect_uri=${ssoRedirect}`;
+  return UserAPI({
+    SSO_URL: base,
+    SSO_ID: ssoId,
+    SSO_SECRET: "",
+    SSO_REDIRECT: ssoRedirect
+  }).getRedirectLink();
 }
