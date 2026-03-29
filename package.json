@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "boot": "node scripts/boot.mjs",
     "sync:env": "node scripts/sync-env.mjs",
     "predev": "pnpm sync:env",
     "predev:web": "pnpm sync:env",
