@@ -79,7 +79,7 @@ status: "complete"
 ### 1.3 研究边界
 
 - 报告聚焦当前选型能否支撑 `note` 的目标架构，不做“全栈重新选型”。
-- `@reus-able/sso-utils` 没有可验证的公开官方文档，本报告只基于当前仓库中的使用意图推断其接入位置，不对其内部行为做未经验证的断言。
+- `@reus-able/sso-utils` 公开文档较少，但本次补充阅读了其公开源码，因此 SSO 相关判断优先以源码行为为准。
 - 由于仓库中尚无 `apps/web` / `apps/api` 实际源码，所有“现状判断”都要区分“已实现”与“目标架构”。
 
 ## 2. 当前项目现状判断
@@ -199,6 +199,55 @@ MySQL 官方文档也明确支持 `RESTRICT`、`CASCADE`、`SET NULL`、`NO ACTI
 - `plugins/auth` 内部完成 SSO 校验和 `request.user` 注入；
 - 公开路由与受保护路由通过 `preHandler` 区分；
 - 不把 SSO SDK 逻辑直接散落在每个 route handler 中。
+
+#### 4.2.1 基于 `sso-utils` 源码的结论
+
+补充分析公开源码后，可以确认 `@reus-able/sso-utils` 当前只暴露了一个 `UserAPI(ENV)` 工厂，其核心能力非常聚焦：
+
+- `getRedirectLink()`：拼接 `${SSO_URL}/oauth/authorize?client_id=...&redirect_uri=...`
+- `redirectSSO()`：直接调用 `window.open(...)`
+- `authorizeToken(code)`：向 `${SSO_URL}/oauth/token` 发起 `POST`，并把 `client_id`、`client_secret`、`code`、`redirect_uri` 放到 query params
+- `getUserInfo(token)`：向 `${SSO_URL}/oauth/user` 发起 `GET`，把 token 原样放到 `Authorization` header  
+源码来源：[index.ts](https://github.com/ImoutoTech/reus-able/blob/master/packages/sso-utils/src/index.ts)、[types.ts](https://github.com/ImoutoTech/reus-able/blob/master/packages/sso-utils/src/types.ts)。
+
+这意味着几个关键的架构判断：
+
+- 这个包不是纯后端 SDK，也不是纯前端 SDK，而是把浏览器跳转和 token/userinfo 请求混在同一个工厂里。
+- 由于 `redirectSSO()` 依赖 `window`，它天然包含浏览器侧能力。
+- 由于 `authorizeToken()` 需要 `SSO_SECRET`，它又包含明显的服务端能力；如果把这部分直接在前端调用，会导致客户端暴露 secret。
+- `getUserInfo()` 当前只是把 token 原样放进 `Authorization` 头，没有自动补 `Bearer ` 前缀，因此 `note` 项目必须在 PoC 中确认 IdP 接口究竟要求“原样 token”还是 `Bearer token`。
+
+#### 4.2.2 对 `note` 的封装建议
+
+基于上述源码事实，`note` 不应直接把 `sso-utils` 当作“前后端通用鉴权层”裸用，而应该包一层本地 facade：
+
+- 前端 facade 只使用 `getRedirectLink()`，或者自己复写一版更安全的跳转 URL 生成逻辑。
+- 后端 facade 负责 `authorizeToken()` 与 `getUserInfo()`，并把返回结果映射成 `note` 内部统一用户会话模型。
+- `SSO_SECRET` 只能存在于 API 服务端环境变量中，绝不能透传到 `web`。
+
+建议的分层方式：
+
+- `apps/web`: `features/auth/sso-client.ts`
+  - 只负责发起跳转、解析 callback 参数、调用本项目 API
+- `apps/api`: `plugins/auth/sso-facade.ts`
+  - 负责调用 `authorizeToken`、`getUserInfo`、处理错误和用户 `upsert`
+
+#### 4.2.3 直接使用该包的风险
+
+从源码还能看到几个需要在 `note` 项目里补强的点：
+
+- 授权链接没有加入 `state` 参数，当前实现不具备显式的 CSRF/重放关联保护能力。
+- `redirect_uri` 直接以字符串拼接，没有做 `encodeURIComponent`，在 redirect 中包含额外参数时存在拼接风险。
+- 包的 `UserApiEnv` 只支持单一 `SSO_URL`，而当前 [`.env.example`](/Users/youranreus/Code/Projects/note/.env.example) 已经暗示真实环境可能需要 `SSO_API_BASE_URL` 来规避 `/oauth/token` 的 405 问题，这说明 `note` 侧很可能不能直接把 `sso-utils` 原样当最终抽象层。
+- 包内使用默认 `axios` 调用，没有 timeout、重试、错误归类和日志注入能力，因此生产接入时仍需在 `note` 的 facade 外再补一层错误治理。
+
+因此，`note` 的正确策略应该是“参考并复用 `sso-utils` 的协议细节”，而不是“把它直接当作应用边界”。对当前项目更稳妥的做法，是把它当作一个上游协议适配器，然后在 `plugins/auth` 中补齐：
+
+- `state` / callback correlation
+- `SSO_API_BASE_URL` 支持
+- timeout 与错误映射
+- token header 格式兼容
+- mock 与 real SSO 的统一接口
 
 ### 4.3 前端状态与缓存边界
 
@@ -406,13 +455,18 @@ packages/
 
 风险：
 
-- `@reus-able/sso-utils` 行为细节未知
-- 真实 IdP 的 token/userinfo 接口与本地 mock 可能不一致
+- `@reus-able/sso-utils` 同时包含浏览器跳转与 token 交换逻辑，天然存在运行时边界混用风险
+- `authorizeToken()` 需要 `SSO_SECRET`，若错误地在前端调用会造成 secret 泄露
+- 包内授权链接未体现 `state` 参数，且 `redirect_uri` 未编码
+- 当前包只支持单一 `SSO_URL`，与本项目已预留的 `SSO_API_BASE_URL` 诉求存在抽象不匹配
+- 真实 IdP 的 token/userinfo 接口与本地 mock 可能不一致，且 `Authorization` 头是否需要 `Bearer ` 前缀仍需验证
 
 缓解：
 
 - 先做 PoC，不要等全部代码写完再验证
-- 在 `plugins/auth` 外面包一层 facade，屏蔽三方差异
+- 在 `plugins/auth` 外面包一层 `SsoFacade`，屏蔽三方差异
+- 强制把 code exchange 与 userinfo 请求收口到 API 服务端
+- 在本地 facade 中补 `state`、URL encode、timeout、错误映射与多 baseURL 支持
 
 ## 7.2 数据一致性风险
 
@@ -458,7 +512,7 @@ packages/
 
 1. 创建 `apps/web`、`apps/api`、`packages/shared-types` 基础目录。
 2. 落一版最小 `Fastify + Prisma + MySQL` 与 `Vue + Vite + Tailwind` 可运行样板。
-3. 做 SSO PoC，验证真实回调和本地 mock 两种模式。
+3. 做 SSO PoC，重点验证 `sso-utils` 的 code exchange、userinfo header 格式、`SSO_API_BASE_URL` 差异和 mock/real 双模式。
 4. 先实现在线便签主链路，再补个人面板与收藏。
 5. 在实现前把 Prisma schema 和迁移计划单独固化成文档或 story。
 
@@ -507,6 +561,8 @@ packages/
 - [Prisma Referential Actions](https://docs.prisma.io/docs/v6/orm/prisma-schema/data-model/relations/referential-actions)
 - [MySQL FOREIGN KEY Constraints](https://dev.mysql.com/doc/en/constraint-foreign-key.html)
 - [MySQL CREATE TABLE FOREIGN KEY Constraints](https://dev.mysql.com/doc/refman/8.4/en/create-table-foreign-keys.html)
+- [reus-able sso-utils index.ts](https://github.com/ImoutoTech/reus-able/blob/master/packages/sso-utils/src/index.ts)
+- [reus-able sso-utils types.ts](https://github.com/ImoutoTech/reus-able/blob/master/packages/sso-utils/src/types.ts)
 
 ### 9.3 置信度
 
@@ -517,4 +573,4 @@ packages/
 
 ### 9.4 研究不足
 
-本次研究没有拿到 `@reus-able/sso-utils` 的公开官方文档，也没有真实业务代码可供审查，因此对 SSO 接入细节、最终目录层级和 API 细节的判断，部分是基于本地方案文档做的工程推断，而不是对现有实现的验证。
+本次研究虽然补充阅读了 `@reus-able/sso-utils` 的公开源码，但仍然没有真实业务代码可供审查，也未验证目标 IdP 的线上行为，因此对 SSO header 格式、callback 参数、真实 token 响应结构的结论，仍需通过 PoC 最终确认。
