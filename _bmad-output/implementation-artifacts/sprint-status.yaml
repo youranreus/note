@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review in a fresh context
 
 generated: "2026-04-02 11:55:32 +0800"
-last_updated: "2026-04-02 17:31:43 +0800"
+last_updated: "2026-04-02 18:12:00 +0800"
 project: "note"
 project_key: "NOKEY"
 tracking_system: "file-system"
@@ -45,7 +45,7 @@ development_status:
   epic-1: in-progress
   1-1-app-shell-starter-template: done
   1-2-home-sid-entry-mode-selection: review
-  1-3-read-online-note-by-sid: backlog
+  1-3-read-online-note-by-sid: ready-for-dev
   1-4-online-note-save-and-update: backlog
   1-5-shareable-note-header-feedback: backlog
   1-6-local-note-standalone-mode: backlog
