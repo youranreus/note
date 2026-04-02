@@ -16,8 +16,15 @@ const router = useRouter()
 
 const fallbackSid = shallowRef(generateEntrySid())
 const sidDraft = shallowRef(fallbackSid.value)
+const isDraftAutoPrepared = shallowRef(true)
 
-const isUsingFallbackSid = computed(() => normalizeEntrySid(sidDraft.value) === '')
+const isUsingFallbackSid = computed(() => {
+  if (isDraftAutoPrepared.value) {
+    return true
+  }
+
+  return normalizeEntrySid(sidDraft.value) === ''
+})
 const visibleSid = computed(() =>
   isUsingFallbackSid.value ? fallbackSid.value : normalizeEntrySid(sidDraft.value)
 )
@@ -48,6 +55,7 @@ function refreshFallbackSidIfNeeded(value: string) {
 
 function handleDraftUpdate(value: string) {
   sidDraft.value = value
+  isDraftAutoPrepared.value = normalizeEntrySid(value) === ''
   refreshFallbackSidIfNeeded(value)
 }
 
@@ -56,6 +64,7 @@ async function navigateToMode(mode: NoteMode) {
 
   sidDraft.value = sid
   fallbackSid.value = nextFallbackSid
+  isDraftAutoPrepared.value = false
 
   await router.push(createEntryLocation(mode, sid))
 }

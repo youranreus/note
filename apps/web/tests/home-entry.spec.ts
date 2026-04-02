@@ -115,6 +115,7 @@ describe('home entry utilities', () => {
     expect((input.element as HTMLInputElement).value).toBe('abcdefghjk')
     expect(input.attributes('auto-capitalize')).toBeUndefined()
     expect(input.attributes('autocapitalize')).toBe('off')
+    expect(wrapper.text()).toContain('已自动准备好固定入口')
     expect(wrapper.text()).toContain('abcdefghjk')
   })
 
