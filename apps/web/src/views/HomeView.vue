@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import FoundationShowcase from '@/features/home/FoundationShowcase.vue'
+import HomeEntry from '@/features/home/HomeEntry.vue'
 </script>
 
 <template>
-  <FoundationShowcase />
+  <HomeEntry />
 </template>

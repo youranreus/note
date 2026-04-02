@@ -11,11 +11,23 @@ const props = withDefaults(
     placeholder?: string
     state?: InteractionState
     hint?: string
+    type?: string
+    autoComplete?: string
+    autoCapitalize?: string
+    spellcheck?: boolean
+    inputMode?: 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search'
+    enterKeyHint?: 'enter' | 'done' | 'go' | 'next' | 'previous' | 'search' | 'send'
   }>(),
   {
     placeholder: '',
     state: 'default',
-    hint: ''
+    hint: '',
+    type: 'text',
+    autoComplete: 'off',
+    autoCapitalize: 'none',
+    spellcheck: false,
+    inputMode: undefined,
+    enterKeyHint: undefined
   }
 )
 
@@ -34,10 +46,15 @@ const inputClassName = computed(() => [
     </span>
     <input
       v-model="model"
+      :autocapitalize="props.autoCapitalize"
+      :autocomplete="props.autoComplete"
       :class="inputClassName"
       :disabled="props.state === 'disabled'"
+      :enterkeyhint="props.enterKeyHint"
+      :inputmode="props.inputMode"
       :placeholder="placeholder"
-      type="text"
+      :spellcheck="props.spellcheck"
+      :type="props.type"
     />
     <span v-if="hint" class="text-xs text-[color:var(--text-muted)]">
       {{ hint }}

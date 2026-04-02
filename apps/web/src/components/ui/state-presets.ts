@@ -13,10 +13,16 @@ export const foundationStateRegistry: Record<string, InteractionState[]> = {
   SurfaceCard: ['default', 'focus', 'error', 'disabled']
 }
 
+export const buttonVariantClasses = {
+  primary: 'border-transparent bg-ink-900 text-white hover:-translate-y-0.5 hover:bg-ink-800',
+  secondary:
+    'border-[color:var(--panel-border)] bg-white/88 text-[color:var(--text-primary)] hover:-translate-y-0.5 hover:bg-white'
+} as const
+
 export const buttonStateClasses: Record<InteractionState, string> = {
-  default: 'border-transparent bg-ink-900 text-white hover:-translate-y-0.5 hover:bg-ink-800',
-  focus: 'border-accent-500 bg-accent-500 text-white ring-4 ring-accent-200',
-  error: 'border-danger bg-danger text-white ring-4 ring-red-200',
+  default: '',
+  focus: 'ring-4 ring-accent-200',
+  error: 'border-danger ring-4 ring-red-200',
   disabled: 'cursor-not-allowed border-transparent bg-ink-300 text-white opacity-70'
 }
 

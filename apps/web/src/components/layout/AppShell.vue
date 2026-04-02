@@ -8,9 +8,9 @@ import AuthStatusPill from './AuthStatusPill.vue'
       <header class="flex flex-col gap-4 rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-white/72 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p class="m-0 text-xs uppercase tracking-[0.24em] text-[color:var(--text-muted)]">note</p>
-          <h1 class="mt-2 text-2xl font-semibold sm:text-3xl">统一入口骨架</h1>
+          <h1 class="mt-2 text-2xl font-semibold sm:text-3xl">固定链接的轻量文本入口</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]">
-            Story 1.1 只交付应用壳体、基础组件与路由占位，为后续在线便签、本地便签与 SSO 流程提供稳定落点。
+            从首页直接进入在线便签或本地便签，围绕固定入口 ID 保持短路径、低等待感和清楚的对象心智。
           </p>
         </div>
         <div class="flex justify-start sm:justify-end">
