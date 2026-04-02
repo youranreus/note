@@ -1,0 +1,2523 @@
+diff --git a/.gitignore b/.gitignore
+index 7a245e2..9c9270f 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -5,6 +5,7 @@
+ .nitro
+ .cache
+ dist
++*.tsbuildinfo
+ 
+ # Node dependencies
+ node_modules
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index bd7d07b..0a200f7 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -20,6 +20,9 @@ importers:
+       '@fastify/cors':
+         specifier: ^10.0.1
+         version: 10.1.0
++      '@note/shared-types':
++        specifier: workspace:*
++        version: link:../../packages/shared-types
+       '@prisma/client':
+         specifier: ^5.22.0
+         version: 5.22.0(prisma@5.22.0)
+@@ -57,6 +60,9 @@ importers:
+       '@alova/adapter-axios':
+         specifier: ^1.0.0
+         version: 1.2.6
++      '@note/shared-types':
++        specifier: workspace:*
++        version: link:../../packages/shared-types
+       '@reus-able/sso-utils':
+         specifier: ^1.0.0
+         version: 1.0.0
+@@ -107,6 +113,12 @@ importers:
+         specifier: ^2.1.10
+         version: 2.2.12(typescript@5.9.3)
+ 
++  packages/shared-types:
++    devDependencies:
++      typescript:
++        specifier: ^5.7.2
++        version: 5.9.3
++
+ packages:
+ 
+   '@alloc/quick-lru@5.2.0':
+@@ -744,6 +756,7 @@ packages:
+     resolution: {integrity: sha512-nLckB8WOqHIf1bhymk+oHxvM9D3tyPndZH8i8+35p/1YiVoVswPid2yLzgX7ZJP0KQvnkhM4H6QZ5m0LzbyIAg==}
+     cpu: [riscv64]
+     os: [linux]
++    libc: [musl]
+ 
+   '@rollup/rollup-linux-s390x-gnu@4.59.0':
+     resolution: {integrity: sha512-oF87Ie3uAIvORFBpwnCvUzdeYUqi2wY6jRFWJAy1qus/udHFYIkplYRW+wo+GRUP4sKzYdmE1Y3+rY5Gc4ZO+w==}
+
+diff --git a/_bmad-output/implementation-artifacts/1-1-app-shell-starter-template-validation-report.md b/_bmad-output/implementation-artifacts/1-1-app-shell-starter-template-validation-report.md
+new file mode 100644
+index 0000000..490c4ea
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/1-1-app-shell-starter-template-validation-report.md
+@@ -0,0 +1,40 @@
++# Story Validation Report: 1-1-app-shell-starter-template
++
++## Validation Result
++
++- Story file: `_bmad-output/implementation-artifacts/1-1-app-shell-starter-template.md`
++- Validation status: pass with fixes applied
++- Story status after validation: `ready-for-dev`
++
++## Summary
++
++本次 `VS` 复核后，Story 1.1 已具备进入 `DS` 的条件。验证过程中发现原 story 还有两类关键信息不够明确，已直接修复到 story 文件中：
++
++1. Vue 实施规范未写死，容易导致开发阶段回退到错误范式。
++2. 根级环境变量、SSO 回调地址与新 workspace 骨架之间的收口方式不够明确，容易导致“路由存在但配置漂移”。
++
++## Fixes Applied
++
++### 1. Vue implementation guardrails
++
++- 明确前端默认采用 `Vue 3 + Composition API + <script setup lang="ts">`
++- 明确 route view 保持薄层，只做页面组合，不承载大段业务实现
++- 明确若本故事引入前端类型检查，应优先使用 `vue-tsc`
++
++### 2. Environment and callback alignment
++
++- 新增环境变量同步要求：根级 `.env` / `.env.example` 作为配置源头
++- 新增 SSO 回调环境约定要求：默认回调目标必须与 `/auth/callback` 路由壳体一致
++- 新增测试要求：验证环境同步后，前端回调路由与 `SSO_REDIRECT` 不冲突
++
++## Remaining Risks
++
++- 当前 story 仍依赖后续 `DS` 在实现时正确处理根级脚本缺失问题，否则 `pnpm dev` / `pnpm test` 仍可能保持坏状态。
++- 当前仓库仍存在遗留 `apps/server`，后续实施必须按 story 要求将其视为待迁移结构，而不是继续扩写。
++- 本报告只验证 story 质量，不代表业务代码已实现。
++
++## Recommendation
++
++- 下一步可直接进入 `DS`
++- 若要维持 BMad 严格顺序，当前无需再改 story 状态，保持 `ready-for-dev` 即可
++
+
+diff --git a/_bmad-output/implementation-artifacts/1-1-app-shell-starter-template.md b/_bmad-output/implementation-artifacts/1-1-app-shell-starter-template.md
+new file mode 100644
+index 0000000..bc9d894
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/1-1-app-shell-starter-template.md
+@@ -0,0 +1,282 @@
++# Story 1.1: 基于 starter template 建立可进入主流程的应用骨架
++
++Status: review
++
++<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
++
++## Story
++
++As a 访客用户，
++I want 应用提供可用的首页、在线便签页和本地便签页骨架，
++so that 我可以从同一个产品入口进入不同便签流程而不会被工程未完成状态阻塞。
++
++## Acceptance Criteria
++
++1. 前端应基于 `Vite Vue TypeScript starter` 初始化，后端应以 `Fastify TypeScript` 最小骨架完成 `apps/api` 初始化。
++2. 仓库中应存在 `apps/web`、`apps/api`、`packages/shared-types` 的基础结构，前端应提供 `/`、`/note/o/:sid`、`/note/l/:sid`、`/auth/callback` 的基础路由壳体。
++3. 首页完成加载后，应显示统一的应用壳体、右上状态入口和主内容容器，且主内容容器在移动端和桌面端都保持可用的响应式宽度约束。
++4. 应建立最小 design token 与 foundation 组件基础，至少覆盖输入框、按钮、模态框、分段 tab、列表项、状态提示、空态、加载态和基础容器样式的一致性。
++5. 每个高频组件至少应具备 `default`、`focus`、`error`、`disabled` 四类状态定义，并在页面开发初期一并落地，而不是事后补齐。
++
++## Tasks / Subtasks
++
++- [x] Task 1: 校准 monorepo 骨架并修复当前工作区入口不一致问题 (AC: 1, 2)
++  - [x] 新建 `pnpm-workspace.yaml`，明确包含 `apps/*` 与 `packages/*`。
++  - [x] 为 `apps/web`、`apps/api`、`packages/shared-types` 创建最小 `package.json` 与 `tsconfig.json`，使根脚本可解析到真实 workspace 包。
++  - [x] 处理当前根目录 `package.json` 与实际仓库结构的冲突：现有脚本引用了 `@note/web`、`@note/api`、`scripts/boot.mjs`、`scripts/sync-env.mjs`，但这些文件目前不存在，需在本故事中补齐或等价调整到可运行状态。
++  - [x] 明确环境变量同步策略：根级 `.env` / `.env.example` 仍作为源头，前后端应用只消费同步后的配置，不新增分散且互相漂移的环境定义。
++  - [x] 校准 SSO 回调环境约定，确保默认前端回调目标与 `/auth/callback` 路由壳体一致，而不是留下一半在根配置、一半在页面代码中的隐式耦合。
++  - [x] 保留 `apps/server` 作为待迁移遗留目录，不要在本故事中直接删除或重命名未确认的用户资产；如果需要停用，只能通过文档或脚本隔离，而不是破坏性清理。
++
++- [x] Task 2: 搭建 `apps/web` 的 Vue SPA 基础壳体 (AC: 1, 2, 3)
++  - [x] 使用 Vite Vue TypeScript 方案初始化前端，而不是沿用当前 `apps/web/node_modules` 中残留的 React 依赖痕迹。
++  - [x] Vue SFC 默认使用 Composition API 和 `<script setup lang=\"ts\">`，不要回退到 Options API，也不要把逻辑塞进超大的 view 文件。
++  - [x] 接入 `vue-router`，建立 `/`、`/note/o/:sid`、`/note/l/:sid`、`/auth/callback` 四个路由壳体页面。
++  - [x] 建立 `src/main.ts`、`App.vue`、`router/index.ts`、`views/*`、`components/layout/*`、`components/ui/*`、`app/styles/*` 的基础目录。
++  - [x] 在应用壳体中预留右上 `AuthStatusPill` 占位和主内容容器，首页采用单列居中布局，宽度策略使用“百分比宽度 + 最大宽度”而不是固定像素。
++
++- [x] Task 3: 建立前端 design token 与 foundation 组件最小层 (AC: 3, 4, 5)
++  - [x] 通过 Tailwind CSS 建立最小 token 基线：颜色、排版、字号、圆角、边框、阴影、间距、状态色、动效时长。
++  - [x] 先创建基础组件接口或最小实现：`Button`、`TextInput`、`Modal`、`SegmentedTabs`、`StatusPill`、`ListItem`、`InlineFeedback`、`LoadingCard`。
++  - [x] 在组件实现阶段同步落地 `default`、`focus`、`error`、`disabled` 状态，不允许只实现默认态。
++  - [x] 本故事的 foundation 组件以“可复用壳体 + 样式约束”优先，不提前实现收藏、权限、SSO 业务逻辑。
++
++- [x] Task 4: 搭建 `apps/api` 的 Fastify TypeScript 最小骨架 (AC: 1, 2)
++  - [x] 建立 `src/main.ts`、`src/app.ts`、`src/plugins/*`、`src/routes/*`、`src/services/*`、`src/schemas/*`、`src/infra/*` 的基础目录。
++  - [x] 初始化最小 Fastify 启动链路与基础插件注册点，为后续 `auth`、`notes`、`favorites`、`me` 路由预留文件位置。
++  - [x] 预留 `prisma/` 目录与基础文件位，不在本故事中提前实现完整业务 schema、SSO facade 或权限逻辑。
++  - [x] 保持 API 边界命名对齐架构文档，但本故事只交付“可启动骨架”，不扩展到完整业务实现。
++
++- [x] Task 5: 建立共享类型与开发流程基线 (AC: 1, 2, 4)
++  - [x] 初始化 `packages/shared-types`，提供最小 barrel export，作为前后端共享 DTO 的落点。
++  - [x] 确保根级 `dev`、`build`、`test` 至少能正确解析 workspace 包；如本故事尚未引入完整测试框架，也应保证脚本不会指向不存在的文件。
++  - [x] 为后续 `axios` / `alova`、Pinia、Prisma 接入预留目录，但不在本故事中实现真实请求与数据流。
++
++- [x] Task 6: 以 Story 1.2 之前置骨架的标准做验收 (AC: 2, 3, 4, 5)
++  - [x] 验证首页、在线便签页、本地便签页、回调页都能渲染基础 shell，而不是空白页或 404。
++  - [x] 验证首页壳体已包含右上状态入口占位、主内容容器、响应式宽度约束和基础语义结构。
++  - [x] 验证 foundation 组件至少具备统一的视觉 token 和四种交互状态定义。
++  - [x] 明确将 `sid` 自动生成、在线便签读取/保存、登录回跳恢复、收藏和删除等业务逻辑留给后续 stories，避免 Story 1.1 过度扩张。
++
++## Dev Notes
++
++### Story Intent
++
++这条 story 的目标不是交付业务功能，而是把仓库拉到“后续故事可以稳定落地”的状态。完成标准是：前后端工程骨架、路由壳体、基础组件层和 workspace 结构都建立起来，并且不会让后续故事继续在错误目录、错误技术栈或缺失脚手架的状态下推进。
++
++### Cross-Story Context
++
++- Epic 1 的后续故事会在这个骨架上继续推进：
++  - Story 1.2 负责首页 `sid` 输入、自动生成和在线/本地模式入口。
++  - Story 1.3 负责通过 `sid` 读取在线便签。
++  - Story 1.4 负责在线便签首次保存与持续更新。
++  - Story 1.5 负责对象头部状态与反馈。
++  - Story 1.6 负责本地便签模式。
++- 因此本故事必须优先保证“路由和组件壳体存在”，但不要提前实现远端数据流、权限或持久化逻辑。后续故事需要扩展的是 feature 层，而不是返工基础目录。
++
++### Repository Reality Check
++
++- 当前仓库根 `package.json` 已经声明了 `@note/web`、`@note/api` 的过滤脚本，但仓库中还没有对应 package 文件。
++- 根目录缺少 `pnpm-workspace.yaml`，而架构文档把它视为 monorepo 基线。
++- 当前 `apps/web` 目录没有源码文件，仅残留 `node_modules`；其中还出现 React 相关依赖痕迹，这与既定 Vue 3 方案冲突。
++- 当前 `apps/server` 仅有遗留 `.env`，而目标结构要求的是 `apps/api`。本故事应把它视为待迁移遗留物，而不是新的实现落点。
++- 根脚本引用的 `scripts/boot.mjs`、`scripts/sync-env.mjs` 当前不存在；若不在本故事内补齐或调整，`pnpm dev` / `pnpm test` 仍会处于坏状态。
++
++### Technical Requirements
++
++- 前端固定选型：`Vue 3 + TypeScript + Vite + Tailwind CSS + Vue Router`。
++- Vue 组件默认采用 Composition API + `<script setup lang="ts">`；route view 只做组合面，不承载大段业务实现。
++- 后端固定选型：`Fastify + TypeScript`。
++- 仓库固定组织：`apps/web`、`apps/api`、`packages/shared-types`。
++- 前端应用模型固定为 SPA，不引入 SSR/全栈元框架。
++- 路由必须预留 `/`、`/auth/callback`、`/note/o/:sid`、`/note/l/:sid`。
++- 共享 DTO 应落在 `packages/shared-types`，不要把跨端契约散落在前后端各自目录。
++- 根级 `.env` / `.env.example` 是当前唯一可见环境配置基线；本故事要做的是把它们收口进新骨架，而不是再发明第二套配置入口。
++- 本故事只交付骨架，不实现真实 `notes` / `favorites` / `me/session` API，也不实现 Prisma schema 细节。
++
++### Architecture Compliance Guardrails
++
++- 遵守 “Pinia 只管会话/UI，Alova 管远端数据” 的边界；即使本故事暂未引入真实请求，也应为该边界保留目录和初始化位置。
++- 遵守 “数据库 `snake_case`、应用层 `camelCase`” 的后续规则，但本故事不需要实现实际数据库字段映射。
++- 遵守 “SSO 与权限逻辑只在服务端收口” 的边界；前端页面只能做占位，不要在本故事里把 SSO 逻辑散到页面。
++- 遵守 “本地便签与在线便签分模块” 的边界；即使当前只是壳体，也要在目录层先分出 `features/note` 与 `features/local-note`。
++
++### Frontend Implementation Notes
++
++- 采用 `views + features + components + stores + services + router` 分层。
++- `views` 保持薄层，只负责拼装页面壳体；将后续可增长的 UI 区块留在 `components` / `features`。
++- 首页保持单列中心化壳体，右上保留 `AuthStatusPill` 占位，避免引入后台式侧栏布局。
++- Layout 宽度应采用移动优先方案，并使用最大宽度约束；不要用固定像素把首页壳体锁死。
++- foundation 组件优先做“外观与状态一致性”，而不是复杂业务行为。
++- 组件命名使用 `PascalCase`，普通 TypeScript 文件使用语义化 `kebab-case`。
++- 若在本故事内加入类型检查，前端优先采用 `vue-tsc` 路径，而不是只依赖普通 `tsc` 假装覆盖 `.vue` 文件。
++
++### Backend Implementation Notes
++
++- `apps/api` 应按 `plugins / routes / services / schemas / infra` 分层。
++- 为 `auth`、`notes`、`favorites`、`me` 预留路由与 schema 文件位，但只保留最小占位。
++- SSO facade、Prisma、错误映射、会话恢复都属于后续故事/后续阶段，不要在 Story 1.1 中过早展开。
++- 如果需要提供运行验证，可以保留健康检查或基础 `GET /health` 风格接口，但不要让占位接口冒充完成业务能力。
++- 根级环境变量中的 Web/API origin 与 SSO 配置需要能被后端骨架消费，但本故事不要把真实密钥硬编码到源码或示例配置里。
++
++### File Structure Requirements
++
++- 目标目录优先对齐：
++  - `apps/web/src/main.ts`
++  - `apps/web/src/App.vue`
++  - `apps/web/src/router/index.ts`
++  - `apps/web/src/views/HomeView.vue`
++  - `apps/web/src/views/AuthCallbackView.vue`
++  - `apps/web/src/views/OnlineNoteView.vue`
++  - `apps/web/src/views/LocalNoteView.vue`
++  - `apps/web/src/components/ui/*`
++  - `apps/web/src/components/layout/*`
++  - `apps/web/src/app/styles/*`
++  - `apps/api/src/main.ts`
++  - `apps/api/src/app.ts`
++  - `apps/api/src/plugins/*`
++  - `apps/api/src/routes/*`
++  - `apps/api/prisma/*`
++  - `packages/shared-types/src/index.ts`
++- 除非用户明确要求，不要删除遗留目录；优先通过新结构落位并为后续迁移保留空间。
++
++### Testing Requirements
++
++- 本故事的最低验证重点是“骨架可运行”，不是业务正确性。
++- 至少覆盖：
++  - workspace 脚本可解析，不再引用缺失文件；
++  - 环境变量同步后，前端回调路由与 `SSO_REDIRECT` 配置不再相互打架；
++  - 前端四个路由壳体可渲染；
++  - 首页和基础组件在移动端/桌面端不出现明显布局断裂；
++  - foundation 组件存在 `default`、`focus`、`error`、`disabled` 状态定义。
++- 若本故事没有完整测试框架，可接受先以 `typecheck` / `build` / 最小 smoke test 验证为主，但不要把未来 CI 所需的 `lint / typecheck / test / build` 基线抛开不管。
++
++### Scope Boundaries
++
++- 不在本故事实现：
++  - `sid` 自动生成逻辑；
++  - 在线便签读取和保存；
++  - 本地便签存储逻辑；
++  - SSO 回跳恢复；
++  - 收藏、我的创建、我的收藏；
++  - 删除不可恢复语义；
++  - Prisma 数据模型和数据库迁移细节。
++- 这些能力分别由 Story 1.2 以后逐步承接；Story 1.1 的职责是“把正确的工程壳体搭起来”。
++
++### Project Structure Notes
++
++- 当前仓库真实状态与规划文档存在明显偏差：
++  - 文档要求 `apps/api`，实际仍存在遗留 `apps/server`；
++  - 文档要求 `pnpm-workspace.yaml`，当前仓库缺失；
++  - 根脚本已按 workspace 组织编写，但基础包和脚本文件尚未落位。
++- 实现时要以规划文档和项目上下文为准，而不是把当前空目录或遗留依赖当成正确基线。
++
++### References
++
++- Story 来源：`_bmad-output/planning-artifacts/epics.md` -> `Epic 1` / `Story 1.1`
++- 后续故事边界：`_bmad-output/planning-artifacts/epics.md` -> `Story 1.2` 至 `Story 1.6`
++- Web 产品要求：`_bmad-output/planning-artifacts/prd.md` -> `Web App Specific Requirements`
++- 技术选型与 starter 决策：`_bmad-output/planning-artifacts/architecture.md` -> `Starter Template Evaluation`
++- 前端/接口/部署边界：`_bmad-output/planning-artifacts/architecture.md` -> `Frontend Architecture` / `API & Communication Patterns` / `Infrastructure & Deployment`
++- 目录结构与命名规则：`_bmad-output/planning-artifacts/architecture.md` -> `Implementation Patterns & Consistency Rules` / `Project Structure & Boundaries`
++- 设计系统与基础组件：`_bmad-output/planning-artifacts/ux-design-specification.md` -> `Design System Foundation` / `Component Strategy`
++- 响应式与无障碍基线：`_bmad-output/planning-artifacts/ux-design-specification.md` -> `Spacing & Layout Foundation` / `Responsive Design & Accessibility`
++- 现有技术方案补充：`docs/tech-solution.md` -> `4. 前端技术方案` / `5. 后端技术方案` / `7. 目录与工程组织` / `8. 分阶段实施计划`
++- 项目级 AI 规则：`_bmad-output/project-context.md` -> `技术栈与项目现状` / `关键实施规则`
++- Vue 约束补充：`/Users/reuszeng/.agents/skills/vue-best-practices/SKILL.md`
++
++## Dev Agent Record
++
++### Agent Model Used
++
++GPT-5 Codex
++
++### Debug Log References
++
++- `package.json` 当前脚本与缺失的 `pnpm-workspace.yaml`、`scripts/*.mjs` 之间存在坏链路。
++- `apps/web` 当前无源码文件，`apps/server` 是遗留结构而非目标结构。
++- 通过 `scripts/sync-env.mjs` 将根级 `.env` / `.env.example` 统一同步到 `apps/web/.env.local` 与 `apps/api/.env`，并强制收口到 `/auth/callback`。
++- 根级验证已通过 `pnpm boot`、`pnpm build`、`pnpm test` 完整回归，Vue Router 壳体与 Fastify health/config smoke tests 均为绿色。
++
++### Completion Notes List
++
++- 已建立 `pnpm-workspace.yaml`、`apps/web`、`apps/api`、`packages/shared-types` 基础结构，并补齐根级 `scripts/boot.mjs`、`scripts/sync-env.mjs`。
++- 已交付 Vue 3 + Vite + Tailwind + Vue Router 前端壳体，包含 `/`、`/note/o/:sid`、`/note/l/:sid`、`/auth/callback` 四个可渲染路由。
++- 已交付最小 foundation 组件层与 design token：`Button`、`TextInput`、`Modal`、`SegmentedTabs`、`StatusPill`、`ListItem`、`InlineFeedback`、`LoadingCard`、`EmptyState`、`SurfaceCard`。
++- 已交付 Fastify + TypeScript 最小 API 骨架，包含 `src/main.ts`、`src/app.ts`、`plugins`、`routes`、`services`、`schemas`、`infra`、`prisma/schema.prisma`。
++- 已通过 `pnpm boot`、`pnpm --filter @note/web typecheck`、`pnpm --filter @note/api typecheck`、`pnpm build`、`pnpm test` 完成验收。
++- 已明确将 `sid` 自动生成、在线读写、SSO 回跳恢复、收藏、删除与 Prisma 细节保留给后续 stories。
++
++### File List
++
++- `.gitignore`
++- `_bmad-output/implementation-artifacts/1-1-app-shell-starter-template.md`
++- `_bmad-output/implementation-artifacts/sprint-status.yaml`
++- `apps/api/package.json`
++- `apps/api/prisma/schema.prisma`
++- `apps/api/src/app.ts`
++- `apps/api/src/infra/config.ts`
++- `apps/api/src/main.ts`
++- `apps/api/src/plugins/cookies.ts`
++- `apps/api/src/plugins/cors.ts`
++- `apps/api/src/routes/auth.ts`
++- `apps/api/src/routes/favorites.ts`
++- `apps/api/src/routes/health.ts`
++- `apps/api/src/routes/me.ts`
++- `apps/api/src/routes/notes.ts`
++- `apps/api/src/schemas/health.ts`
++- `apps/api/src/services/module-shell-service.ts`
++- `apps/api/tests/app.spec.ts`
++- `apps/api/tests/config.spec.ts`
++- `apps/api/tsconfig.build.json`
++- `apps/api/tsconfig.json`
++- `apps/web/index.html`
++- `apps/web/package.json`
++- `apps/web/postcss.config.js`
++- `apps/web/src/App.vue`
++- `apps/web/src/app/shell.ts`
++- `apps/web/src/app/styles/base.css`
++- `apps/web/src/app/styles/index.css`
++- `apps/web/src/app/styles/tokens.css`
++- `apps/web/src/components/layout/AppShell.vue`
++- `apps/web/src/components/layout/AuthStatusPill.vue`
++- `apps/web/src/components/ui/Button.vue`
++- `apps/web/src/components/ui/EmptyState.vue`
++- `apps/web/src/components/ui/InlineFeedback.vue`
++- `apps/web/src/components/ui/ListItem.vue`
++- `apps/web/src/components/ui/LoadingCard.vue`
++- `apps/web/src/components/ui/Modal.vue`
++- `apps/web/src/components/ui/SegmentedTabs.vue`
++- `apps/web/src/components/ui/StatusPill.vue`
++- `apps/web/src/components/ui/SurfaceCard.vue`
++- `apps/web/src/components/ui/TextInput.vue`
++- `apps/web/src/components/ui/state-presets.ts`
++- `apps/web/src/env.d.ts`
++- `apps/web/src/features/auth/components/AuthCallbackCard.vue`
++- `apps/web/src/features/home/FoundationShowcase.vue`
++- `apps/web/src/features/local-note/components/LocalNoteShell.vue`
++- `apps/web/src/features/note/components/OnlineNoteShell.vue`
++- `apps/web/src/main.ts`
++- `apps/web/src/router/index.ts`
++- `apps/web/src/services/http-client.ts`
++- `apps/web/src/stores/auth-store.ts`
++- `apps/web/src/views/AuthCallbackView.vue`
++- `apps/web/src/views/HomeView.vue`
++- `apps/web/src/views/LocalNoteView.vue`
++- `apps/web/src/views/OnlineNoteView.vue`
++- `apps/web/tailwind.config.ts`
++- `apps/web/tests/router.spec.ts`
++- `apps/web/tests/ui-state.spec.ts`
++- `apps/web/tsconfig.json`
++- `apps/web/vite.config.ts`
++- `packages/shared-types/package.json`
++- `packages/shared-types/src/index.ts`
++- `packages/shared-types/tsconfig.json`
++- `pnpm-lock.yaml`
++- `pnpm-workspace.yaml`
++- `scripts/boot.mjs`
++- `scripts/sync-env.mjs`
++
++### Change Log
++
++- 2026-04-02: 完成 Story 1.1 应用骨架实现，补齐 monorepo/workspace、Vue SPA 路由壳体、foundation 组件层、Fastify API 骨架、共享类型与根级 build/test 链路，并将故事状态推进到 `review`。
+
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+new file mode 100644
+index 0000000..122570b
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -0,0 +1,72 @@
++# generated: 2026-04-02 11:55:32 +0800
++# last_updated: 2026-04-02 12:01:40 +0800
++# project: note
++# project_key: NOKEY
++# tracking_system: file-system
++# story_location: /Users/reuszeng/Code/Projects/note/_bmad-output/implementation-artifacts
++#
++# STATUS DEFINITIONS:
++# ==================
++# Epic Status:
++#   - backlog: Epic not yet started
++#   - in-progress: Epic actively being worked on
++#   - done: All stories in epic completed
++#
++# Epic Status Transitions:
++#   - backlog -> in-progress: Automatically when first story is created (via create-story)
++#   - in-progress -> done: Manually when all stories reach 'done' status
++#
++# Story Status:
++#   - backlog: Story only exists in epic file
++#   - ready-for-dev: Story file created in implementation artifacts
++#   - in-progress: Developer actively working on implementation
++#   - review: Ready for code review
++#   - done: Story completed
++#
++# Retrospective Status:
++#   - optional: Can be completed but not required
++#   - done: Retrospective has been completed
++#
++# WORKFLOW NOTES:
++# ===============
++# - Epic transitions to 'in-progress' automatically when first story is created
++# - Stories can be worked in parallel if team capacity allows
++# - SM typically creates next story after previous one is 'done' to incorporate learnings
++# - Dev moves story to 'review', then runs code-review in a fresh context
++
++generated: "2026-04-02 11:55:32 +0800"
++last_updated: "2026-04-02 15:01:00 +0800"
++project: "note"
++project_key: "NOKEY"
++tracking_system: "file-system"
++story_location: "/Users/reuszeng/Code/Projects/note/_bmad-output/implementation-artifacts"
++
++development_status:
++  epic-1: in-progress
++  1-1-app-shell-starter-template: review
++  1-2-home-sid-entry-mode-selection: backlog
++  1-3-read-online-note-by-sid: backlog
++  1-4-online-note-save-and-update: backlog
++  1-5-shareable-note-header-feedback: backlog
++  1-6-local-note-standalone-mode: backlog
++  epic-1-retrospective: optional
++
++  epic-2: backlog
++  2-1-sso-login-callback-recovery: backlog
++  2-2-owner-default-edit-permission: backlog
++  2-3-edit-key-shared-editing: backlog
++  2-4-unified-view-edit-authorization: backlog
++  epic-2-retrospective: optional
++
++  epic-3: backlog
++  3-1-favorite-action-with-login-gate: backlog
++  3-2-user-center-my-created-notes: backlog
++  3-3-my-favorites-context-return: backlog
++  3-4-user-center-accessibility-consistency: backlog
++  epic-3-retrospective: optional
++
++  epic-4: backlog
++  4-1-delete-confirmation-authorized-delete: backlog
++  4-2-deleted-link-irreversible-semantics: backlog
++  4-3-unified-edge-case-feedback: backlog
++  epic-4-retrospective: optional
+
+diff --git a/apps/api/package.json b/apps/api/package.json
+new file mode 100644
+index 0000000..0d1cc2d
+--- /dev/null
++++ b/apps/api/package.json
+@@ -0,0 +1,30 @@
++{
++  "name": "@note/api",
++  "private": true,
++  "version": "0.1.0",
++  "type": "module",
++  "scripts": {
++    "dev": "tsx watch src/main.ts",
++    "build": "tsc -p tsconfig.build.json",
++    "test": "vitest run",
++    "typecheck": "tsc -p tsconfig.json --noEmit",
++    "db:init": "prisma generate --schema prisma/schema.prisma"
++  },
++  "dependencies": {
++    "@fastify/cookie": "^10.0.1",
++    "@fastify/cors": "^10.0.1",
++    "@note/shared-types": "workspace:*",
++    "@prisma/client": "^5.22.0",
++    "@reus-able/sso-utils": "^1.0.0",
++    "dotenv": "^16.4.7",
++    "fastify": "^5.0.0",
++    "fastify-plugin": "^5.0.1"
++  },
++  "devDependencies": {
++    "@types/node": "^22.10.2",
++    "prisma": "^5.22.0",
++    "tsx": "^4.19.2",
++    "typescript": "^5.7.2",
++    "vitest": "^2.1.8"
++  }
++}
+
+diff --git a/apps/api/prisma/schema.prisma b/apps/api/prisma/schema.prisma
+new file mode 100644
+index 0000000..d1abe83
+--- /dev/null
++++ b/apps/api/prisma/schema.prisma
+@@ -0,0 +1,8 @@
++generator client {
++  provider = "prisma-client-js"
++}
++
++datasource db {
++  provider = "mysql"
++  url      = env("DATABASE_URL")
++}
+
+diff --git a/apps/api/src/app.ts b/apps/api/src/app.ts
+new file mode 100644
+index 0000000..9f997f8
+--- /dev/null
++++ b/apps/api/src/app.ts
+@@ -0,0 +1,25 @@
++import Fastify from 'fastify'
++
++import { cookiePlugin } from './plugins/cookies.js'
++import { corsPlugin } from './plugins/cors.js'
++import { authRoutes } from './routes/auth.js'
++import { favoriteRoutes } from './routes/favorites.js'
++import { healthRoutes } from './routes/health.js'
++import { meRoutes } from './routes/me.js'
++import { noteRoutes } from './routes/notes.js'
++
++export function buildApp() {
++  const app = Fastify({
++    logger: false
++  })
++
++  app.register(cookiePlugin)
++  app.register(corsPlugin)
++  app.register(healthRoutes)
++  app.register(authRoutes, { prefix: '/api/auth' })
++  app.register(noteRoutes, { prefix: '/api/notes' })
++  app.register(favoriteRoutes, { prefix: '/api/favorites' })
++  app.register(meRoutes, { prefix: '/api/me' })
++
++  return app
++}
+
+diff --git a/apps/api/src/infra/config.ts b/apps/api/src/infra/config.ts
+new file mode 100644
+index 0000000..9111ada
+--- /dev/null
++++ b/apps/api/src/infra/config.ts
+@@ -0,0 +1,63 @@
++import path from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++import dotenv from 'dotenv'
++
++import type { HealthResponse } from '@note/shared-types'
++
++const __filename = fileURLToPath(import.meta.url)
++const __dirname = path.dirname(__filename)
++
++dotenv.config({
++  path: path.resolve(__dirname, '../../.env')
++})
++
++export interface AppConfig {
++  apiOrigin: string
++  port: number
++  ssoRedirect: string
++  webOrigin: string
++}
++
++export function normalizeCallbackUrl(urlString: string | undefined, webOrigin: string) {
++  const fallback = new URL('/auth/callback', webOrigin).toString()
++
++  if (!urlString) {
++    return fallback
++  }
++
++  try {
++    const url = new URL(urlString)
++    url.pathname = '/auth/callback'
++    url.search = ''
++    url.hash = ''
++    return url.toString()
++  } catch {
++    return fallback
++  }
++}
++
++export function resolveAppConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): AppConfig {
++  const webOrigin = overrides.WEB_ORIGIN ?? process.env.WEB_ORIGIN ?? 'http://localhost:5173'
++  const apiOrigin = overrides.API_ORIGIN ?? process.env.API_ORIGIN ?? 'http://localhost:3001'
++  const port = Number(overrides.PORT ?? process.env.PORT ?? '3001')
++  const ssoRedirect = normalizeCallbackUrl(
++    overrides.SSO_REDIRECT ?? process.env.SSO_REDIRECT,
++    webOrigin
++  )
++
++  return {
++    apiOrigin,
++    port,
++    ssoRedirect,
++    webOrigin
++  }
++}
++
++export function createHealthPayload(): HealthResponse {
++  return {
++    ok: true,
++    service: 'api',
++    timestamp: new Date().toISOString()
++  }
++}
+
+diff --git a/apps/api/src/main.ts b/apps/api/src/main.ts
+new file mode 100644
+index 0000000..d4831a1
+--- /dev/null
++++ b/apps/api/src/main.ts
+@@ -0,0 +1,15 @@
++import { buildApp } from './app.js'
++import { resolveAppConfig } from './infra/config.js'
++
++const config = resolveAppConfig()
++const app = buildApp()
++
++try {
++  await app.listen({
++    host: '0.0.0.0',
++    port: config.port
++  })
++} catch (error) {
++  app.log.error(error)
++  process.exit(1)
++}
+
+diff --git a/apps/api/src/plugins/cookies.ts b/apps/api/src/plugins/cookies.ts
+new file mode 100644
+index 0000000..b4c7ee1
+--- /dev/null
++++ b/apps/api/src/plugins/cookies.ts
+@@ -0,0 +1,12 @@
++import fastifyCookie from '@fastify/cookie'
++import fp from 'fastify-plugin'
++
++import type { FastifyInstance } from 'fastify'
++
++async function registerCookies(app: FastifyInstance) {
++  await app.register(fastifyCookie)
++}
++
++export const cookiePlugin = fp(registerCookies, {
++  name: 'cookie-plugin'
++})
+
+diff --git a/apps/api/src/plugins/cors.ts b/apps/api/src/plugins/cors.ts
+new file mode 100644
+index 0000000..49df3d2
+--- /dev/null
++++ b/apps/api/src/plugins/cors.ts
+@@ -0,0 +1,19 @@
++import fastifyCors from '@fastify/cors'
++import fp from 'fastify-plugin'
++
++import type { FastifyInstance } from 'fastify'
++
++import { resolveAppConfig } from '../infra/config.js'
++
++async function registerCors(app: FastifyInstance) {
++  const config = resolveAppConfig()
++
++  await app.register(fastifyCors, {
++    origin: config.webOrigin,
++    credentials: true
++  })
++}
++
++export const corsPlugin = fp(registerCors, {
++  name: 'cors-plugin'
++})
+
+diff --git a/apps/api/src/routes/auth.ts b/apps/api/src/routes/auth.ts
+new file mode 100644
+index 0000000..587dc01
+--- /dev/null
++++ b/apps/api/src/routes/auth.ts
+@@ -0,0 +1,10 @@
++import type { FastifyPluginAsync } from 'fastify'
++
++import { createModuleScopeMessage } from '../services/module-shell-service.js'
++
++export const authRoutes: FastifyPluginAsync = async (app) => {
++  app.get('/shell-status', async () => ({
++    module: 'auth',
++    scope: createModuleScopeMessage('auth')
++  }))
++}
+
+diff --git a/apps/api/src/routes/favorites.ts b/apps/api/src/routes/favorites.ts
+new file mode 100644
+index 0000000..89fdc4f
+--- /dev/null
++++ b/apps/api/src/routes/favorites.ts
+@@ -0,0 +1,10 @@
++import type { FastifyPluginAsync } from 'fastify'
++
++import { createModuleScopeMessage } from '../services/module-shell-service.js'
++
++export const favoriteRoutes: FastifyPluginAsync = async (app) => {
++  app.get('/shell-status', async () => ({
++    module: 'favorites',
++    scope: createModuleScopeMessage('favorites')
++  }))
++}
+
+diff --git a/apps/api/src/routes/health.ts b/apps/api/src/routes/health.ts
+new file mode 100644
+index 0000000..a48bba1
+--- /dev/null
++++ b/apps/api/src/routes/health.ts
+@@ -0,0 +1,18 @@
++import type { FastifyPluginAsync } from 'fastify'
++
++import { createHealthPayload } from '../infra/config.js'
++import { healthResponseSchema } from '../schemas/health.js'
++
++export const healthRoutes: FastifyPluginAsync = async (app) => {
++  app.get(
++    '/health',
++    {
++      schema: {
++        response: {
++          200: healthResponseSchema
++        }
++      }
++    },
++    async () => createHealthPayload()
++  )
++}
+
+diff --git a/apps/api/src/routes/me.ts b/apps/api/src/routes/me.ts
+new file mode 100644
+index 0000000..b4edd61
+--- /dev/null
++++ b/apps/api/src/routes/me.ts
+@@ -0,0 +1,10 @@
++import type { FastifyPluginAsync } from 'fastify'
++
++import { createModuleScopeMessage } from '../services/module-shell-service.js'
++
++export const meRoutes: FastifyPluginAsync = async (app) => {
++  app.get('/shell-status', async () => ({
++    module: 'me',
++    scope: createModuleScopeMessage('me')
++  }))
++}
+
+diff --git a/apps/api/src/routes/notes.ts b/apps/api/src/routes/notes.ts
+new file mode 100644
+index 0000000..e67463e
+--- /dev/null
++++ b/apps/api/src/routes/notes.ts
+@@ -0,0 +1,10 @@
++import type { FastifyPluginAsync } from 'fastify'
++
++import { createModuleScopeMessage } from '../services/module-shell-service.js'
++
++export const noteRoutes: FastifyPluginAsync = async (app) => {
++  app.get('/shell-status', async () => ({
++    module: 'notes',
++    scope: createModuleScopeMessage('notes')
++  }))
++}
+
+diff --git a/apps/api/src/schemas/health.ts b/apps/api/src/schemas/health.ts
+new file mode 100644
+index 0000000..073cf74
+--- /dev/null
++++ b/apps/api/src/schemas/health.ts
+@@ -0,0 +1,9 @@
++export const healthResponseSchema = {
++  type: 'object',
++  required: ['ok', 'service', 'timestamp'],
++  properties: {
++    ok: { type: 'boolean' },
++    service: { type: 'string' },
++    timestamp: { type: 'string' }
++  }
++} as const
+
+diff --git a/apps/api/src/services/module-shell-service.ts b/apps/api/src/services/module-shell-service.ts
+new file mode 100644
+index 0000000..f4a120d
+--- /dev/null
++++ b/apps/api/src/services/module-shell-service.ts
+@@ -0,0 +1,3 @@
++export function createModuleScopeMessage(moduleName: string) {
++  return `${moduleName} module shell is reserved for future stories.`
++}
+
+diff --git a/apps/api/tests/app.spec.ts b/apps/api/tests/app.spec.ts
+new file mode 100644
+index 0000000..9c73955
+--- /dev/null
++++ b/apps/api/tests/app.spec.ts
+@@ -0,0 +1,23 @@
++import { afterAll, describe, expect, it } from 'vitest'
++
++import { buildApp } from '../src/app.js'
++
++describe('api app shell', () => {
++  const app = buildApp()
++
++  afterAll(async () => {
++    await app.close()
++  })
++
++  it('exposes a health endpoint', async () => {
++    const response = await app.inject({
++      method: 'GET',
++      url: '/health'
++    })
++
++    expect(response.statusCode).toBe(200)
++    expect(response.json()).toMatchObject({
++      ok: true
++    })
++  })
++})
+
+diff --git a/apps/api/tests/config.spec.ts b/apps/api/tests/config.spec.ts
+new file mode 100644
+index 0000000..b5760fa
+--- /dev/null
++++ b/apps/api/tests/config.spec.ts
+@@ -0,0 +1,11 @@
++import { describe, expect, it } from 'vitest'
++
++import { normalizeCallbackUrl } from '../src/infra/config.js'
++
++describe('config normalization', () => {
++  it('forces the callback path to /auth/callback', () => {
++    expect(normalizeCallbackUrl('http://localhost:5173', 'http://localhost:5173')).toBe(
++      'http://localhost:5173/auth/callback'
++    )
++  })
++})
+
+diff --git a/apps/api/tsconfig.build.json b/apps/api/tsconfig.build.json
+new file mode 100644
+index 0000000..8088e55
+--- /dev/null
++++ b/apps/api/tsconfig.build.json
+@@ -0,0 +1,10 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "declaration": true,
++    "noEmit": false
++  },
++  "exclude": [
++    "tests/**/*"
++  ]
++}
+
+diff --git a/apps/api/tsconfig.json b/apps/api/tsconfig.json
+new file mode 100644
+index 0000000..0a3bfb9
+--- /dev/null
++++ b/apps/api/tsconfig.json
+@@ -0,0 +1,18 @@
++{
++  "extends": "../../tsconfig.base.json",
++  "compilerOptions": {
++    "baseUrl": ".",
++    "composite": true,
++    "noEmit": true,
++    "outDir": "dist",
++    "rootDir": ".",
++    "types": [
++      "node"
++    ]
++  },
++  "include": [
++    "src/**/*.ts",
++    "tests/**/*.ts",
++    "prisma/**/*.ts"
++  ]
++}
+
+diff --git a/apps/web/index.html b/apps/web/index.html
+new file mode 100644
+index 0000000..14bb5a7
+--- /dev/null
++++ b/apps/web/index.html
+@@ -0,0 +1,12 @@
++<!doctype html>
++<html lang="zh-CN">
++  <head>
++    <meta charset="UTF-8" />
++    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
++    <title>note shell</title>
++  </head>
++  <body>
++    <div id="app"></div>
++    <script src="/src/main.ts" type="module"></script>
++  </body>
++</html>
+
+diff --git a/apps/web/package.json b/apps/web/package.json
+new file mode 100644
+index 0000000..e0f941c
+--- /dev/null
++++ b/apps/web/package.json
+@@ -0,0 +1,34 @@
++{
++  "name": "@note/web",
++  "private": true,
++  "version": "0.1.0",
++  "type": "module",
++  "scripts": {
++    "dev": "vite",
++    "build": "vue-tsc --noEmit && vite build",
++    "test": "vitest run",
++    "typecheck": "vue-tsc --noEmit"
++  },
++  "dependencies": {
++    "@alova/adapter-axios": "^1.0.0",
++    "@note/shared-types": "workspace:*",
++    "@reus-able/sso-utils": "^1.0.0",
++    "alova": "^3.0.6",
++    "axios": "^1.7.9",
++    "pinia": "^2.3.0",
++    "vue": "^3.5.13",
++    "vue-router": "^4.4.5"
++  },
++  "devDependencies": {
++    "@types/node": "^22.10.2",
++    "@vitejs/plugin-vue": "^5.2.1",
++    "@vue/tsconfig": "^0.7.0",
++    "autoprefixer": "^10.4.20",
++    "postcss": "^8.4.49",
++    "tailwindcss": "^3.4.16",
++    "typescript": "^5.7.2",
++    "vite": "^6.0.3",
++    "vitest": "^2.1.8",
++    "vue-tsc": "^2.1.10"
++  }
++}
+
+diff --git a/apps/web/postcss.config.js b/apps/web/postcss.config.js
+new file mode 100644
+index 0000000..2b75bd8
+--- /dev/null
++++ b/apps/web/postcss.config.js
+@@ -0,0 +1,6 @@
++export default {
++  plugins: {
++    tailwindcss: {},
++    autoprefixer: {}
++  }
++}
+
+diff --git a/apps/web/src/App.vue b/apps/web/src/App.vue
+new file mode 100644
+index 0000000..9050e4d
+--- /dev/null
++++ b/apps/web/src/App.vue
+@@ -0,0 +1,11 @@
++<script setup lang="ts">
++import { RouterView } from 'vue-router'
++
++import AppShell from '@/components/layout/AppShell.vue'
++</script>
++
++<template>
++  <AppShell>
++    <RouterView />
++  </AppShell>
++</template>
+
+diff --git a/apps/web/src/app/shell.ts b/apps/web/src/app/shell.ts
+new file mode 100644
+index 0000000..566141e
+--- /dev/null
++++ b/apps/web/src/app/shell.ts
+@@ -0,0 +1,23 @@
++import type { InteractionState, ShellRouteDefinition } from '@note/shared-types'
++
++export const routeShellDefinitions: ShellRouteDefinition[] = [
++  {
++    mode: 'online',
++    path: '/note/o/:sid',
++    title: '在线便签壳体',
++    description: '用于后续接入在线读取、保存、收藏与权限流程。'
++  },
++  {
++    mode: 'local',
++    path: '/note/l/:sid',
++    title: '本地便签壳体',
++    description: '用于后续接入本地存储与离线编辑流程。'
++  }
++]
++
++export const interactionStates: InteractionState[] = [
++  'default',
++  'focus',
++  'error',
++  'disabled'
++]
+
+diff --git a/apps/web/src/app/styles/base.css b/apps/web/src/app/styles/base.css
+new file mode 100644
+index 0000000..ab47974
+--- /dev/null
++++ b/apps/web/src/app/styles/base.css
+@@ -0,0 +1,26 @@
++html,
++body,
++#app {
++  min-height: 100%;
++}
++
++body {
++  margin: 0;
++  font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
++  background: var(--shell-bg);
++  color: var(--text-primary);
++}
++
++* {
++  box-sizing: border-box;
++}
++
++button,
++input {
++  font: inherit;
++}
++
++a {
++  color: inherit;
++  text-decoration: none;
++}
+
+diff --git a/apps/web/src/app/styles/index.css b/apps/web/src/app/styles/index.css
+new file mode 100644
+index 0000000..75b2337
+--- /dev/null
++++ b/apps/web/src/app/styles/index.css
+@@ -0,0 +1,6 @@
++@import './tokens.css';
++@import './base.css';
++
++@tailwind base;
++@tailwind components;
++@tailwind utilities;
+
+diff --git a/apps/web/src/app/styles/tokens.css b/apps/web/src/app/styles/tokens.css
+new file mode 100644
+index 0000000..a2094f8
+--- /dev/null
++++ b/apps/web/src/app/styles/tokens.css
+@@ -0,0 +1,23 @@
++:root {
++  color-scheme: light;
++  --shell-bg: linear-gradient(180deg, #f7f9ff 0%, #edf2ff 44%, #f8f4ef 100%);
++  --panel-bg: rgba(255, 255, 255, 0.86);
++  --panel-border: rgba(55, 61, 89, 0.1);
++  --panel-shadow: 0 28px 60px -28px rgba(23, 27, 45, 0.35);
++  --text-primary: #171b2d;
++  --text-secondary: #4b5274;
++  --text-muted: #666b90;
++  --accent: #3f71f4;
++  --accent-soft: rgba(63, 113, 244, 0.14);
++  --danger: #c84c4c;
++  --danger-soft: rgba(200, 76, 76, 0.14);
++  --success: #2e8b57;
++  --success-soft: rgba(46, 139, 87, 0.14);
++  --warning: #d17d1f;
++  --warning-soft: rgba(209, 125, 31, 0.14);
++  --radius-panel: 24px;
++  --radius-control: 16px;
++  --spacing-content: clamp(1rem, 1.3vw + 0.85rem, 1.5rem);
++  --duration-fast: 160ms;
++  --duration-normal: 220ms;
++}
+
+diff --git a/apps/web/src/components/layout/AppShell.vue b/apps/web/src/components/layout/AppShell.vue
+new file mode 100644
+index 0000000..bd4d165
+--- /dev/null
++++ b/apps/web/src/components/layout/AppShell.vue
+@@ -0,0 +1,26 @@
++<script setup lang="ts">
++import AuthStatusPill from './AuthStatusPill.vue'
++</script>
++
++<template>
++  <div class="min-h-screen px-4 py-5 sm:px-6 sm:py-8">
++    <div class="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col gap-6 rounded-[28px] border border-white/60 bg-white/40 p-4 shadow-[var(--panel-shadow)] backdrop-blur sm:p-6">
++      <header class="flex flex-col gap-4 rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-white/72 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
++        <div>
++          <p class="m-0 text-xs uppercase tracking-[0.24em] text-[color:var(--text-muted)]">note</p>
++          <h1 class="mt-2 text-2xl font-semibold sm:text-3xl">统一入口骨架</h1>
++          <p class="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]">
++            Story 1.1 只交付应用壳体、基础组件与路由占位，为后续在线便签、本地便签与 SSO 流程提供稳定落点。
++          </p>
++        </div>
++        <div class="flex justify-start sm:justify-end">
++          <AuthStatusPill />
++        </div>
++      </header>
++
++      <main class="mx-auto flex w-full max-w-[min(100%,72rem)] flex-1 flex-col gap-6">
++        <slot />
++      </main>
++    </div>
++  </div>
++</template>
+
+diff --git a/apps/web/src/components/layout/AuthStatusPill.vue b/apps/web/src/components/layout/AuthStatusPill.vue
+new file mode 100644
+index 0000000..7caecce
+--- /dev/null
++++ b/apps/web/src/components/layout/AuthStatusPill.vue
+@@ -0,0 +1,13 @@
++<script setup lang="ts">
++import { storeToRefs } from 'pinia'
++
++import StatusPill from '@/components/ui/StatusPill.vue'
++import { useAuthStore } from '@/stores/auth-store'
++
++const authStore = useAuthStore()
++const { description, label, tone } = storeToRefs(authStore)
++</script>
++
++<template>
++  <StatusPill :caption="description" :label="label" :tone="tone" state="default" />
++</template>
+
+diff --git a/apps/web/src/components/ui/Button.vue b/apps/web/src/components/ui/Button.vue
+new file mode 100644
+index 0000000..39deb69
+--- /dev/null
++++ b/apps/web/src/components/ui/Button.vue
+@@ -0,0 +1,47 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++import { buttonStateClasses } from './state-presets'
++
++const props = withDefaults(
++  defineProps<{
++    state?: InteractionState
++    leadingLabel?: string
++  }>(),
++  {
++    state: 'default',
++    leadingLabel: ''
++  }
++)
++
++const emit = defineEmits<{
++  click: [event: MouseEvent]
++}>()
++
++const isDisabled = computed(() => props.state === 'disabled')
++const buttonClassName = computed(() => [
++  'inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border px-4 py-2 text-sm font-semibold transition duration-[var(--duration-fast)]',
++  buttonStateClasses[props.state]
++])
++
++function handleClick(event: MouseEvent) {
++  if (isDisabled.value) {
++    return
++  }
++
++  emit('click', event)
++}
++</script>
++
++<template>
++  <button :class="buttonClassName" :disabled="isDisabled" type="button" @click="handleClick">
++    <span v-if="leadingLabel" class="text-xs uppercase tracking-[0.2em] opacity-70">
++      {{ leadingLabel }}
++    </span>
++    <span>
++      <slot />
++    </span>
++  </button>
++</template>
+
+diff --git a/apps/web/src/components/ui/EmptyState.vue b/apps/web/src/components/ui/EmptyState.vue
+new file mode 100644
+index 0000000..2200091
+--- /dev/null
++++ b/apps/web/src/components/ui/EmptyState.vue
+@@ -0,0 +1,39 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++const props = withDefaults(
++  defineProps<{
++    title: string
++    description: string
++    state?: InteractionState
++  }>(),
++  {
++    state: 'default'
++  }
++)
++
++const containerClassName = computed(() => {
++  const stateClassMap: Record<InteractionState, string> = {
++    default: 'border-[color:var(--panel-border)] bg-white/60',
++    focus: 'border-accent-300 bg-white ring-4 ring-accent-100',
++    error: 'border-red-200 bg-red-50',
++    disabled: 'border-transparent bg-ink-100 opacity-70'
++  }
++
++  return [
++    'rounded-[var(--radius-panel)] border border-dashed px-6 py-10 text-center',
++    stateClassMap[props.state]
++  ]
++})
++</script>
++
++<template>
++  <div :class="containerClassName">
++    <p class="m-0 text-base font-semibold">{{ props.title }}</p>
++    <p class="mx-auto mt-2 max-w-xl text-sm text-[color:var(--text-secondary)]">
++      {{ props.description }}
++    </p>
++  </div>
++</template>
+
+diff --git a/apps/web/src/components/ui/InlineFeedback.vue b/apps/web/src/components/ui/InlineFeedback.vue
+new file mode 100644
+index 0000000..8ed06c7
+--- /dev/null
++++ b/apps/web/src/components/ui/InlineFeedback.vue
+@@ -0,0 +1,43 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++const props = withDefaults(
++  defineProps<{
++    title: string
++    description: string
++    tone?: 'info' | 'success' | 'warning' | 'danger'
++    state?: InteractionState
++  }>(),
++  {
++    tone: 'info',
++    state: 'default'
++  }
++)
++
++const toneClassMap = {
++  info: 'border-accent-100 bg-accent-50 text-accent-800',
++  success: 'border-emerald-100 bg-emerald-50 text-emerald-800',
++  warning: 'border-amber-100 bg-amber-50 text-amber-800',
++  danger: 'border-red-100 bg-red-50 text-red-800'
++} as const
++
++const stateClassName = computed(() => {
++  const stateClassMap: Record<InteractionState, string> = {
++    default: '',
++    focus: 'ring-4 ring-accent-100',
++    error: 'ring-4 ring-red-100',
++    disabled: 'opacity-65'
++  }
++
++  return stateClassMap[props.state]
++})
++</script>
++
++<template>
++  <div :class="['rounded-[var(--radius-control)] border px-4 py-3 text-sm', toneClassMap[props.tone], stateClassName]">
++    <p class="m-0 font-semibold">{{ title }}</p>
++    <p class="mt-1 text-sm opacity-80">{{ description }}</p>
++  </div>
++</template>
+
+diff --git a/apps/web/src/components/ui/ListItem.vue b/apps/web/src/components/ui/ListItem.vue
+new file mode 100644
+index 0000000..ca68b0c
+--- /dev/null
++++ b/apps/web/src/components/ui/ListItem.vue
+@@ -0,0 +1,37 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++import { surfaceStateClasses } from './state-presets'
++
++const props = withDefaults(
++  defineProps<{
++    title: string
++    description: string
++    meta?: string
++    state?: InteractionState
++  }>(),
++  {
++    meta: '',
++    state: 'default'
++  }
++)
++
++const itemClassName = computed(() => [
++  'flex items-start justify-between gap-3 rounded-[var(--radius-control)] border px-4 py-4 transition duration-[var(--duration-fast)]',
++  surfaceStateClasses[props.state]
++])
++</script>
++
++<template>
++  <article :class="itemClassName">
++    <div class="space-y-1">
++      <h3 class="m-0 text-sm font-semibold">{{ title }}</h3>
++      <p class="m-0 text-sm text-[color:var(--text-secondary)]">{{ description }}</p>
++    </div>
++    <span v-if="meta" class="text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
++      {{ meta }}
++    </span>
++  </article>
++</template>
+
+diff --git a/apps/web/src/components/ui/LoadingCard.vue b/apps/web/src/components/ui/LoadingCard.vue
+new file mode 100644
+index 0000000..5e9b6e4
+--- /dev/null
++++ b/apps/web/src/components/ui/LoadingCard.vue
+@@ -0,0 +1,39 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++const props = withDefaults(
++  defineProps<{
++    state?: InteractionState
++  }>(),
++  {
++    state: 'default'
++  }
++)
++
++const containerClassName = computed(() => {
++  const stateClassMap: Record<InteractionState, string> = {
++    default: 'border-[color:var(--panel-border)] bg-white/70',
++    focus: 'border-accent-300 bg-white ring-4 ring-accent-100',
++    error: 'border-red-200 bg-red-50',
++    disabled: 'border-transparent bg-ink-100 opacity-70'
++  }
++
++  return [
++    'rounded-[var(--radius-panel)] border p-5 shadow-[var(--panel-shadow)]',
++    stateClassMap[props.state]
++  ]
++})
++</script>
++
++<template>
++  <div :class="containerClassName">
++    <div class="animate-pulse space-y-4">
++      <div class="h-3 w-24 rounded-full bg-ink-100" />
++      <div class="h-8 rounded-full bg-ink-100" />
++      <div class="h-8 rounded-full bg-ink-100" />
++      <div class="h-20 rounded-[var(--radius-control)] bg-ink-100" />
++    </div>
++  </div>
++</template>
+
+diff --git a/apps/web/src/components/ui/Modal.vue b/apps/web/src/components/ui/Modal.vue
+new file mode 100644
+index 0000000..84a08f4
+--- /dev/null
++++ b/apps/web/src/components/ui/Modal.vue
+@@ -0,0 +1,51 @@
++<script setup lang="ts">
++import type { InteractionState } from '@note/shared-types'
++
++withDefaults(
++  defineProps<{
++    open: boolean
++    title: string
++    description: string
++    state?: InteractionState
++  }>(),
++  {
++    state: 'default'
++  }
++)
++
++const emit = defineEmits<{
++  close: []
++}>()
++</script>
++
++<template>
++  <div
++    v-if="open"
++    class="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/45 px-4 py-8 backdrop-blur-sm"
++    @click.self="emit('close')"
++  >
++    <section
++      :class="[
++        'w-full max-w-lg rounded-[var(--radius-panel)] border bg-white p-6 shadow-[var(--panel-shadow)]',
++        state === 'focus' ? 'border-accent-300 ring-4 ring-accent-100' : '',
++        state === 'error' ? 'border-red-200 bg-red-50' : '',
++        state === 'disabled' ? 'opacity-70' : 'border-[color:var(--panel-border)]'
++      ]"
++    >
++      <p class="m-0 text-sm uppercase tracking-[0.2em] text-[color:var(--text-muted)]">Modal</p>
++      <h3 class="mt-3 text-xl font-semibold">{{ title }}</h3>
++      <p class="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
++        {{ description }}
++      </p>
++      <div class="mt-5 flex justify-end">
++        <button
++          class="rounded-[var(--radius-control)] bg-ink-900 px-4 py-2 text-sm font-semibold text-white"
++          type="button"
++          @click="emit('close')"
++        >
++          关闭占位
++        </button>
++      </div>
++    </section>
++  </div>
++</template>
+
+diff --git a/apps/web/src/components/ui/SegmentedTabs.vue b/apps/web/src/components/ui/SegmentedTabs.vue
+new file mode 100644
+index 0000000..35844a9
+--- /dev/null
++++ b/apps/web/src/components/ui/SegmentedTabs.vue
+@@ -0,0 +1,59 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++const props = withDefaults(
++  defineProps<{
++    options: Array<{ label: string; value: string }>
++    state?: InteractionState
++  }>(),
++  {
++    state: 'default'
++  }
++)
++
++const model = defineModel<string>({ required: true })
++
++const containerClassName = computed(() => {
++  const stateClassMap: Record<InteractionState, string> = {
++    default: 'border-[color:var(--panel-border)] bg-white/60',
++    focus: 'border-accent-300 bg-white ring-4 ring-accent-100',
++    error: 'border-red-200 bg-red-50',
++    disabled: 'border-transparent bg-ink-100 opacity-70'
++  }
++
++  return [
++    'flex flex-wrap gap-2 rounded-[var(--radius-control)] border p-2 transition duration-[var(--duration-fast)]',
++    stateClassMap[props.state]
++  ]
++})
++
++function selectOption(value: string) {
++  if (props.state === 'disabled') {
++    return
++  }
++
++  model.value = value
++}
++</script>
++
++<template>
++  <div :class="containerClassName" role="tablist" aria-label="模式切换">
++    <button
++      v-for="option in options"
++      :key="option.value"
++      :aria-selected="model === option.value"
++      :class="[
++        'rounded-[calc(var(--radius-control)-0.35rem)] px-4 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
++        model === option.value ? 'bg-ink-900 text-white shadow-sm' : 'text-[color:var(--text-secondary)] hover:bg-white'
++      ]"
++      :disabled="props.state === 'disabled'"
++      role="tab"
++      type="button"
++      @click="selectOption(option.value)"
++    >
++      {{ option.label }}
++    </button>
++  </div>
++</template>
+
+diff --git a/apps/web/src/components/ui/StatusPill.vue b/apps/web/src/components/ui/StatusPill.vue
+new file mode 100644
+index 0000000..cdc7f58
+--- /dev/null
++++ b/apps/web/src/components/ui/StatusPill.vue
+@@ -0,0 +1,48 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++const props = withDefaults(
++  defineProps<{
++    label: string
++    caption?: string
++    tone?: 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
++    state?: InteractionState
++  }>(),
++  {
++    caption: '',
++    tone: 'neutral',
++    state: 'default'
++  }
++)
++
++const toneClassMap = {
++  neutral: 'bg-ink-100 text-ink-700',
++  accent: 'bg-accent-100 text-accent-700',
++  success: 'bg-emerald-100 text-emerald-700',
++  warning: 'bg-amber-100 text-amber-700',
++  danger: 'bg-rose-100 text-rose-700'
++} as const
++
++const stateClassMap: Record<InteractionState, string> = {
++  default: '',
++  focus: 'ring-4 ring-accent-100',
++  error: 'ring-4 ring-red-100',
++  disabled: 'opacity-65'
++}
++
++const pillClassName = computed(() => [
++  'inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
++  toneClassMap[props.tone],
++  stateClassMap[props.state]
++])
++</script>
++
++<template>
++  <span :class="pillClassName">
++    <span class="h-2.5 w-2.5 rounded-full bg-current opacity-60" />
++    <span>{{ label }}</span>
++    <span v-if="caption" class="text-xs opacity-70">{{ caption }}</span>
++  </span>
++</template>
+
+diff --git a/apps/web/src/components/ui/SurfaceCard.vue b/apps/web/src/components/ui/SurfaceCard.vue
+new file mode 100644
+index 0000000..dfbbbc6
+--- /dev/null
++++ b/apps/web/src/components/ui/SurfaceCard.vue
+@@ -0,0 +1,27 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++import { surfaceStateClasses } from './state-presets'
++
++const props = withDefaults(
++  defineProps<{
++    state?: InteractionState
++  }>(),
++  {
++    state: 'default'
++  }
++)
++
++const cardClassName = computed(() => [
++  'rounded-[var(--radius-panel)] border p-5 shadow-[var(--panel-shadow)] transition duration-[var(--duration-normal)]',
++  surfaceStateClasses[props.state]
++])
++</script>
++
++<template>
++  <section :class="cardClassName">
++    <slot />
++  </section>
++</template>
+
+diff --git a/apps/web/src/components/ui/TextInput.vue b/apps/web/src/components/ui/TextInput.vue
+new file mode 100644
+index 0000000..c523468
+--- /dev/null
++++ b/apps/web/src/components/ui/TextInput.vue
+@@ -0,0 +1,46 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++
++import type { InteractionState } from '@note/shared-types'
++
++import { textInputStateClasses } from './state-presets'
++
++const props = withDefaults(
++  defineProps<{
++    label: string
++    placeholder?: string
++    state?: InteractionState
++    hint?: string
++  }>(),
++  {
++    placeholder: '',
++    state: 'default',
++    hint: ''
++  }
++)
++
++const model = defineModel<string>({ default: '' })
++
++const inputClassName = computed(() => [
++  'min-h-12 w-full rounded-[var(--radius-control)] border px-4 py-3 text-sm outline-none transition duration-[var(--duration-fast)]',
++  textInputStateClasses[props.state]
++])
++</script>
++
++<template>
++  <label class="flex w-full flex-col gap-2">
++    <span class="text-sm font-medium text-[color:var(--text-secondary)]">
++      {{ label }}
++    </span>
++    <input
++      v-model="model"
++      :class="inputClassName"
++      :disabled="props.state === 'disabled'"
++      :placeholder="placeholder"
++      type="text"
++    />
++    <span v-if="hint" class="text-xs text-[color:var(--text-muted)]">
++      {{ hint }}
++    </span>
++  </label>
++</template>
+
+diff --git a/apps/web/src/components/ui/state-presets.ts b/apps/web/src/components/ui/state-presets.ts
+new file mode 100644
+index 0000000..a69d178
+--- /dev/null
++++ b/apps/web/src/components/ui/state-presets.ts
+@@ -0,0 +1,35 @@
++import type { InteractionState } from '@note/shared-types'
++
++export const foundationStateRegistry: Record<string, InteractionState[]> = {
++  Button: ['default', 'focus', 'error', 'disabled'],
++  TextInput: ['default', 'focus', 'error', 'disabled'],
++  Modal: ['default', 'focus', 'error', 'disabled'],
++  SegmentedTabs: ['default', 'focus', 'error', 'disabled'],
++  StatusPill: ['default', 'focus', 'error', 'disabled'],
++  ListItem: ['default', 'focus', 'error', 'disabled'],
++  InlineFeedback: ['default', 'focus', 'error', 'disabled'],
++  LoadingCard: ['default', 'focus', 'error', 'disabled'],
++  EmptyState: ['default', 'focus', 'error', 'disabled'],
++  SurfaceCard: ['default', 'focus', 'error', 'disabled']
++}
++
++export const buttonStateClasses: Record<InteractionState, string> = {
++  default: 'border-transparent bg-ink-900 text-white hover:-translate-y-0.5 hover:bg-ink-800',
++  focus: 'border-accent-500 bg-accent-500 text-white ring-4 ring-accent-200',
++  error: 'border-danger bg-danger text-white ring-4 ring-red-200',
++  disabled: 'cursor-not-allowed border-transparent bg-ink-300 text-white opacity-70'
++}
++
++export const textInputStateClasses: Record<InteractionState, string> = {
++  default: 'border-[color:var(--panel-border)] bg-white/90 text-[color:var(--text-primary)]',
++  focus: 'border-accent-400 bg-white ring-4 ring-accent-100',
++  error: 'border-danger bg-red-50 ring-4 ring-red-100',
++  disabled: 'cursor-not-allowed border-transparent bg-ink-100 text-[color:var(--text-muted)] opacity-80'
++}
++
++export const surfaceStateClasses: Record<InteractionState, string> = {
++  default: 'border-[color:var(--panel-border)] bg-[color:var(--panel-bg)]',
++  focus: 'border-accent-300 bg-white ring-4 ring-accent-100',
++  error: 'border-red-200 bg-red-50',
++  disabled: 'border-transparent bg-white/60 opacity-70'
++}
+
+diff --git a/apps/web/src/env.d.ts b/apps/web/src/env.d.ts
+new file mode 100644
+index 0000000..11f02fe
+--- /dev/null
++++ b/apps/web/src/env.d.ts
+@@ -0,0 +1 @@
++/// <reference types="vite/client" />
+
+diff --git a/apps/web/src/features/auth/components/AuthCallbackCard.vue b/apps/web/src/features/auth/components/AuthCallbackCard.vue
+new file mode 100644
+index 0000000..41f8e57
+--- /dev/null
++++ b/apps/web/src/features/auth/components/AuthCallbackCard.vue
+@@ -0,0 +1,11 @@
++<template>
++  <div class="grid gap-4">
++    <div class="rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-white/85 p-6 shadow-[var(--panel-shadow)]">
++      <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">/auth/callback</p>
++      <h2 class="mt-3 text-2xl font-semibold">SSO 回调壳体已就位</h2>
++      <p class="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]">
++        当前页只负责承接统一回调路由。真实的 ticket 交换、会话恢复与回跳逻辑将在后续 Story 中由服务端和 auth feature 收口。
++      </p>
++    </div>
++  </div>
++</template>
+
+diff --git a/apps/web/src/features/home/FoundationShowcase.vue b/apps/web/src/features/home/FoundationShowcase.vue
+new file mode 100644
+index 0000000..44f3f1e
+--- /dev/null
++++ b/apps/web/src/features/home/FoundationShowcase.vue
+@@ -0,0 +1,120 @@
++<script setup lang="ts">
++import { shallowRef } from 'vue'
++
++import { interactionStates } from '@/app/shell'
++import Button from '@/components/ui/Button.vue'
++import EmptyState from '@/components/ui/EmptyState.vue'
++import InlineFeedback from '@/components/ui/InlineFeedback.vue'
++import ListItem from '@/components/ui/ListItem.vue'
++import LoadingCard from '@/components/ui/LoadingCard.vue'
++import Modal from '@/components/ui/Modal.vue'
++import SegmentedTabs from '@/components/ui/SegmentedTabs.vue'
++import StatusPill from '@/components/ui/StatusPill.vue'
++import SurfaceCard from '@/components/ui/SurfaceCard.vue'
++import TextInput from '@/components/ui/TextInput.vue'
++
++const demoTabs = [
++  { label: '在线便签', value: 'online' },
++  { label: '本地便签', value: 'local' }
++]
++
++const activeMode = shallowRef('online')
++const inputValue = shallowRef('story-1-1-shell')
++const modalOpen = shallowRef(false)
++</script>
++
++<template>
++  <div class="grid gap-6">
++    <SurfaceCard>
++      <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
++        <div class="max-w-3xl">
++          <p class="m-0 text-xs uppercase tracking-[0.24em] text-[color:var(--text-muted)]">Foundation</p>
++          <h2 class="mt-3 text-2xl font-semibold">最小 design token 与高频组件层</h2>
++          <p class="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">
++            这里集中落地 Story 1.1 要求的按钮、输入框、模态框、分段 tab、列表项、状态提示、空态、加载态与基础容器样式，并在初期就把 default / focus / error / disabled 四类状态定义完整。
++          </p>
++        </div>
++
++        <Button leading-label="Shell" state="focus" @click="modalOpen = true">
++          打开模态占位
++        </Button>
++      </div>
++    </SurfaceCard>
++
++    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
++      <SurfaceCard>
++        <div class="grid gap-5">
++          <SegmentedTabs v-model="activeMode" :options="demoTabs" state="default" />
++
++          <div class="grid gap-3 sm:grid-cols-2">
++            <TextInput
++              v-model="inputValue"
++              hint="后续 Story 1.2 会在这里接入 sid 输入与自动生成。"
++              label="SID 输入壳体"
++              placeholder="输入或生成 sid"
++              state="focus"
++            />
++            <TextInput
++              label="错误态占位"
++              placeholder="用于后续校验反馈"
++              state="error"
++            />
++          </div>
++
++          <div class="flex flex-wrap gap-3">
++            <Button v-for="state in interactionStates" :key="state" :state="state">
++              {{ state }}
++            </Button>
++          </div>
++
++          <div class="flex flex-wrap gap-3">
++            <StatusPill caption="匿名状态占位" label="Anonymous" tone="neutral" />
++            <StatusPill caption="回调中" label="Recovering" state="focus" tone="accent" />
++            <StatusPill caption="错误演示" label="Blocked" state="error" tone="danger" />
++            <StatusPill caption="Disabled" label="Read only" state="disabled" tone="warning" />
++          </div>
++        </div>
++      </SurfaceCard>
++
++      <div class="grid gap-6">
++        <InlineFeedback
++          description="当前仅交付样式与状态约束，不接入真实业务异常。"
++          title="统一反馈容器"
++          tone="info"
++        />
++        <LoadingCard />
++      </div>
++    </div>
++
++    <div class="grid gap-6 lg:grid-cols-2">
++      <SurfaceCard>
++        <div class="grid gap-3">
++          <ListItem
++            description="对应后续在线模式、对象头部、权限反馈等增长点。"
++            meta="feature"
++            title="列表项骨架"
++          />
++          <ListItem
++            description="在 Story 1.1 仅强调布局和状态统一，不提前实现收藏、删除、会话恢复。"
++            meta="scope"
++            state="focus"
++            title="边界收口"
++          />
++        </div>
++      </SurfaceCard>
++
++      <EmptyState
++        description="当某个流程还未接入真实数据时，页面不会空白或 404，而是保留明确的容器与下一步语义。"
++        title="空态骨架"
++      />
++    </div>
++
++    <Modal
++      :open="modalOpen"
++      description="模态框组件已具备统一容器、阴影、状态边界和关闭行为，占位用于后续确认弹窗与授权反馈。"
++      state="default"
++      title="模态基础能力"
++      @close="modalOpen = false"
++    />
++  </div>
++</template>
+
+diff --git a/apps/web/src/features/local-note/components/LocalNoteShell.vue b/apps/web/src/features/local-note/components/LocalNoteShell.vue
+new file mode 100644
+index 0000000..693a7fb
+--- /dev/null
++++ b/apps/web/src/features/local-note/components/LocalNoteShell.vue
+@@ -0,0 +1,20 @@
++<script setup lang="ts">
++defineProps<{
++  sid: string
++}>()
++</script>
++
++<template>
++  <div class="grid gap-4">
++    <div class="rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-white/85 p-6 shadow-[var(--panel-shadow)]">
++      <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">本地模式</p>
++      <h2 class="mt-3 text-2xl font-semibold">SID: {{ sid }}</h2>
++      <p class="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">
++        本地便签壳体已建立，后续 Story 1.6 会在此处接入本地存储、恢复与编辑体验。
++      </p>
++    </div>
++    <div class="rounded-[var(--radius-panel)] border border-dashed border-[color:var(--panel-border)] bg-white/60 px-6 py-10 text-center text-sm text-[color:var(--text-secondary)]">
++      当前仅保留编辑器容器与语义结构，不落地真实本地持久化。
++    </div>
++  </div>
++</template>
+
+diff --git a/apps/web/src/features/note/components/OnlineNoteShell.vue b/apps/web/src/features/note/components/OnlineNoteShell.vue
+new file mode 100644
+index 0000000..12cfdc7
+--- /dev/null
++++ b/apps/web/src/features/note/components/OnlineNoteShell.vue
+@@ -0,0 +1,20 @@
++<script setup lang="ts">
++defineProps<{
++  sid: string
++}>()
++</script>
++
++<template>
++  <div class="grid gap-4">
++    <div class="rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-white/85 p-6 shadow-[var(--panel-shadow)]">
++      <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">在线模式</p>
++      <h2 class="mt-3 text-2xl font-semibold">SID: {{ sid }}</h2>
++      <p class="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">
++        在线便签壳体已创建，后续将由 Story 1.3 与 Story 1.4 接入真实读取、保存、权限和反馈流程。
++      </p>
++    </div>
++    <div class="rounded-[var(--radius-panel)] border border-dashed border-[color:var(--panel-border)] bg-white/60 px-6 py-10 text-center text-sm text-[color:var(--text-secondary)]">
++      当前仅保留编辑区域占位，不提前实现读取/写入逻辑。
++    </div>
++  </div>
++</template>
+
+diff --git a/apps/web/src/main.ts b/apps/web/src/main.ts
+new file mode 100644
+index 0000000..3da24d4
+--- /dev/null
++++ b/apps/web/src/main.ts
+@@ -0,0 +1,12 @@
++import { createPinia } from 'pinia'
++import { createApp } from 'vue'
++
++import App from './App.vue'
++import './app/styles/index.css'
++import { createAppRouter } from './router'
++
++const app = createApp(App)
++
++app.use(createPinia())
++app.use(createAppRouter())
++app.mount('#app')
+
+diff --git a/apps/web/src/router/index.ts b/apps/web/src/router/index.ts
+new file mode 100644
+index 0000000..bf1235c
+--- /dev/null
++++ b/apps/web/src/router/index.ts
+@@ -0,0 +1,44 @@
++import type { RouteRecordRaw, RouterHistory } from 'vue-router'
++
++import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router'
++
++import { routeShellDefinitions } from '@/app/shell'
++import AuthCallbackView from '@/views/AuthCallbackView.vue'
++import HomeView from '@/views/HomeView.vue'
++import LocalNoteView from '@/views/LocalNoteView.vue'
++import OnlineNoteView from '@/views/OnlineNoteView.vue'
++
++export const appRoutes: RouteRecordRaw[] = [
++  {
++    path: '/',
++    name: 'home',
++    component: HomeView
++  },
++  {
++    path: '/auth/callback',
++    name: 'auth-callback',
++    component: AuthCallbackView
++  },
++  ...routeShellDefinitions.map<RouteRecordRaw>((definition) => ({
++    path: definition.path,
++    name: definition.mode === 'online' ? 'online-note' : 'local-note',
++    component: definition.mode === 'online' ? OnlineNoteView : LocalNoteView,
++    meta: {
++      title: definition.title,
++      description: definition.description
++    }
++  }))
++]
++
++export function createAppRouter(options?: { history?: RouterHistory }) {
++  const history =
++    options?.history ??
++    (typeof window === 'undefined'
++      ? createMemoryHistory()
++      : createWebHistory(import.meta.env.BASE_URL))
++
++  return createRouter({
++    history,
++    routes: appRoutes
++  })
++}
+
+diff --git a/apps/web/src/services/http-client.ts b/apps/web/src/services/http-client.ts
+new file mode 100644
+index 0000000..062a5c0
+--- /dev/null
++++ b/apps/web/src/services/http-client.ts
+@@ -0,0 +1,5 @@
++export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
++
++export function resolveCallbackUrl() {
++  return import.meta.env.VITE_SSO_REDIRECT ?? '/auth/callback'
++}
+
+diff --git a/apps/web/src/stores/auth-store.ts b/apps/web/src/stores/auth-store.ts
+new file mode 100644
+index 0000000..18c36fc
+--- /dev/null
++++ b/apps/web/src/stores/auth-store.ts
+@@ -0,0 +1,51 @@
++import { defineStore } from 'pinia'
++import { computed, shallowRef } from 'vue'
++
++import type { AuthStatus } from '@note/shared-types'
++
++export const useAuthStore = defineStore('auth', () => {
++  const status = shallowRef<AuthStatus>('anonymous')
++
++  const label = computed(() => {
++    if (status.value === 'recovering') {
++      return 'Recovering'
++    }
++
++    if (status.value === 'authenticated') {
++      return 'Signed in'
++    }
++
++    return 'Anonymous'
++  })
++
++  const description = computed(() => {
++    if (status.value === 'recovering') {
++      return '等待回调完成'
++    }
++
++    if (status.value === 'authenticated') {
++      return '后续接入真实会话'
++    }
++
++    return '右上状态入口占位'
++  })
++
++  const tone = computed(() => {
++    if (status.value === 'recovering') {
++      return 'accent'
++    }
++
++    if (status.value === 'authenticated') {
++      return 'success'
++    }
++
++    return 'neutral'
++  })
++
++  return {
++    status,
++    label,
++    description,
++    tone
++  }
++})
+
+diff --git a/apps/web/src/views/AuthCallbackView.vue b/apps/web/src/views/AuthCallbackView.vue
+new file mode 100644
+index 0000000..197a3c2
+--- /dev/null
++++ b/apps/web/src/views/AuthCallbackView.vue
+@@ -0,0 +1,7 @@
++<script setup lang="ts">
++import AuthCallbackCard from '@/features/auth/components/AuthCallbackCard.vue'
++</script>
++
++<template>
++  <AuthCallbackCard />
++</template>
+
+diff --git a/apps/web/src/views/HomeView.vue b/apps/web/src/views/HomeView.vue
+new file mode 100644
+index 0000000..9413610
+--- /dev/null
++++ b/apps/web/src/views/HomeView.vue
+@@ -0,0 +1,7 @@
++<script setup lang="ts">
++import FoundationShowcase from '@/features/home/FoundationShowcase.vue'
++</script>
++
++<template>
++  <FoundationShowcase />
++</template>
+
+diff --git a/apps/web/src/views/LocalNoteView.vue b/apps/web/src/views/LocalNoteView.vue
+new file mode 100644
+index 0000000..563579b
+--- /dev/null
++++ b/apps/web/src/views/LocalNoteView.vue
+@@ -0,0 +1,13 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++import { useRoute } from 'vue-router'
++
++import LocalNoteShell from '@/features/local-note/components/LocalNoteShell.vue'
++
++const route = useRoute()
++const sid = computed(() => String(route.params.sid ?? 'pending-sid'))
++</script>
++
++<template>
++  <LocalNoteShell :sid="sid" />
++</template>
+
+diff --git a/apps/web/src/views/OnlineNoteView.vue b/apps/web/src/views/OnlineNoteView.vue
+new file mode 100644
+index 0000000..7c7c5bb
+--- /dev/null
++++ b/apps/web/src/views/OnlineNoteView.vue
+@@ -0,0 +1,13 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++import { useRoute } from 'vue-router'
++
++import OnlineNoteShell from '@/features/note/components/OnlineNoteShell.vue'
++
++const route = useRoute()
++const sid = computed(() => String(route.params.sid ?? 'pending-sid'))
++</script>
++
++<template>
++  <OnlineNoteShell :sid="sid" />
++</template>
+
+diff --git a/apps/web/tailwind.config.ts b/apps/web/tailwind.config.ts
+new file mode 100644
+index 0000000..4a39e63
+--- /dev/null
++++ b/apps/web/tailwind.config.ts
+@@ -0,0 +1,49 @@
++import type { Config } from 'tailwindcss'
++
++export default {
++  content: ['./index.html', './src/**/*.{vue,ts}'],
++  theme: {
++    extend: {
++      colors: {
++        ink: {
++          50: '#f7f7fb',
++          100: '#efeff7',
++          200: '#d9d9e8',
++          300: '#b9bad4',
++          400: '#8d90b2',
++          500: '#666b90',
++          600: '#4b5274',
++          700: '#373d59',
++          800: '#252a3f',
++          900: '#171b2d'
++        },
++        accent: {
++          50: '#f5f9ff',
++          100: '#e8f0ff',
++          200: '#c9ddff',
++          300: '#9bbfff',
++          400: '#6696ff',
++          500: '#3f71f4',
++          600: '#2d57d1',
++          700: '#2645a6',
++          800: '#243b84',
++          900: '#24346b'
++        },
++        success: '#2e8b57',
++        warning: '#d17d1f',
++        danger: '#c84c4c'
++      },
++      borderRadius: {
++        shell: '1.5rem'
++      },
++      boxShadow: {
++        shell: '0 28px 60px -28px rgba(23, 27, 45, 0.35)'
++      },
++      fontFamily: {
++        sans: ['"Avenir Next"', '"PingFang SC"', '"Noto Sans SC"', 'sans-serif'],
++        mono: ['"JetBrains Mono"', '"SFMono-Regular"', 'monospace']
++      }
++    }
++  },
++  plugins: []
++} satisfies Config
+
+diff --git a/apps/web/tests/router.spec.ts b/apps/web/tests/router.spec.ts
+new file mode 100644
+index 0000000..ca24230
+--- /dev/null
++++ b/apps/web/tests/router.spec.ts
+@@ -0,0 +1,19 @@
++import { describe, expect, it } from 'vitest'
++
++import { createAppRouter } from '../src/router'
++
++describe('app router shell', () => {
++  it('registers the four story shell routes', () => {
++    const router = createAppRouter()
++    const routePaths = router.getRoutes().map((route) => route.path)
++
++    expect(routePaths).toEqual(
++      expect.arrayContaining([
++        '/',
++        '/auth/callback',
++        '/note/o/:sid',
++        '/note/l/:sid'
++      ])
++    )
++  })
++})
+
+diff --git a/apps/web/tests/ui-state.spec.ts b/apps/web/tests/ui-state.spec.ts
+new file mode 100644
+index 0000000..07453b6
+--- /dev/null
++++ b/apps/web/tests/ui-state.spec.ts
+@@ -0,0 +1,11 @@
++import { describe, expect, it } from 'vitest'
++
++import { foundationStateRegistry } from '../src/components/ui/state-presets'
++
++describe('foundation state registry', () => {
++  it('defines the four required interaction states for every shell component', () => {
++    for (const states of Object.values(foundationStateRegistry)) {
++      expect(states).toEqual(['default', 'focus', 'error', 'disabled'])
++    }
++  })
++})
+
+diff --git a/apps/web/tsconfig.json b/apps/web/tsconfig.json
+new file mode 100644
+index 0000000..15a6782
+--- /dev/null
++++ b/apps/web/tsconfig.json
+@@ -0,0 +1,25 @@
++{
++  "extends": "@vue/tsconfig/tsconfig.dom.json",
++  "compilerOptions": {
++    "baseUrl": ".",
++    "composite": true,
++    "paths": {
++      "@/*": [
++        "./src/*"
++      ]
++    },
++    "types": [
++      "node",
++      "vite/client"
++    ]
++  },
++  "include": [
++    "src/**/*.ts",
++    "src/**/*.d.ts",
++    "src/**/*.vue",
++    "tests/**/*.ts",
++    "vite.config.ts",
++    "postcss.config.js",
++    "tailwind.config.ts"
++  ]
++}
+
+diff --git a/apps/web/vite.config.ts b/apps/web/vite.config.ts
+new file mode 100644
+index 0000000..1ae7ac2
+--- /dev/null
++++ b/apps/web/vite.config.ts
+@@ -0,0 +1,13 @@
++import { fileURLToPath, URL } from 'node:url'
++
++import vue from '@vitejs/plugin-vue'
++import { defineConfig } from 'vite'
++
++export default defineConfig({
++  plugins: [vue()],
++  resolve: {
++    alias: {
++      '@': fileURLToPath(new URL('./src', import.meta.url))
++    }
++  }
++})
+
+diff --git a/packages/shared-types/package.json b/packages/shared-types/package.json
+new file mode 100644
+index 0000000..4e77cb7
+--- /dev/null
++++ b/packages/shared-types/package.json
+@@ -0,0 +1,21 @@
++{
++  "name": "@note/shared-types",
++  "private": true,
++  "version": "0.1.0",
++  "type": "module",
++  "main": "./dist/index.js",
++  "types": "./src/index.ts",
++  "exports": {
++    ".": {
++      "types": "./src/index.ts",
++      "default": "./dist/index.js"
++    }
++  },
++  "scripts": {
++    "build": "tsc -p tsconfig.json",
++    "test": "pnpm run build"
++  },
++  "devDependencies": {
++    "typescript": "^5.7.2"
++  }
++}
+
+diff --git a/packages/shared-types/src/index.ts b/packages/shared-types/src/index.ts
+new file mode 100644
+index 0000000..4da8d2e
+--- /dev/null
++++ b/packages/shared-types/src/index.ts
+@@ -0,0 +1,18 @@
++export type AuthStatus = 'anonymous' | 'authenticated' | 'recovering'
++
++export type NoteMode = 'online' | 'local'
++
++export type InteractionState = 'default' | 'focus' | 'error' | 'disabled'
++
++export interface ShellRouteDefinition {
++  mode: NoteMode
++  path: string
++  title: string
++  description: string
++}
++
++export interface HealthResponse {
++  ok: true
++  service: 'api'
++  timestamp: string
++}
+
+diff --git a/packages/shared-types/tsconfig.json b/packages/shared-types/tsconfig.json
+new file mode 100644
+index 0000000..c31e26e
+--- /dev/null
++++ b/packages/shared-types/tsconfig.json
+@@ -0,0 +1,12 @@
++{
++  "extends": "../../tsconfig.base.json",
++  "compilerOptions": {
++    "declaration": true,
++    "emitDeclarationOnly": false,
++    "outDir": "dist",
++    "rootDir": "src"
++  },
++  "include": [
++    "src/**/*.ts"
++  ]
++}
+
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+new file mode 100644
+index 0000000..286cf7f
+--- /dev/null
++++ b/pnpm-workspace.yaml
+@@ -0,0 +1,3 @@
++packages:
++  - apps/*
++  - packages/*
+
+diff --git a/scripts/boot.mjs b/scripts/boot.mjs
+new file mode 100644
+index 0000000..1fe39a3
+--- /dev/null
++++ b/scripts/boot.mjs
+@@ -0,0 +1,25 @@
++import { spawn } from 'node:child_process'
++
++function run(command, args) {
++  return new Promise((resolve, reject) => {
++    const child = spawn(command, args, {
++      cwd: process.cwd(),
++      stdio: 'inherit',
++      shell: process.platform === 'win32'
++    })
++
++    child.on('exit', (code) => {
++      if (code === 0) {
++        resolve()
++        return
++      }
++
++      reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'unknown'}`))
++    })
++
++    child.on('error', reject)
++  })
++}
++
++await run('pnpm', ['sync:env'])
++console.log('Workspace bootstrapped. Use pnpm dev, pnpm build, or pnpm test.')
+
+diff --git a/scripts/sync-env.mjs b/scripts/sync-env.mjs
+new file mode 100644
+index 0000000..f36c406
+--- /dev/null
++++ b/scripts/sync-env.mjs
+@@ -0,0 +1,135 @@
++import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
++import path from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const __filename = fileURLToPath(import.meta.url)
++const __dirname = path.dirname(__filename)
++const rootDir = path.resolve(__dirname, '..')
++
++function parseEnvFile(content) {
++  const entries = {}
++
++  for (const rawLine of content.split(/\r?\n/u)) {
++    const line = rawLine.trim()
++
++    if (!line || line.startsWith('#')) {
++      continue
++    }
++
++    const separatorIndex = line.indexOf('=')
++
++    if (separatorIndex === -1) {
++      continue
++    }
++
++    const key = line.slice(0, separatorIndex).trim()
++    let value = line.slice(separatorIndex + 1).trim()
++
++    if (
++      (value.startsWith('"') && value.endsWith('"')) ||
++      (value.startsWith("'") && value.endsWith("'"))
++    ) {
++      value = value.slice(1, -1)
++    }
++
++    entries[key] = value
++  }
++
++  return entries
++}
++
++async function readOptionalFile(filePath) {
++  try {
++    await access(filePath)
++    return await readFile(filePath, 'utf8')
++  } catch {
++    return ''
++  }
++}
++
++function ensureAuthCallback(urlString, fallbackBase) {
++  const fallback = new URL('/auth/callback', fallbackBase).toString()
++
++  if (!urlString) {
++    return fallback
++  }
++
++  try {
++    const url = new URL(urlString)
++    url.pathname = '/auth/callback'
++    url.search = ''
++    url.hash = ''
++    return url.toString()
++  } catch {
++    return fallback
++  }
++}
++
++function toEnvFile(entries) {
++  return [
++    '# Generated by scripts/sync-env.mjs',
++    ...Object.entries(entries).map(([key, value]) => `${key}=${value}`),
++    ''
++  ].join('\n')
++}
++
++async function main() {
++  const exampleEnvPath = path.join(rootDir, '.env.example')
++  const localEnvPath = path.join(rootDir, '.env')
++
++  const exampleEnv = parseEnvFile(await readOptionalFile(exampleEnvPath))
++  const localEnv = parseEnvFile(await readOptionalFile(localEnvPath))
++  const mergedEnv = { ...exampleEnv, ...localEnv }
++
++  const webOrigin = mergedEnv.WEB_ORIGIN ?? 'http://localhost:5173'
++  const apiOrigin = mergedEnv.API_ORIGIN ?? 'http://localhost:3001'
++  const callbackUrl = ensureAuthCallback(
++    mergedEnv.SSO_REDIRECT ?? mergedEnv.VITE_SSO_REDIRECT,
++    webOrigin
++  )
++
++  const normalizedEnv = {
++    NODE_ENV: mergedEnv.NODE_ENV ?? 'development',
++    PORT: mergedEnv.PORT ?? '3001',
++    API_ORIGIN: apiOrigin,
++    WEB_ORIGIN: webOrigin,
++    DATABASE_URL: mergedEnv.DATABASE_URL ?? '',
++    COOKIE_NAME: mergedEnv.COOKIE_NAME ?? 'sid',
++    COOKIE_SECURE: mergedEnv.COOKIE_SECURE ?? 'false',
++    SESSION_TTL_SECONDS: mergedEnv.SESSION_TTL_SECONDS ?? '604800',
++    SSO_URL: mergedEnv.SSO_URL ?? mergedEnv.VITE_SSO_URL ?? '',
++    SSO_ID: mergedEnv.SSO_ID ?? mergedEnv.VITE_SSO_ID ?? '',
++    SSO_SECRET: mergedEnv.SSO_SECRET ?? '',
++    SSO_REDIRECT: callbackUrl,
++    SSO_MOCK_ENABLED: mergedEnv.SSO_MOCK_ENABLED ?? 'true',
++    SSO_MOCK_TICKET_PREFIX: mergedEnv.SSO_MOCK_TICKET_PREFIX ?? 'mock:',
++    VITE_API_BASE_URL: mergedEnv.VITE_API_BASE_URL ?? apiOrigin,
++    VITE_SSO_URL: mergedEnv.VITE_SSO_URL ?? mergedEnv.SSO_URL ?? '',
++    VITE_SSO_ID: mergedEnv.VITE_SSO_ID ?? mergedEnv.SSO_ID ?? '',
++    VITE_SSO_REDIRECT: ensureAuthCallback(
++      mergedEnv.VITE_SSO_REDIRECT ?? mergedEnv.SSO_REDIRECT,
++      webOrigin
++    )
++  }
++
++  const webEnv = Object.fromEntries(
++    Object.entries(normalizedEnv).filter(([key]) => key.startsWith('VITE_'))
++  )
++
++  const apiEnv = Object.fromEntries(
++    Object.entries(normalizedEnv).filter(([key]) => !key.startsWith('VITE_'))
++  )
++
++  const webEnvPath = path.join(rootDir, 'apps/web/.env.local')
++  const apiEnvPath = path.join(rootDir, 'apps/api/.env')
++
++  await mkdir(path.dirname(webEnvPath), { recursive: true })
++  await mkdir(path.dirname(apiEnvPath), { recursive: true })
++
++  await writeFile(webEnvPath, toEnvFile(webEnv), 'utf8')
++  await writeFile(apiEnvPath, toEnvFile(apiEnv), 'utf8')
++
++  console.log(`Synced environment to ${path.relative(rootDir, webEnvPath)} and ${path.relative(rootDir, apiEnvPath)}`)
++}
++
++await main()

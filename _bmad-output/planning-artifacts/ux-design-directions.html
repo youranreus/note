@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>note UX Design Directions</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --panel: #ffffff;
+        --ink: #1f2937;
+        --muted: #667085;
+        --line: #dbe2ea;
+        --primary: #2563eb;
+        --primary-2: #0f766e;
+        --danger: #b42318;
+        --success: #067647;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      header {
+        padding: 32px 24px 20px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfcfd;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      header h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      header p {
+        margin: 0;
+        max-width: 880px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 20px;
+        padding: 24px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+      }
+      .meta {
+        padding: 18px 18px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .meta h2 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+      .meta p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .screen {
+        min-height: 580px;
+        padding: 18px;
+      }
+      .topbar, .row, .toolbar, .list-item, .footerbar {
+        display: flex;
+        align-items: center;
+      }
+      .topbar { justify-content: space-between; margin-bottom: 18px; }
+      .badge, .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+      .badge { background: #eff6ff; color: #1d4ed8; }
+      .pill { background: #f3f4f6; color: #475467; }
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .hero h3, .editor h3, .panel h3 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      .hero p, .editor p, .panel p, .subtext {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .input, .textarea, .toolbar, .list-item, .panel, .split, .sheet {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .input {
+        padding: 12px 14px;
+        margin: 12px 0;
+        color: #98a2b3;
+      }
+      .actions, .tabs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .btn {
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .btn.primary { background: var(--primary); color: #fff; }
+      .btn.secondary { background: #f8fafc; border-color: var(--line); color: var(--ink); }
+      .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
+      .textarea {
+        padding: 14px;
+        min-height: 220px;
+        line-height: 1.6;
+        color: #344054;
+        margin-bottom: 12px;
+      }
+      .toolbar {
+        justify-content: space-between;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+      }
+      .stack { display: grid; gap: 12px; }
+      .list-item {
+        justify-content: space-between;
+        padding: 12px 14px;
+      }
+      .list-item strong { display: block; font-size: 14px; margin-bottom: 4px; }
+      .list-item span { color: var(--muted); font-size: 13px; }
+      .split {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        overflow: hidden;
+      }
+      .split > div { padding: 16px; }
+      .split > div:first-child { border-right: 1px solid var(--line); }
+      .panel {
+        padding: 16px;
+      }
+      .sheet {
+        padding: 16px;
+        background: linear-gradient(180deg, #ffffff, #f9fafb);
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .muted-box {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        color: var(--muted);
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      .success { color: var(--success); }
+      .danger { color: var(--danger); }
+      .teal .btn.primary, .teal .badge { background: #0f766e; color: #fff; }
+      .teal .badge { background: #ccfbf1; color: #115e59; }
+      .dense .screen { background: #fcfcfd; }
+      .darkish .screen { background: #f8fafc; }
+      .footerbar {
+        justify-content: space-between;
+        padding: 14px 18px 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      @media (max-width: 720px) {
+        .split { grid-template-columns: 1fr; }
+        .split > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>note Design Directions</h1>
+      <p>
+        方向稿现已参考 <code>docs/note.pen</code> 的实际设计骨架：浅灰背景、右上状态 pill、
+        居中单列 shell、12px 圆角输入与 52px 主按钮、SSO 使用确认 modal、
+        登录回跳使用居中 loading card、个人中心使用 segmented tab modal。
+        下面的变化只在“主路径更像 Pastebin”还是“更忠于现有稿”之间做权重调整。
+      </p>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <div class="meta">
+          <h2>Direction 01 · Pen Baseline Home</h2>
+          <p>直接继承 note.pen 首页：右上登录状态、居中 460px 壳体、ID 输入和两个入口按钮。</p>
+        </div>
+        <div class="screen">
+          <div class="topbar">
+            <strong>note</strong>
+            <span class="pill">未登录</span>
+          </div>
+          <div class="hero">
+            <h3>贴一段内容，拿一个固定地址</h3>
+            <p>先开始，再决定是否登录、收藏或加编辑密钥。</p>
+            <div class="input mono">输入 sid，或留空自动生成</div>
+            <div class="actions">
+              <button class="btn primary">在线便签</button>
+              <button class="btn secondary">本地便签</button>
+            </div>
+          </div>
+          <div class="muted-box">结果页优先于管理页。用户按下主按钮后直接进入文本对象。</div>
+        </div>
+        <div class="footerbar"><span>优点：最短路径</span><span>风险：品牌感偏弱</span></div>
+      </section>
+
+      <section class="card teal">
+        <div class="meta">
+          <h2>Direction 02 · Baseline + Pastebin Emphasis</h2>
+          <p>保留 note.pen 的骨架，只把主文案、状态提示和链接反馈做得更偏 Pastebin 主路径。</p>
+        </div>
+        <div class="screen">
+          <div class="toolbar">
+            <span class="badge">sid / n8a2j4d1</span>
+            <span class="success">已保存</span>
+          </div>
+          <div class="textarea">
+            今天的同步说明如下：<br /><br />
+            1. 地址保持不变。<br />
+            2. 之后补充内容时继续更新同一条。<br />
+            3. 接收方打开仍看到最新版本。
+          </div>
+          <div class="actions">
+            <button class="btn primary">复制链接</button>
+            <button class="btn secondary">添加编辑密钥</button>
+            <button class="btn ghost">登录后收藏</button>
+          </div>
+        </div>
+        <div class="footerbar"><span>优点：状态感稳</span><span>风险：工具感更强</span></div>
+      </section>
+
+      <section class="card">
+        <div class="meta">
+          <h2>Direction 03 · Editor First Variant</h2>
+          <p>仍然沿用单列居中结构，但让输入区更早成为主角，适合强调“先贴内容再说”。</p>
+        </div>
+        <div class="screen">
+          <div class="topbar">
+            <span class="badge">自动生成 sid</span>
+            <span class="pill">可分享</span>
+          </div>
+          <div class="sheet">
+            <h3>从这里开始写</h3>
+            <p class="subtext">系统会自动为这段内容准备固定入口。</p>
+            <div class="textarea" style="min-height: 280px;">在这里粘贴或输入正文内容……</div>
+            <div class="actions">
+              <button class="btn primary">保存并生成链接</button>
+              <button class="btn secondary">切换本地模式</button>
+            </div>
+          </div>
+        </div>
+        <div class="footerbar"><span>优点：内容中心明确</span><span>风险：sid 价值表达较晚</span></div>
+      </section>
+
+      <section class="card dense">
+        <div class="meta">
+          <h2>Direction 04 · Result Object</h2>
+          <p>结果对象感最强。用户创建后会明显感到“这是一条已经成立、可以维护的文本对象”。</p>
+        </div>
+        <div class="screen">
+          <div class="panel">
+            <div class="topbar">
+              <div>
+                <strong class="mono">/note/o/n8a2j4d1</strong>
+                <div class="subtext">固定地址已可访问，后续继续更新这里。</div>
+              </div>
+              <span class="badge">在线便签</span>
+            </div>
+            <div class="toolbar">
+              <span>创建者可编辑</span>
+              <span class="success">实时状态：已同步</span>
+            </div>
+            <div class="textarea" style="min-height: 200px;">文本主体展示在对象卡片内，工具条围绕对象工作，而不是像后台页面那样分散布局。</div>
+            <div class="actions">
+              <button class="btn primary">复制当前链接</button>
+              <button class="btn secondary">共享编辑密钥</button>
+              <button class="btn ghost">删除</button>
+            </div>
+          </div>
+        </div>
+        <div class="footerbar"><span>优点：对象心智最清楚</span><span>风险：首屏稍重</span></div>
+      </section>
+
+      <section class="card darkish">
+        <div class="meta">
+          <h2>Direction 05 · Split Focus</h2>
+          <p>左右分栏。左边内容，右边状态与增强能力。适合桌面，但移动要折叠。</p>
+        </div>
+        <div class="screen">
+          <div class="split">
+            <div>
+              <h3>文本内容</h3>
+              <div class="textarea" style="min-height: 260px;">这里持续维护正文，右侧展示链接状态、权限和资产化动作。</div>
+            </div>
+            <div class="stack">
+              <div class="panel">
+                <strong>固定链接</strong>
+                <div class="input mono">note.cc/n8a2j4d1</div>
+                <button class="btn primary" style="width: 100%;">复制链接</button>
+              </div>
+              <div class="panel">
+                <strong>状态</strong>
+                <p class="subtext">已保存，可读，编辑受控</p>
+              </div>
+              <div class="panel">
+                <strong>增强能力</strong>
+                <p class="subtext">收藏、登录、共享密钥</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footerbar"><span>优点：信息清晰</span><span>风险：不够像 Pastebin</span></div>
+      </section>
+
+      <section class="card">
+        <div class="meta">
+          <h2>Direction 06 · Asset Layer</h2>
+          <p>保留轻量主流程，同时把“我的创建 / 我的收藏”作为一层弱管理面板附着在产品上。</p>
+        </div>
+        <div class="screen">
+          <div class="toolbar">
+            <strong>note</strong>
+            <button class="btn ghost">打开我的面板</button>
+          </div>
+          <div class="tabs">
+            <span class="badge">我的创建</span>
+            <span class="pill">我的收藏</span>
+          </div>
+          <div class="stack" style="margin-top: 12px;">
+            <div class="list-item">
+              <div><strong class="mono">n8a2j4d1</strong><span>持续更新的项目说明</span></div>
+              <span>2 小时前</span>
+            </div>
+            <div class="list-item">
+              <div><strong class="mono">g7m1r0p2</strong><span>收藏的需求汇总</span></div>
+              <span>昨天</span>
+            </div>
+            <div class="list-item">
+              <div><strong class="mono">k4c9s8e6</strong><span>待发送的临时说明</span></div>
+              <span>本周</span>
+            </div>
+          </div>
+        </div>
+        <div class="footerbar"><span>优点：资产承接清楚</span><span>风险：需严格后置</span></div>
+      </section>
+    </main>
+  </body>
+</html>

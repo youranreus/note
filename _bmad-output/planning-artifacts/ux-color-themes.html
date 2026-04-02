@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>note UX Color Themes</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: #eef2f6;
+        color: #1f2937;
+      }
+      header {
+        padding: 28px 24px 18px;
+        background: #f8fafc;
+        border-bottom: 1px solid #dbe2ea;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      header p {
+        margin: 0;
+        max-width: 920px;
+        color: #667085;
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+        padding: 24px;
+      }
+      .theme {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+        background: #fff;
+      }
+      .meta {
+        padding: 18px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      }
+      .meta h2 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+      .meta p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #667085;
+      }
+      .preview {
+        padding: 18px;
+      }
+      .swatches {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .swatch {
+        flex: 1;
+        border-radius: 12px;
+        min-height: 52px;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+      }
+      .screen {
+        border-radius: 16px;
+        padding: 16px;
+        min-height: 280px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .pill {
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .card {
+        border-radius: 16px;
+        padding: 18px;
+      }
+      .input {
+        margin: 12px 0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .small {
+        margin-top: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .theme[data-theme="blue"] .screen { background: #f5f5f7; }
+      .theme[data-theme="blue"] .card { background: #ffffff; border: 1px solid #d2d2d7; }
+      .theme[data-theme="blue"] .input { background: #ffffff; border: 1px solid #d2d2d7; color: #8e8e93; }
+      .theme[data-theme="blue"] .pill { background: #ffffffd9; color: #1d1d1f; border: 1px solid #d2d2d7; }
+      .theme[data-theme="blue"] .btn.primary { background: #1d4ed8; color: #fff; }
+      .theme[data-theme="blue"] .btn.secondary { background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; }
+      .theme[data-theme="blue"] .small { color: #667085; }
+
+      .theme[data-theme="teal"] .screen { background: #f4f7f6; }
+      .theme[data-theme="teal"] .card { background: #fbfdfc; border: 1px solid #d5e3df; }
+      .theme[data-theme="teal"] .input { background: #fff; border: 1px solid #c8d7d3; color: #6b7280; }
+      .theme[data-theme="teal"] .pill { background: #ffffffd9; color: #18453b; border: 1px solid #d2dfdb; }
+      .theme[data-theme="teal"] .btn.primary { background: #0f766e; color: #fff; }
+      .theme[data-theme="teal"] .btn.secondary { background: #fff; color: #1f2937; border: 1px solid #c8d7d3; }
+      .theme[data-theme="teal"] .small { color: #5f6b69; }
+
+      .theme[data-theme="slate"] .screen { background: #f3f4f6; }
+      .theme[data-theme="slate"] .card { background: #ffffff; border: 1px solid #d1d5db; }
+      .theme[data-theme="slate"] .input { background: #fff; border: 1px solid #d1d5db; color: #6b7280; }
+      .theme[data-theme="slate"] .pill { background: #ffffffd9; color: #111827; border: 1px solid #d1d5db; }
+      .theme[data-theme="slate"] .btn.primary { background: #111827; color: #fff; }
+      .theme[data-theme="slate"] .btn.secondary { background: #fff; color: #111827; border: 1px solid #d1d5db; }
+      .theme[data-theme="slate"] .small { color: #6b7280; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>note Color Themes</h1>
+      <p>
+        颜色方向不追求强品牌铺色，而是服务于 `note.pen` 的轻灰底、居中单列、
+        克制状态反馈和 Pastebin 式短路径。以下 3 套都符合这个前提，只是主色语气不同。
+      </p>
+    </header>
+    <main class="grid">
+      <section class="theme" data-theme="blue">
+        <div class="meta">
+          <h2>Theme 01 · Calm Blue</h2>
+          <p>最稳妥的默认方向。强调可靠、清楚、工具属性强，适合主路径和状态反馈。</p>
+        </div>
+        <div class="preview">
+          <div class="swatches">
+            <div class="swatch" style="background:#f5f5f7"></div>
+            <div class="swatch" style="background:#ffffff"></div>
+            <div class="swatch" style="background:#1d4ed8"></div>
+            <div class="swatch" style="background:#067647"></div>
+            <div class="swatch" style="background:#b42318"></div>
+          </div>
+          <div class="screen">
+            <div class="top"><strong>note</strong><span class="pill">登录</span></div>
+            <div class="card">
+              <h3>输入 ID 或直接开始</h3>
+              <div class="input">输入 ID</div>
+              <div class="actions">
+                <span class="btn primary">在线便签</span>
+                <span class="btn secondary">本地便签</span>
+              </div>
+              <div class="small">输入 ID 后即可进入便签，留空则自动生成。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="theme" data-theme="teal">
+        <div class="meta">
+          <h2>Theme 02 · Trust Teal</h2>
+          <p>在可靠感之外多一点温和与产品感，适合想保留更柔和工具气质的版本。</p>
+        </div>
+        <div class="preview">
+          <div class="swatches">
+            <div class="swatch" style="background:#f4f7f6"></div>
+            <div class="swatch" style="background:#fbfdfc"></div>
+            <div class="swatch" style="background:#0f766e"></div>
+            <div class="swatch" style="background:#15803d"></div>
+            <div class="swatch" style="background:#b42318"></div>
+          </div>
+          <div class="screen">
+            <div class="top"><strong>note</strong><span class="pill">已登录</span></div>
+            <div class="card">
+              <h3>贴一段内容，拿一个固定入口</h3>
+              <div class="input">输入 ID</div>
+              <div class="actions">
+                <span class="btn primary">在线便签</span>
+                <span class="btn secondary">本地便签</span>
+              </div>
+              <div class="small">适合加强“可持续更新”的温和信任感。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="theme" data-theme="slate">
+        <div class="meta">
+          <h2>Theme 03 · Neutral Slate</h2>
+          <p>最接近 `note.pen` 当前的黑白灰调性。产品感最克制，最像轻量工具。</p>
+        </div>
+        <div class="preview">
+          <div class="swatches">
+            <div class="swatch" style="background:#f3f4f6"></div>
+            <div class="swatch" style="background:#ffffff"></div>
+            <div class="swatch" style="background:#111827"></div>
+            <div class="swatch" style="background:#4b5563"></div>
+            <div class="swatch" style="background:#b42318"></div>
+          </div>
+          <div class="screen">
+            <div class="top"><strong>note</strong><span class="pill">登录</span></div>
+            <div class="card">
+              <h3>固定入口，持续更新</h3>
+              <div class="input">输入 ID</div>
+              <div class="actions">
+                <span class="btn primary">在线便签</span>
+                <span class="btn secondary">本地便签</span>
+              </div>
+              <div class="small">最适合延续现稿，不会过度引入品牌色存在感。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
