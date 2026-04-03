@@ -1,6 +1,6 @@
 # Story 1.4: 在线便签的首次保存与持续更新
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -234,6 +234,8 @@ GPT-5.4
 - 已先补 `apps/api/tests/notes-write.spec.ts` 与 `apps/web/tests/online-note.spec.ts`，用红灯测试锁定首次保存、更新、冲突、删除终态与保存反馈行为。
 - 已实现共享保存 DTO、`PUT /api/notes/:sid`、`note-write-service`、Prisma `Note` 模型声明，以及 `features/note` 内的草稿同步与保存状态管理。
 - 已完成 `pnpm --filter @note/shared-types build`、`pnpm --filter @note/api test`、`pnpm --filter @note/web test`、`pnpm --filter @note/api typecheck`、`pnpm --filter @note/web typecheck`、`pnpm --filter @note/api build` 与 `pnpm --filter @note/web build` 验证，且全部通过。
+- 已针对 review patch 复查 `use-online-note.ts`、`note-write-service.ts` 与相关测试，确认当前剩余工作集中在终态回落、sid 切换竞态、数据库初始化脚本与真实链路回归覆盖。
+- 已新增真实 `useOnlineNote` 状态机测试与 `createPrismaNoteWriteRepository()` 锁/事务测试，并跑通 `pnpm test` 全仓回归，确认 Story 1.4 可以推进到 `review`。
 
 ### Completion Notes List
 
@@ -241,16 +243,22 @@ GPT-5.4
 - 已把在线页从只读消费页推进为可编辑页：`not-found` 进入可创建态，`available` 支持持续更新，`deleted` / `invalid-sid` / `error` 保持不可伪造的异常态。
 - 已在 `features/note` 内收口“未保存 / 保存中 / 已保存 / 保存失败”最小本地写入状态，并处理 sid 切换、远端回填与用户未保存草稿不被覆盖的边界。
 - 已补齐 API / Web 测试与类型构建验证，确认 Story 1.3 读取回归保持通过，Story 1.4 新增保存链路达到 review 条件。
+- 已修复终态写入错误回落：当保存命中 `NOTE_DELETED` / `NOTE_SID_CONFLICT` 时，在线页现在会切回不可编辑的 `deleted` / `error` 状态，不再伪装成可继续保存的对象。
+- 已修复 sid 切换竞态：旧保存请求在用户切换到新 `sid` 后即使晚到，也不会再污染当前页面的草稿、基线内容或读取结果。
+- 已补齐数据库初始化脚本：`pnpm --filter @note/api db:init` 现在会先执行 `prisma db push` 再生成 client，把 `notes.sid` 的唯一约束真正落到数据库。
+- 已新增真实回归覆盖：前端直接测试 `useOnlineNote` 状态机，后端直接测试 `createPrismaNoteWriteRepository()` 的锁与写入分支，同时补上“更新后再 GET 读到最新内容”的 API 验收。
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-4-online-note-save-and-update.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `apps/api/prisma/schema.prisma`
+- `apps/api/package.json`
 - `apps/api/src/app.ts`
 - `apps/api/src/routes/notes.ts`
 - `apps/api/src/schemas/note.ts`
 - `apps/api/src/services/note-write-service.ts`
+- `apps/api/tests/note-write-service.spec.ts`
 - `apps/api/tests/notes-write.spec.ts`
 - `apps/web/src/components/ui/TextInput.vue`
 - `apps/web/src/features/note/components/OnlineNoteShell.vue`
@@ -258,16 +266,18 @@ GPT-5.4
 - `apps/web/src/features/note/use-online-note.ts`
 - `apps/web/src/services/note-methods.ts`
 - `apps/web/tests/online-note.spec.ts`
+- `apps/web/tests/use-online-note.spec.ts`
 - `packages/shared-types/src/index.ts`
 
 ### Change Log
 
 - 2026-04-03: 创建 Story 1.4《在线便签的首次保存与持续更新》实施上下文文档，并将写入链路、前端编辑态、幂等约束与测试要求整理为 ready-for-dev 指南。
 - 2026-04-03: 完成 Story 1.4 实现，新增 `PUT /api/notes/:sid` 幂等写入链路、在线页保存反馈与首次保存/持续更新测试，并将故事状态推进到 `review`。
+- 2026-04-03: Addressed code review findings - 4 items resolved，补齐终态回落、sid 切换竞态、`db:init` 唯一约束落库，以及前后端真实保存链路回归覆盖。
 
 ### Review Findings
 
-- [ ] [Review][Patch] 终态写入错误未回落到不可编辑状态 [apps/web/src/features/note/use-online-note.ts:142] — `saveNote()` 在命中 `NOTE_DELETED` / `NOTE_SID_CONFLICT` 时只设置 `save-error` 与文案，不更新 `viewModel`；当前页仍会以 `available` / `not-found` 继续渲染编辑器，违反“`deleted` / `error` 不得伪装成可保存对象”的故事约束。
-- [ ] [Review][Patch] 切换 sid 后旧保存结果可能污染当前页面 [apps/web/src/features/note/use-online-note.ts:114] — 保存请求返回后没有再次确认当前路由 sid 是否仍等于提交 sid；若用户在请求未完成时切到其他对象，旧响应仍会覆写 `baselineContent`、`draftContent` 与 `readRequest`。
-- [ ] [Review][Patch] `notes.sid` 唯一约束只写进 Prisma schema，尚未真正落库 [apps/api/package.json:12] — 当前 `db:init` 只执行 `prisma generate`；`schema.prisma` 中新增的 `sid @unique` 不会自动创建数据库唯一索引，Story 1.4 宣称已补齐写入前提，但真实数据库约束仍未被应用。
-- [ ] [Review][Patch] Story 1.4 的验收测试未覆盖真实保存链路 [apps/web/tests/online-note.spec.ts:34] — 前端测试直接 mock 掉 `useOnlineNote`，API 测试注入 fake service，导致真实 `use-online-note.ts` 状态机与 `note-write-service.ts` 事务/锁逻辑未被回归；同时缺少“更新后再 GET 读到最新内容”的 API 覆盖。
+- [x] [Review][Patch] 终态写入错误未回落到不可编辑状态 [apps/web/src/features/note/use-online-note.ts:142] — `saveNote()` 在命中 `NOTE_DELETED` / `NOTE_SID_CONFLICT` 时只设置 `save-error` 与文案，不更新 `viewModel`；当前页仍会以 `available` / `not-found` 继续渲染编辑器，违反“`deleted` / `error` 不得伪装成可保存对象”的故事约束。
+- [x] [Review][Patch] 切换 sid 后旧保存结果可能污染当前页面 [apps/web/src/features/note/use-online-note.ts:114] — 保存请求返回后没有再次确认当前路由 sid 是否仍等于提交 sid；若用户在请求未完成时切到其他对象，旧响应仍会覆写 `baselineContent`、`draftContent` 与 `readRequest`。
+- [x] [Review][Patch] `notes.sid` 唯一约束只写进 Prisma schema，尚未真正落库 [apps/api/package.json:12] — 当前 `db:init` 只执行 `prisma generate`；`schema.prisma` 中新增的 `sid @unique` 不会自动创建数据库唯一索引，Story 1.4 宣称已补齐写入前提，但真实数据库约束仍未被应用。
+- [x] [Review][Patch] Story 1.4 的验收测试未覆盖真实保存链路 [apps/web/tests/online-note.spec.ts:34] — 前端测试直接 mock 掉 `useOnlineNote`，API 测试注入 fake service，导致真实 `use-online-note.ts` 状态机与 `note-write-service.ts` 事务/锁逻辑未被回归；同时缺少“更新后再 GET 读到最新内容”的 API 覆盖。

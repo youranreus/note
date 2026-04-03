@@ -15,6 +15,7 @@ import {
   resolveNoteWriteErrorDto,
   resolveOnlineNoteSaveFeedback,
   resolveOnlineNoteViewModel,
+  type OnlineNoteViewModel,
   type OnlineNoteSaveState
 } from './online-note'
 
@@ -39,15 +40,22 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const lastSubmittedContent = shallowRef<string | null>(null)
   const saveState = shallowRef<OnlineNoteSaveState>('unsaved')
   const saveErrorMessage = shallowRef<string | null>(null)
+  const terminalViewModel = shallowRef<OnlineNoteViewModel | null>(null)
 
-  const viewModel = computed(() =>
-    resolveOnlineNoteViewModel({
+  const viewModel = computed(() => {
+    const activeTerminalViewModel = terminalViewModel.value
+
+    if (activeTerminalViewModel && activeTerminalViewModel.sid === sidValue.value) {
+      return activeTerminalViewModel
+    }
+
+    return resolveOnlineNoteViewModel({
       sid: sidValue.value,
       loading: readRequest.loading.value,
       note: readRequest.data.value,
       error: readRequest.error.value
     })
-  )
+  })
 
   const hasUnsavedChanges = computed(() => draftContent.value !== baselineContent.value)
   const saveFeedback = computed(() =>
@@ -66,12 +74,24 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     lastSubmittedContent.value = null
     saveState.value = 'unsaved'
     saveErrorMessage.value = null
+    terminalViewModel.value = null
+  }
+
+  function setTerminalViewModel(nextSid: string, errorMessage: string, status: 'deleted' | 'error') {
+    terminalViewModel.value = {
+      status,
+      sid: nextSid,
+      content: null,
+      title: status === 'deleted' ? '该在线便签已删除' : '保存当前在线便签失败',
+      description: errorMessage
+    }
   }
 
   function syncDraftFromRemote(nextSid: string) {
     const note = readRequest.data.value
 
     if (isOnlineNoteDetailDto(note) && note.sid === nextSid) {
+      terminalViewModel.value = null
       const shouldReplaceDraft = initializedSid.value !== nextSid || !hasUnsavedChanges.value
 
       baselineContent.value = note.content
@@ -85,6 +105,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     const noteReadError = resolveNoteReadErrorDto(readRequest.error.value)
 
     if (noteReadError?.status === 'not-found') {
+      terminalViewModel.value = null
       const shouldReplaceDraft = initializedSid.value !== nextSid || !hasUnsavedChanges.value
 
       baselineContent.value = ''
@@ -117,12 +138,17 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         content: draftContent.value
       })
 
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
       if (!isOnlineNoteSaveResponseDto(response) || response.sid !== currentSid) {
         saveState.value = 'save-error'
         saveErrorMessage.value = '当前在线对象返回了无法识别的保存结果，请稍后重试。'
         return
       }
 
+      terminalViewModel.value = null
       baselineContent.value = response.content
       draftContent.value = response.content
       initializedSid.value = currentSid
@@ -140,9 +166,23 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         error: undefined
       })
     } catch (error) {
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
+      const noteWriteError = resolveNoteWriteErrorDto(error)
+
       saveState.value = 'save-error'
-      saveErrorMessage.value =
-        resolveNoteWriteErrorDto(error)?.message ?? '保存当前在线对象时发生异常，请稍后重试。'
+      saveErrorMessage.value = noteWriteError?.message ?? '保存当前在线对象时发生异常，请稍后重试。'
+
+      if (noteWriteError?.code === 'NOTE_DELETED') {
+        setTerminalViewModel(currentSid, noteWriteError.message, 'deleted')
+        return
+      }
+
+      if (noteWriteError?.code === 'NOTE_SID_CONFLICT') {
+        setTerminalViewModel(currentSid, noteWriteError.message, 'error')
+      }
     }
   }
 

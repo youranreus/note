@@ -172,6 +172,18 @@ describe('notes write endpoint', () => {
         status: 'available',
         saveResult: 'updated'
       })
+
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: '/api/notes/existing123'
+      })
+
+      expect(getResponse.statusCode).toBe(200)
+      expect(getResponse.json()).toEqual({
+        sid: 'existing123',
+        content: '更新后的最新内容。',
+        status: 'available'
+      })
     } finally {
       await app.close()
     }

@@ -22,6 +22,10 @@ interface PrismaModuleLike {
   }
 }
 
+interface PrismaNoteWriteRepositoryOptions {
+  getPrismaClient?: () => Promise<PrismaClientLike>
+}
+
 interface LockRow {
   acquired: number | bigint | null
 }
@@ -111,10 +115,14 @@ function resolveLockName(sid: string) {
   return `notes:write:${sid}`
 }
 
-export function createPrismaNoteWriteRepository(): NoteWriteRepository {
+export function createPrismaNoteWriteRepository(
+  options: PrismaNoteWriteRepositoryOptions = {}
+): NoteWriteRepository {
+  const resolvePrismaClient = options.getPrismaClient ?? getPrismaClient
+
   return {
     async saveBySid(sid, input) {
-      const prisma = await getPrismaClient()
+      const prisma = await resolvePrismaClient()
 
       return prisma.$transaction(async (transactionClient) => {
         const lockName = resolveLockName(sid)
