@@ -9,15 +9,19 @@ import {
 } from '@/services/note-methods'
 
 import {
+  createOnlineNoteCopyFailureFeedback,
+  createOnlineNoteCopySuccessFeedback,
   isOnlineNoteDetailDto,
   isOnlineNoteSaveResponseDto,
   resolveNoteReadErrorDto,
   resolveNoteWriteErrorDto,
+  resolveOnlineNoteObjectHeader,
   resolveOnlineNoteSaveFeedback,
   resolveOnlineNoteViewModel,
   type OnlineNoteViewModel,
   type OnlineNoteSaveState
 } from './online-note'
+import { createOnlineNoteShareLink } from './share-link'
 
 export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const sidValue = computed(() => toValue(sid))
@@ -41,6 +45,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const saveState = shallowRef<OnlineNoteSaveState>('unsaved')
   const saveErrorMessage = shallowRef<string | null>(null)
   const terminalViewModel = shallowRef<OnlineNoteViewModel | null>(null)
+  const copyFeedback = shallowRef<ReturnType<typeof createOnlineNoteCopySuccessFeedback> | null>(null)
 
   const viewModel = computed(() => {
     const activeTerminalViewModel = terminalViewModel.value
@@ -66,6 +71,14 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       errorMessage: saveErrorMessage.value
     })
   )
+  const objectHeader = computed(() =>
+    resolveOnlineNoteObjectHeader({
+      sid: sidValue.value,
+      viewStatus: viewModel.value.status,
+      saveState: saveState.value
+    })
+  )
+  const primaryFeedback = computed(() => copyFeedback.value ?? saveFeedback.value)
 
   function resetEditorState(nextSid: string | null) {
     draftContent.value = ''
@@ -75,6 +88,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     saveState.value = 'unsaved'
     saveErrorMessage.value = null
     terminalViewModel.value = null
+    copyFeedback.value = null
   }
 
   function setTerminalViewModel(nextSid: string, errorMessage: string, status: 'deleted' | 'error') {
@@ -128,6 +142,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       return
     }
 
+    copyFeedback.value = null
     saveState.value = 'saving'
     saveErrorMessage.value = null
     lastSubmittedContent.value = draftContent.value
@@ -186,6 +201,37 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     }
   }
 
+  async function copyShareLink() {
+    const currentHeader = objectHeader.value
+    const currentSid = sidValue.value
+
+    if (!currentHeader?.canCopyShareLink || !currentSid) {
+      return
+    }
+
+    try {
+      const clipboard = navigator.clipboard
+
+      if (!clipboard?.writeText) {
+        throw new Error('clipboard unavailable')
+      }
+
+      await clipboard.writeText(createOnlineNoteShareLink(currentSid))
+
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
+      copyFeedback.value = createOnlineNoteCopySuccessFeedback()
+    } catch {
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
+      copyFeedback.value = createOnlineNoteCopyFailureFeedback()
+    }
+  }
+
   watch(
     sidValue,
     (nextSid, _previousSid, onCleanup) => {
@@ -237,6 +283,10 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         return
       }
 
+      if (copyFeedback.value && draft !== baseline) {
+        copyFeedback.value = null
+      }
+
       if (saveState.value === 'save-error') {
         if (draft !== lastSubmittedContent.value) {
           saveState.value = 'unsaved'
@@ -268,6 +318,9 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     hasUnsavedChanges,
     saveState,
     saveFeedback,
-    saveNote
+    primaryFeedback,
+    objectHeader,
+    saveNote,
+    copyShareLink
   }
 }

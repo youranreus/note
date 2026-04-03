@@ -10,6 +10,7 @@ import type {
 } from '@note/shared-types'
 
 export type OnlineNoteSaveState = 'unsaved' | 'saving' | 'saved' | 'save-error'
+export type OnlineNoteObjectHeaderTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 
 export interface OnlineNoteViewModel {
   status: NoteReadViewStatus
@@ -33,11 +34,70 @@ export interface OnlineNoteSaveFeedback {
   description: string
 }
 
+export interface OnlineNoteObjectHeaderModel {
+  sid: string
+  saveStatusLabel: string
+  saveStatusTone: OnlineNoteObjectHeaderTone
+  shareStatusLabel: string
+  shareStatusTone: OnlineNoteObjectHeaderTone
+  shareStatusDescription: string
+  editStatusLabel: string
+  editStatusTone: OnlineNoteObjectHeaderTone
+  editStatusCaption: string
+  canCopyShareLink: boolean
+  copyButtonLabel: string
+  copyButtonState: InteractionState
+}
+
 interface OnlineNoteSaveFeedbackInput {
   viewStatus: NoteReadViewStatus
   saveState: OnlineNoteSaveState
   hasUnsavedChanges: boolean
   errorMessage?: string | null
+}
+
+interface OnlineNoteObjectHeaderInput {
+  sid: string | null
+  viewStatus: NoteReadViewStatus
+  saveState: OnlineNoteSaveState
+}
+
+function resolveSaveStatusLabel(
+  viewStatus: NoteReadViewStatus,
+  saveState: OnlineNoteSaveState
+): { label: string; tone: OnlineNoteObjectHeaderTone } {
+  if (saveState === 'saving') {
+    return {
+      label: '保存中',
+      tone: 'accent'
+    }
+  }
+
+  if (saveState === 'saved') {
+    return {
+      label: '已保存',
+      tone: 'success'
+    }
+  }
+
+  if (saveState === 'save-error') {
+    return {
+      label: '保存失败',
+      tone: 'danger'
+    }
+  }
+
+  if (viewStatus === 'not-found') {
+    return {
+      label: '尚未保存',
+      tone: 'warning'
+    }
+  }
+
+  return {
+    label: '未保存变更',
+    tone: 'warning'
+  }
 }
 
 function createViewModel(
@@ -246,4 +306,59 @@ export function resolveOnlineNoteSaveFeedback(
   }
 
   return null
+}
+
+export function resolveOnlineNoteObjectHeader(
+  input: OnlineNoteObjectHeaderInput
+): OnlineNoteObjectHeaderModel | null {
+  if (!input.sid) {
+    return null
+  }
+
+  if (input.viewStatus !== 'available' && input.viewStatus !== 'not-found') {
+    return null
+  }
+
+  const saveStatus = resolveSaveStatusLabel(input.viewStatus, input.saveState)
+  const canCopyShareLink = input.viewStatus === 'available' && input.saveState !== 'saving'
+  const isExistingSharedObject = input.viewStatus === 'available'
+
+  return {
+    sid: input.sid,
+    saveStatusLabel: saveStatus.label,
+    saveStatusTone: saveStatus.tone,
+    shareStatusLabel: isExistingSharedObject ? '可分享' : '保存后可分享',
+    shareStatusTone: isExistingSharedObject ? 'success' : 'warning',
+    shareStatusDescription: isExistingSharedObject
+      ? input.saveState === 'saving'
+        ? '当前固定链接仍然可分享，接收者会先看到最近一次成功保存的内容，最新修改保存完成后再同步。'
+        : '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。'
+      : '先完成首次保存，当前 sid 才会成为可直接分享的稳定对象链接。',
+    editStatusLabel: '当前可继续编辑',
+    editStatusTone: 'accent',
+    editStatusCaption: '权限模型待 Epic 2 接入',
+    canCopyShareLink,
+    copyButtonLabel: '复制链接',
+    copyButtonState: canCopyShareLink ? 'default' : 'disabled'
+  }
+}
+
+export function createOnlineNoteCopySuccessFeedback(): OnlineNoteSaveFeedback {
+  return {
+    tone: 'success',
+    state: 'default',
+    title: '已复制当前在线便签链接',
+    description: '你可以把这个稳定链接直接发给别人。'
+  }
+}
+
+export function createOnlineNoteCopyFailureFeedback(
+  description = '当前浏览器无法复制链接，请手动复制地址栏中的链接后重试。'
+): OnlineNoteSaveFeedback {
+  return {
+    tone: 'danger',
+    state: 'error',
+    title: '复制当前在线便签链接失败',
+    description
+  }
 }

@@ -9,13 +9,15 @@ import LoadingCard from '@/components/ui/LoadingCard.vue'
 import SurfaceCard from '@/components/ui/SurfaceCard.vue'
 import TextInput from '@/components/ui/TextInput.vue'
 
+import NoteObjectHeader from './NoteObjectHeader.vue'
 import { useOnlineNote } from '../use-online-note'
 
 const props = defineProps<{
   sid: string | null
 }>()
 
-const { viewModel, draftContent, saveState, saveFeedback, saveNote } = useOnlineNote(
+const { viewModel, draftContent, saveState, primaryFeedback, objectHeader, saveNote, copyShareLink } =
+  useOnlineNote(
   computed(() => props.sid)
 )
 
@@ -54,36 +56,6 @@ const modeBadgeLabel = computed(() => {
   }
 
   return '异常态'
-})
-
-const objectStateLabel = computed(() => {
-  switch (viewModel.value.status) {
-    case 'available':
-      return '已存在对象'
-    case 'not-found':
-      return '尚未创建'
-    case 'loading':
-      return '正在读取'
-    case 'deleted':
-      return '已删除'
-    case 'invalid-sid':
-      return 'sid 无效'
-    default:
-      return '读取失败'
-  }
-})
-
-const saveStateLabel = computed(() => {
-  switch (saveState.value) {
-    case 'saving':
-      return '保存中'
-    case 'saved':
-      return '已保存'
-    case 'save-error':
-      return '保存失败'
-    default:
-      return '尚未保存'
-  }
 })
 
 const actionLabel = computed(() => {
@@ -135,6 +107,10 @@ const editorPlaceholder = computed(() => {
 function handleSave() {
   void saveNote()
 }
+
+function handleCopyShareLink() {
+  void copyShareLink()
+}
 </script>
 
 <template>
@@ -173,33 +149,27 @@ function handleSave() {
             {{ viewModel.description }}
           </p>
         </div>
-        <div class="rounded-full border border-[color:var(--panel-border)] bg-white/80 px-3 py-1 text-xs text-[color:var(--text-secondary)]">
-          {{ saveStateLabel }}
+        <div
+          class="rounded-full border border-[color:var(--panel-border)] bg-white/80 px-3 py-1 text-xs text-[color:var(--text-secondary)]"
+        >
+          {{ saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : saveState === 'save-error' ? '保存失败' : '编辑中' }}
         </div>
       </div>
 
-      <div class="mt-5 grid gap-3 sm:grid-cols-3">
-        <div class="rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 px-4 py-3">
-          <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">当前对象</p>
-          <p class="mt-2 text-sm font-medium text-[color:var(--text-primary)]">{{ viewModel.sid }}</p>
-        </div>
-        <div class="rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 px-4 py-3">
-          <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">对象状态</p>
-          <p class="mt-2 text-sm font-medium text-[color:var(--text-primary)]">{{ objectStateLabel }}</p>
-        </div>
-        <div class="rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 px-4 py-3">
-          <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">保存状态</p>
-          <p class="mt-2 text-sm font-medium text-[color:var(--text-primary)]">{{ saveStateLabel }}</p>
-        </div>
-      </div>
+      <NoteObjectHeader
+        v-if="objectHeader"
+        class="mt-5"
+        :model="objectHeader"
+        @copy="handleCopyShareLink"
+      />
 
       <InlineFeedback
-        v-if="saveFeedback"
+        v-if="primaryFeedback"
         class="mt-5"
-        :title="saveFeedback.title"
-        :description="saveFeedback.description"
-        :tone="saveFeedback.tone"
-        :state="saveFeedback.state"
+        :title="primaryFeedback.title"
+        :description="primaryFeedback.description"
+        :tone="primaryFeedback.tone"
+        :state="primaryFeedback.state"
       />
 
       <div class="mt-5 rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-ink-50/60 p-4">

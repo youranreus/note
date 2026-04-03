@@ -170,6 +170,59 @@ async function flushState() {
 describe('useOnlineNote', () => {
   beforeEach(() => {
     requestHarness.reset()
+    vi.restoreAllMocks()
+  })
+
+  it('ignores stale copy feedback after the user has switched to another sid', async () => {
+    const sid = ref('note-a')
+    const note = useOnlineNote(sid)
+    const writeTextDeferred = (() => {
+      let resolve!: () => void
+      const promise = new Promise<void>((nextResolve) => {
+        resolve = nextResolve
+      })
+
+      return {
+        promise,
+        resolve
+      }
+    })()
+
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn(() => writeTextDeferred.promise)
+      }
+    })
+
+    requestHarness.resolveRead({
+      sid: 'note-a',
+      status: 'available',
+      content: 'note a'
+    })
+    await flushState()
+
+    const copyPromise = note.copyShareLink()
+
+    sid.value = 'note-b'
+    await flushState()
+
+    requestHarness.resolveRead({
+      sid: 'note-b',
+      status: 'available',
+      content: 'note b'
+    })
+    await flushState()
+
+    writeTextDeferred.resolve()
+    await copyPromise
+    await flushState()
+
+    expect(note.primaryFeedback.value?.title).not.toBe('已复制当前在线便签链接')
+    expect(note.primaryFeedback.value?.title).toBe('已保存')
+    expect(note.objectHeader.value).toMatchObject({
+      sid: 'note-b'
+    })
   })
 
   it('falls back to a terminal deleted state when the save endpoint reports NOTE_DELETED', async () => {
@@ -305,5 +358,80 @@ describe('useOnlineNote', () => {
       sid: 'beta123'
     })
     expect(note.draftContent.value).toBe('')
+  })
+
+  it('copies the stable online note link and exposes a success feedback message', async () => {
+    window.history.replaceState({}, '', '/note/o/share123')
+    const clipboardWriteText = vi.fn(async () => undefined)
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteText
+      }
+    })
+
+    const sid = ref('share123')
+    const note = useOnlineNote(sid) as ReturnType<typeof useOnlineNote> & {
+      copyShareLink: () => Promise<void>
+      primaryFeedback: { value: { title: string; description: string } | null }
+      objectHeader: {
+        value: {
+          shareStatusLabel: string
+          canCopyShareLink: boolean
+        } | null
+      }
+    }
+
+    requestHarness.resolveRead({
+      sid: 'share123',
+      content: '已保存内容',
+      status: 'available'
+    })
+    await flushState()
+
+    await note.copyShareLink()
+    await flushState()
+
+    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/note/o/share123`)
+    expect(note.objectHeader.value).toMatchObject({
+      shareStatusLabel: '可分享',
+      canCopyShareLink: true
+    })
+    expect(note.primaryFeedback.value?.title).toBe('已复制当前在线便签链接')
+  })
+
+  it('surfaces a clear failure feedback when the clipboard API rejects the copy action', async () => {
+    window.history.replaceState({}, '', '/note/o/share123')
+    const clipboardWriteText = vi.fn(async () => {
+      throw new Error('clipboard denied')
+    })
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteText
+      }
+    })
+
+    const sid = ref('share123')
+    const note = useOnlineNote(sid) as ReturnType<typeof useOnlineNote> & {
+      copyShareLink: () => Promise<void>
+      primaryFeedback: { value: { title: string; description: string; tone: string } | null }
+    }
+
+    requestHarness.resolveRead({
+      sid: 'share123',
+      content: '已保存内容',
+      status: 'available'
+    })
+    await flushState()
+
+    await note.copyShareLink()
+    await flushState()
+
+    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/note/o/share123`)
+    expect(note.primaryFeedback.value).toMatchObject({
+      tone: 'danger',
+      title: '复制当前在线便签链接失败'
+    })
   })
 })
