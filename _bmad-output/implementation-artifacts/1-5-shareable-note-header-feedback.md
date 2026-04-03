@@ -1,6 +1,6 @@
 # Story 1.5: 可分享对象头部与主路径反馈
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
