@@ -1,6 +1,6 @@
 # Story 1.2: 首页 SID 入口与模式选择
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

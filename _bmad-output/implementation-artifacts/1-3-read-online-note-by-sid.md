@@ -1,6 +1,6 @@
 # Story 1.3: 通过 SID 读取在线便签
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,42 +18,47 @@ so that 我无需登录或额外步骤就能消费分享结果。
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: 建立 Story 1.3 所需的在线便签读取契约与共享类型 (AC: 1, 3)
-  - [ ] 在 `packages/shared-types` 中新增在线便签详情 DTO、读取错误码与前端消费所需的状态类型，保持前后端字段使用 `camelCase`。
-  - [ ] 明确详情读取响应至少覆盖 `sid`、`content`、对象状态，以及前端区分“正常可读 / 不存在 / 已删除”所需的最小信息。
-  - [ ] 不在本故事提前引入保存、编辑密钥、收藏或作者资产字段；仅保留读取当前在线便签所需的最小契约。
+- [x] Task 1: 建立 Story 1.3 所需的在线便签读取契约与共享类型 (AC: 1, 3)
+  - [x] 在 `packages/shared-types` 中新增在线便签详情 DTO、读取错误码与前端消费所需的状态类型，保持前后端字段使用 `camelCase`。
+  - [x] 明确详情读取响应至少覆盖 `sid`、`content`、对象状态，以及前端区分“正常可读 / 不存在 / 已删除”所需的最小信息。
+  - [x] 不在本故事提前引入保存、编辑密钥、收藏或作者资产字段；仅保留读取当前在线便签所需的最小契约。
 
-- [ ] Task 2: 在 `apps/api` 落地按唯一 `sid` 读取在线便签的最小链路 (AC: 1, 3)
-  - [ ] 将当前 `apps/api/src/routes/notes.ts` 从模块占位推进到真实读取入口，新增 `GET /api/notes/:sid`，并继续保留或兼容已有 shell/status 仅在不干扰主链路时存在。
-  - [ ] 新增 `schemas` 与 `services` 层实现，确保路由参数校验、读取逻辑和错误映射分层清晰，不把所有逻辑塞进 route handler。
-  - [ ] 当前仓库尚未落完整 Prisma/数据库读写链路时，可在 `apps/api` 先补齐最小 `notes` 数据访问基础，但返回语义必须已经对齐最终模型：唯一 `sid`、未删除可读、已删除不可读、缺失资源不可读。
-  - [ ] 明确禁止使用 `findFirst`、模糊查找或会静默吞掉重复 `sid` 风险的实现；如果底层尚未具备唯一约束，服务层也必须显式按“唯一对象”语义收口并保留后续迁移空间。
-  - [ ] 不允许用硬编码 demo 内容、仅开发期假数据或内存数组来“伪完成” Story 1.3；若真实数据库链路尚未齐备，也应至少把数据访问收口为可替换的 repository/service seam，并保持对后续 Prisma 接入无缝兼容。
+- [x] Task 2: 在 `apps/api` 落地按唯一 `sid` 读取在线便签的最小链路 (AC: 1, 3)
+  - [x] 将当前 `apps/api/src/routes/notes.ts` 从模块占位推进到真实读取入口，新增 `GET /api/notes/:sid`，并继续保留或兼容已有 shell/status 仅在不干扰主链路时存在。
+  - [x] 新增 `schemas` 与 `services` 层实现，确保路由参数校验、读取逻辑和错误映射分层清晰，不把所有逻辑塞进 route handler。
+  - [x] 当前仓库尚未落完整 Prisma/数据库读写链路时，可在 `apps/api` 先补齐最小 `notes` 数据访问基础，但返回语义必须已经对齐最终模型：唯一 `sid`、未删除可读、已删除不可读、缺失资源不可读。
+  - [x] 明确禁止使用 `findFirst`、模糊查找或会静默吞掉重复 `sid` 风险的实现；如果底层尚未具备唯一约束，服务层也必须显式按“唯一对象”语义收口并保留后续迁移空间。
+  - [x] 不允许用硬编码 demo 内容、仅开发期假数据或内存数组来“伪完成” Story 1.3；若真实数据库链路尚未齐备，也应至少把数据访问收口为可替换的 repository/service seam，并保持对后续 Prisma 接入无缝兼容。
 
-- [ ] Task 3: 在 `apps/web` 建立在线便签详情读取能力 (AC: 1, 2, 3)
-  - [ ] 在现有 `apps/web/src/services` 下补齐 `axios + alova` 的在线便签读取方法，优先沿用项目既定技术栈，不另外引入新的请求方案。
-  - [ ] 将在线详情请求封装到 `features/note` 内的轻量 composable 或 service 模块中，让 `OnlineNoteView` 继续保持薄层。
-  - [ ] 读取逻辑必须以路由中的 `sid` 为唯一输入，不从首页遗留状态、Pinia 或其他全局 store 偷拿对象标识。
-  - [ ] 未登录访客访问有效在线链接时，页面只进入读取与展示链路，不弹 SSO modal，不要求先登录。
+- [x] Task 3: 在 `apps/web` 建立在线便签详情读取能力 (AC: 1, 2, 3)
+  - [x] 在现有 `apps/web/src/services` 下补齐 `axios + alova` 的在线便签读取方法，优先沿用项目既定技术栈，不另外引入新的请求方案。
+  - [x] 将在线详情请求封装到 `features/note` 内的轻量 composable 或 service 模块中，让 `OnlineNoteView` 继续保持薄层。
+  - [x] 读取逻辑必须以路由中的 `sid` 为唯一输入，不从首页遗留状态、Pinia 或其他全局 store 偷拿对象标识。
+  - [x] 未登录访客访问有效在线链接时，页面只进入读取与展示链路，不弹 SSO modal，不要求先登录。
 
-- [ ] Task 4: 将在线便签页从占位壳体推进为“只读消费页” (AC: 1, 2, 3)
-  - [ ] 基于现有 `OnlineNoteShell.vue` 演进出真实的只读查看状态，而不是继续显示“后续故事再接入”的占位文案。
-  - [ ] 页面至少覆盖 4 类前端状态：加载中、正常可读、资源不存在、资源已删除；状态文案需清晰，不只靠颜色区分。
-  - [ ] 正常可读状态下，页面应直接展示最新内容主体，并保留后续 Story 1.4 / 1.5 接入对象头部、保存反馈与编辑态的结构空间。
-  - [ ] 路由参数无效时，继续沿用 Story 1.1 / 1.2 已建立的严格 `sid` 处理策略，不把空值或异常参数默默转成伪造对象。
-  - [ ] 加载态、异常态与说明态优先复用现有 `LoadingCard`、`InlineFeedback`、`SurfaceCard` 等 foundation 组件，不重新发明在线页专用状态容器。
+- [x] Task 4: 将在线便签页从占位壳体推进为“只读消费页” (AC: 1, 2, 3)
+  - [x] 基于现有 `OnlineNoteShell.vue` 演进出真实的只读查看状态，而不是继续显示“后续故事再接入”的占位文案。
+  - [x] 页面至少覆盖 4 类前端状态：加载中、正常可读、资源不存在、资源已删除；状态文案需清晰，不只靠颜色区分。
+  - [x] 正常可读状态下，页面应直接展示最新内容主体，并保留后续 Story 1.4 / 1.5 接入对象头部、保存反馈与编辑态的结构空间。
+  - [x] 路由参数无效时，继续沿用 Story 1.1 / 1.2 已建立的严格 `sid` 处理策略，不把空值或异常参数默默转成伪造对象。
+  - [x] 加载态、异常态与说明态优先复用现有 `LoadingCard`、`InlineFeedback`、`SurfaceCard` 等 foundation 组件，不重新发明在线页专用状态容器。
 
-- [ ] Task 5: 保持实现边界，避免越界吞并后续 stories (AC: 1, 2, 3)
-  - [ ] 不在本故事实现在线便签保存、首次创建、持续更新；这些属于 Story 1.4。
-  - [ ] 不在本故事实现 `NoteObjectHeader` 的完整分享/保存/权限反馈；这些属于 Story 1.5 和 Epic 2。
-  - [ ] 不在本故事实现登录回跳、个人中心、收藏、编辑密钥或默认编辑权；读取链路必须在匿名可读前提下独立成立。
-  - [ ] 不把本地便签模式逻辑混入在线便签 feature，保持 `/note/o/:sid` 与 `/note/l/:sid` 的职责分离。
+- [x] Task 5: 保持实现边界，避免越界吞并后续 stories (AC: 1, 2, 3)
+  - [x] 不在本故事实现在线便签保存、首次创建、持续更新；这些属于 Story 1.4。
+  - [x] 不在本故事实现 `NoteObjectHeader` 的完整分享/保存/权限反馈；这些属于 Story 1.5 和 Epic 2。
+  - [x] 不在本故事实现登录回跳、个人中心、收藏、编辑密钥或默认编辑权；读取链路必须在匿名可读前提下独立成立。
+  - [x] 不把本地便签模式逻辑混入在线便签 feature，保持 `/note/o/:sid` 与 `/note/l/:sid` 的职责分离。
 
-- [ ] Task 6: 为读取链路补齐最小测试与验收 (AC: 1, 2, 3)
-  - [ ] 为后端 `GET /api/notes/:sid` 增加测试，至少覆盖：存在且可读、资源不存在、资源已删除、无效 `sid` 参数。
-  - [ ] 为前端在线便签读取状态增加测试，至少覆盖：加载态、成功态、not-found 态、deleted 态，以及未登录访问不触发登录阻断。
-  - [ ] 保持现有首页路由与 `sid` 解析测试继续通过，新增测试不得破坏 Story 1.2 已建立的首页进入路径。
-  - [ ] 通过 `pnpm --filter @note/api test`、`pnpm --filter @note/web test`、对应 `typecheck`，必要时再补 `build` 验证读取链路集成可用。
+- [x] Task 6: 为读取链路补齐最小测试与验收 (AC: 1, 2, 3)
+  - [x] 为后端 `GET /api/notes/:sid` 增加测试，至少覆盖：存在且可读、资源不存在、资源已删除、无效 `sid` 参数。
+  - [x] 为前端在线便签读取状态增加测试，至少覆盖：加载态、成功态、not-found 态、deleted 态，以及未登录访问不触发登录阻断。
+  - [x] 保持现有首页路由与 `sid` 解析测试继续通过，新增测试不得破坏 Story 1.2 已建立的首页进入路径。
+  - [x] 通过 `pnpm --filter @note/api test`、`pnpm --filter @note/web test`、对应 `typecheck`，必要时再补 `build` 验证读取链路集成可用。
+
+### Review Findings
+
+- [x] [Review][Patch] 预留的 `/shell-status` 静态路由会吞掉合法 sid=`shell-status` 的读取请求，导致 `GET /api/notes/shell-status` 返回模块壳体而不是唯一对象详情 [apps/api/src/routes/notes.ts:46]
+- [x] [Review][Patch] 成功响应未做 DTO 兜底校验，遇到异常 200 payload 时前端不会转入错误态，而会回落到 loading 分支并持续显示“正在读取在线便签” [apps/web/src/features/note/online-note.ts:91]
 
 ## Dev Notes
 
@@ -190,19 +195,38 @@ GPT-5 Codex
 
 ### Debug Log References
 
-- 已从 `sprint-status.yaml` 确认当前第一条 backlog story 为 `1-3-read-online-note-by-sid`。
-- 已抽取 Epic 1 中 Story 1.3 的原始 AC，并对照 PRD、架构、UX、技术方案与数据库设计补全实现约束。
-- 已读取 Story 1.2 完整故事文档，继承其关于 `sid` 唯一对象心智、严格参数处理、feature 内聚与测试优先的实施经验。
-- 已核对当前代码库，确认 `apps/api/src/routes/notes.ts` 仍为 shell 接口、`OnlineNoteShell.vue` 仍为占位实现、`packages/shared-types` 尚无 note DTO。
-- 已将 1.3 的任务边界收紧为“在线只读读取链路”，明确把保存、分享反馈、权限升级与收藏排除到后续 stories。
+- 已根据 `sprint-status.yaml` 将 Story 1.3 标记为 `in-progress`，并锁定当前开发目标为 `1-3-read-online-note-by-sid`。
+- 已在 `packages/shared-types` 中补齐 `OnlineNoteDetailDto`、读取错误 DTO 与前端消费状态类型，统一 `camelCase` 字段约定。
+- 已在 `apps/api` 新增 `note-read-service.ts` 与 `schemas/note.ts`，把 `GET /api/notes/:sid` 的参数校验、错误映射与唯一 `sid` 读取语义分层收口。
+- 已将 Prisma 访问实现为可替换 repository seam，通过原始 SQL 精确按 `sid` 读取并显式阻断重复 `sid` 风险，未引入 demo 数据或内存数组。
+- 已在 `apps/web` 建立 `axios + alova` 请求底座、`note-methods.ts`、`use-online-note.ts` 与 `online-note.ts`，确保读取链路仅以路由 `sid` 为输入。
+- 已将 `OnlineNoteShell.vue` 演进为只读消费页，覆盖加载中、正常可读、资源不存在、资源已删除与异常兜底状态，并复用 `LoadingCard`、`InlineFeedback`、`SurfaceCard`。
+- 已执行 `pnpm prepare:types && pnpm sync:env`、`pnpm --filter @note/api test`、`pnpm --filter @note/web test`、`pnpm --filter @note/api typecheck`、`pnpm --filter @note/web typecheck`，结果全部通过。
 
 ### Completion Notes List
 
-- Story 1.3 已按当前 sprint 顺序创建为 `ready-for-dev`。
-- 文档已补齐读取链路所需的 API、前端、共享类型、状态语义、测试与边界说明，不再只是复制 epics 原文。
-- 已把前一故事的 learnings 与当前仓库真实缺口整合进 Dev Notes，降低后续 `DS` 误把 1.3 扩张成完整 CRUD 的风险。
-- VS 已补充两项防偏航约束：禁止用假数据伪完成在线读取，以及要求优先复用既有 foundation 状态组件。
+- 已完成 Story 1.3 的最小在线读取闭环：访客访问 `/note/o/:sid` 时可按唯一 `sid` 读取并显示最新已保存内容。
+- 后端新增 `GET /api/notes/:sid`，统一返回 `available / not-found / deleted / invalid-sid` 语义，并在 service 层显式收口唯一对象约束。
+- 前端新增 `axios + alova` 读取方法、feature composable 与视图状态适配，`OnlineNoteView` 继续保持薄层。
+- 在线页已从占位文案升级为真实只读消费页，并为后续对象头部 / 保存反馈预留结构空间。
+- API 测试与前端状态测试均已补齐，且未破坏既有首页 SID 进入链路与 `resolveSidParam` 回归。
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-3-read-online-note-by-sid.md`
+- `apps/api/src/app.ts`
+- `apps/api/src/routes/notes.ts`
+- `apps/api/src/schemas/note.ts`
+- `apps/api/src/services/note-read-service.ts`
+- `apps/api/tests/notes-read.spec.ts`
+- `apps/web/src/features/note/components/OnlineNoteShell.vue`
+- `apps/web/src/features/note/online-note.ts`
+- `apps/web/src/features/note/use-online-note.ts`
+- `apps/web/src/services/http-client.ts`
+- `apps/web/src/services/note-methods.ts`
+- `apps/web/tests/online-note.spec.ts`
+- `packages/shared-types/src/index.ts`
+
+### Change Log
+
+- 2026-04-03: 完成 Story 1.3 在线便签按 SID 读取实现，补齐共享契约、API/前端状态链路与测试验证。

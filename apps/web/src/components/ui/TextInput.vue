@@ -15,6 +15,8 @@ const props = withDefaults(
     autoComplete?: string
     autoCapitalize?: string
     spellcheck?: boolean
+    multiline?: boolean
+    rows?: number
     inputMode?: 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search'
     enterKeyHint?: 'enter' | 'done' | 'go' | 'next' | 'previous' | 'search' | 'send'
   }>(),
@@ -26,6 +28,8 @@ const props = withDefaults(
     autoComplete: 'off',
     autoCapitalize: 'none',
     spellcheck: false,
+    multiline: false,
+    rows: 10,
     inputMode: undefined,
     enterKeyHint: undefined
   }
@@ -33,8 +37,9 @@ const props = withDefaults(
 
 const model = defineModel<string>({ default: '' })
 
-const inputClassName = computed(() => [
-  'min-h-12 w-full rounded-[var(--radius-control)] border px-4 py-3 text-sm outline-none transition duration-[var(--duration-fast)]',
+const fieldClassName = computed(() => [
+  'w-full rounded-[var(--radius-control)] border px-4 py-3 text-sm outline-none transition duration-[var(--duration-fast)]',
+  props.multiline ? 'min-h-48 resize-y leading-7' : 'min-h-12',
   textInputStateClasses[props.state]
 ])
 </script>
@@ -44,18 +49,34 @@ const inputClassName = computed(() => [
     <span class="text-sm font-medium text-[color:var(--text-secondary)]">
       {{ label }}
     </span>
-    <input
+
+    <textarea
+      v-if="props.multiline"
       v-model="model"
       :autocapitalize="props.autoCapitalize"
       :autocomplete="props.autoComplete"
-      :class="inputClassName"
+      :class="fieldClassName"
+      :disabled="props.state === 'disabled'"
+      :enterkeyhint="props.enterKeyHint"
+      :placeholder="props.placeholder"
+      :rows="props.rows"
+      :spellcheck="props.spellcheck"
+    />
+
+    <input
+      v-else
+      v-model="model"
+      :autocapitalize="props.autoCapitalize"
+      :autocomplete="props.autoComplete"
+      :class="fieldClassName"
       :disabled="props.state === 'disabled'"
       :enterkeyhint="props.enterKeyHint"
       :inputmode="props.inputMode"
-      :placeholder="placeholder"
+      :placeholder="props.placeholder"
       :spellcheck="props.spellcheck"
       :type="props.type"
     />
+
     <span v-if="hint" class="text-xs text-[color:var(--text-muted)]">
       {{ hint }}
     </span>
