@@ -5,17 +5,31 @@ import type {
   NoteReadService,
   NoteReadServiceResult
 } from '../src/services/note-read-service.js'
+import { createAuthSessionService } from '../src/services/auth-session-service.js'
 
 function createFakeNoteReadService(): NoteReadService {
   return {
-    async getBySid(sid: string): Promise<NoteReadServiceResult> {
+    async getBySid(sid: string, session): Promise<NoteReadServiceResult> {
       if (sid === 'readable123' || sid === 'shell-status') {
         return {
           status: 'available',
           note: {
             sid,
             content: sid === 'shell-status' ? '保留字 sid 也应命中真实对象。' : '这是最新已保存内容。',
-            status: 'available'
+            status: 'available',
+            editAccess: 'anonymous-editable'
+          }
+        }
+      }
+
+      if (sid === 'owner123') {
+        return {
+          status: 'available',
+          note: {
+            sid,
+            content: '创建者的正文。',
+            status: 'available',
+            editAccess: session?.user.id === '1001' ? 'owner-editable' : 'forbidden'
           }
         }
       }
@@ -46,8 +60,16 @@ function createFakeNoteReadService(): NoteReadService {
 }
 
 describe('notes read endpoint', () => {
+  const authSessionService = createAuthSessionService({
+    sessionTtlSeconds: 600
+  })
+  const ownerSessionCookie = `sid=${authSessionService.createSession({
+    id: '1001',
+    displayName: 'Owner'
+  })}`
   const app = buildApp({
-    noteReadService: createFakeNoteReadService()
+    noteReadService: createFakeNoteReadService(),
+    authSessionService
   })
 
   afterAll(async () => {
@@ -64,7 +86,8 @@ describe('notes read endpoint', () => {
     expect(response.json()).toEqual({
       sid: 'readable123',
       content: '这是最新已保存内容。',
-      status: 'available'
+      status: 'available',
+      editAccess: 'anonymous-editable'
     })
   })
 
@@ -106,7 +129,41 @@ describe('notes read endpoint', () => {
     expect(response.json()).toEqual({
       sid: 'shell-status',
       content: '保留字 sid 也应命中真实对象。',
-      status: 'available'
+      status: 'available',
+      editAccess: 'anonymous-editable'
+    })
+  })
+
+  it('keeps owner-bound notes readable for anonymous viewers but reports forbidden edit access', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notes/owner123'
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      sid: 'owner123',
+      content: '创建者的正文。',
+      status: 'available',
+      editAccess: 'forbidden'
+    })
+  })
+
+  it('returns owner-editable access when the current session matches the note owner', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notes/owner123',
+      headers: {
+        cookie: ownerSessionCookie
+      }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      sid: 'owner123',
+      content: '创建者的正文。',
+      status: 'available',
+      editAccess: 'owner-editable'
     })
   })
 

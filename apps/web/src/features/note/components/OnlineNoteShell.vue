@@ -21,14 +21,34 @@ const { viewModel, draftContent, saveState, primaryFeedback, objectHeader, saveN
   computed(() => props.sid)
 )
 
-const canEdit = computed(() => {
+const canShowEditor = computed(() => {
   return viewModel.value.status === 'available' || viewModel.value.status === 'not-found'
+})
+
+const canSave = computed(() => {
+  if (viewModel.value.status === 'not-found') {
+    return true
+  }
+
+  if (viewModel.value.status !== 'available') {
+    return false
+  }
+
+  return viewModel.value.editAccess !== 'forbidden'
 })
 
 const shellDescription = computed(() => {
   switch (viewModel.value.status) {
     case 'available':
-      return '当前固定链接已经绑定到真实在线对象，后续保存会持续更新同一 sid 下的最新正文。'
+      if (viewModel.value.editAccess === 'owner-editable') {
+        return '当前固定链接已经绑定到你的创建者对象，后续保存会持续更新同一 sid 下的最新正文。'
+      }
+
+      if (viewModel.value.editAccess === 'forbidden') {
+        return '当前固定链接已绑定到创建者对象。你现在仍可阅读内容，但需要切回创建者身份后才能继续保存。'
+      }
+
+      return '当前固定链接已经绑定到真实在线对象，持有链接即可继续保存更新。'
     case 'loading':
       return '正在根据当前 sid 读取在线便签的最新已保存内容。'
     case 'not-found':
@@ -48,6 +68,10 @@ const modeBadgeLabel = computed(() => {
   }
 
   if (viewModel.value.status === 'available') {
+    if (viewModel.value.editAccess === 'forbidden') {
+      return '只读查看'
+    }
+
     return '可持续更新'
   }
 
@@ -59,10 +83,18 @@ const modeBadgeLabel = computed(() => {
 })
 
 const actionLabel = computed(() => {
+  if (!canSave.value && viewModel.value.status === 'available') {
+    return '当前不可保存'
+  }
+
   return viewModel.value.status === 'not-found' ? '首次保存' : '保存更新'
 })
 
 const editorInputState = computed<InteractionState>(() => {
+  if (!canSave.value) {
+    return 'disabled'
+  }
+
   if (saveState.value === 'saving') {
     return 'disabled'
   }
@@ -75,7 +107,7 @@ const editorInputState = computed<InteractionState>(() => {
 })
 
 const actionState = computed<InteractionState>(() => {
-  return saveState.value === 'saving' ? 'disabled' : 'default'
+  return saveState.value === 'saving' || !canSave.value ? 'disabled' : 'default'
 })
 
 const feedbackTone = computed(() => {
@@ -93,12 +125,20 @@ const editorHint = computed(() => {
     return '首次保存会在当前 sid 下创建在线便签对象，后续继续沿用同一链接更新。'
   }
 
+  if (viewModel.value.editAccess === 'forbidden') {
+    return '当前对象已绑定创建者身份，你可以继续阅读内容；如需修改，请先使用创建者身份恢复登录。'
+  }
+
   return '当前正文始终以这个 sid 为边界；点击保存后会更新该固定链接下的最新版本。'
 })
 
 const editorPlaceholder = computed(() => {
   if (viewModel.value.status === 'not-found') {
     return '在这里输入第一版在线便签正文…'
+  }
+
+  if (viewModel.value.editAccess === 'forbidden') {
+    return '当前账户仅可查看此在线便签…'
   }
 
   return '继续编辑当前在线便签正文…'
@@ -140,7 +180,7 @@ function handleCopyShareLink() {
       <LoadingCard state="focus" />
     </div>
 
-    <SurfaceCard v-else-if="canEdit" state="focus">
+    <SurfaceCard v-else-if="canShowEditor" state="focus">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">对象内容</p>

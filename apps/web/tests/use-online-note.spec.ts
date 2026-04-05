@@ -198,7 +198,8 @@ describe('useOnlineNote', () => {
     requestHarness.resolveRead({
       sid: 'note-a',
       status: 'available',
-      content: 'note a'
+      content: 'note a',
+      editAccess: 'anonymous-editable'
     })
     await flushState()
 
@@ -210,7 +211,8 @@ describe('useOnlineNote', () => {
     requestHarness.resolveRead({
       sid: 'note-b',
       status: 'available',
-      content: 'note b'
+      content: 'note b',
+      editAccess: 'anonymous-editable'
     })
     await flushState()
 
@@ -319,7 +321,8 @@ describe('useOnlineNote', () => {
     requestHarness.resolveRead({
       sid: 'alpha123',
       content: '旧正文。',
-      status: 'available'
+      status: 'available',
+      editAccess: 'anonymous-editable'
     })
     await flushState()
 
@@ -347,6 +350,7 @@ describe('useOnlineNote', () => {
       sid: 'alpha123',
       content: 'alpha 的新正文。',
       status: 'available',
+      editAccess: 'anonymous-editable',
       saveResult: 'updated'
     })
 
@@ -385,7 +389,8 @@ describe('useOnlineNote', () => {
     requestHarness.resolveRead({
       sid: 'share123',
       content: '已保存内容',
-      status: 'available'
+      status: 'available',
+      editAccess: 'anonymous-editable'
     })
     await flushState()
 
@@ -421,7 +426,8 @@ describe('useOnlineNote', () => {
     requestHarness.resolveRead({
       sid: 'share123',
       content: '已保存内容',
-      status: 'available'
+      status: 'available',
+      editAccess: 'anonymous-editable'
     })
     await flushState()
 
@@ -432,6 +438,85 @@ describe('useOnlineNote', () => {
     expect(note.primaryFeedback.value).toMatchObject({
       tone: 'danger',
       title: '复制当前在线便签链接失败'
+    })
+  })
+
+  it('keeps owner-bound notes readable but prevents save requests for non-owner sessions', async () => {
+    const sid = ref('owner123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'owner123',
+      content: '创建者正文。',
+      status: 'available',
+      editAccess: 'forbidden'
+    })
+    await flushState()
+
+    note.draftContent.value = '用户试图修改的草稿。'
+    await note.saveNote()
+    await flushState()
+
+    expect(requestHarness.getSaveArg()).toBeUndefined()
+    expect(note.objectHeader.value).toMatchObject({
+      editStatusLabel: '当前账户不可编辑',
+      editStatusTone: 'danger'
+    })
+    expect(note.primaryFeedback.value).toMatchObject({
+      tone: 'warning',
+      title: '当前账户只能查看'
+    })
+  })
+
+  it('downgrades an owner session to read-only when the save endpoint returns NOTE_FORBIDDEN', async () => {
+    const sid = ref('owner123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'owner123',
+      content: '创建者正文。',
+      status: 'available',
+      editAccess: 'owner-editable'
+    })
+    await flushState()
+
+    note.draftContent.value = '会话失效后的本地草稿。'
+    const savePromise = note.saveNote()
+
+    expect(requestHarness.getSaveArg()).toEqual({
+      sid: 'owner123',
+      content: '会话失效后的本地草稿。'
+    })
+
+    requestHarness.rejectSave({
+      response: {
+        data: {
+          sid: 'owner123',
+          code: 'NOTE_FORBIDDEN',
+          status: 'forbidden',
+          message: '当前账户没有权限更新该在线便签。'
+        }
+      }
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(note.viewModel.value).toMatchObject({
+      status: 'available',
+      sid: 'owner123',
+      editAccess: 'forbidden',
+      content: '创建者正文。'
+    })
+    expect(note.draftContent.value).toBe('会话失效后的本地草稿。')
+    expect(note.objectHeader.value).toMatchObject({
+      editStatusLabel: '当前账户不可编辑',
+      editStatusTone: 'danger'
+    })
+    expect(note.primaryFeedback.value).toMatchObject({
+      tone: 'danger',
+      title: '保存失败',
+      description: '当前账户没有权限更新该在线便签。'
     })
   })
 })

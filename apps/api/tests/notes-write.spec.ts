@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '../src/app.js'
+import { createAuthSessionService } from '../src/services/auth-session-service.js'
 import { NoteSidConflictError, type NoteReadService, type NoteReadServiceResult } from '../src/services/note-read-service.js'
 import type { NoteWriteService, NoteWriteServiceResult } from '../src/services/note-write-service.js'
 
@@ -8,13 +9,14 @@ interface StoredNote {
   sid: string
   content: string
   deleted?: boolean
+  authorSessionId?: string
 }
 
 function createFakeNoteServices(seedNotes: StoredNote[] = []) {
   const store = new Map(seedNotes.map((note) => [note.sid, note]))
 
   const noteReadService: NoteReadService = {
-    async getBySid(sid: string): Promise<NoteReadServiceResult> {
+    async getBySid(sid: string, session): Promise<NoteReadServiceResult> {
       const note = store.get(sid)
 
       if (!note) {
@@ -46,14 +48,20 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
         note: {
           sid,
           content: note.content,
-          status: 'available'
+          status: 'available',
+          editAccess:
+            note.authorSessionId && note.authorSessionId !== session?.user.id
+              ? 'forbidden'
+              : note.authorSessionId
+                ? 'owner-editable'
+                : 'anonymous-editable'
         }
       }
     }
   }
 
   const noteWriteService: NoteWriteService = {
-    async saveBySid(sid: string, input): Promise<NoteWriteServiceResult> {
+    async saveBySid(sid: string, input, session): Promise<NoteWriteServiceResult> {
       if (sid === 'conflict123') {
         throw new NoteSidConflictError(sid)
       }
@@ -75,7 +83,8 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
       if (!existing) {
         store.set(sid, {
           sid,
-          content: input.content
+          content: input.content,
+          authorSessionId: session?.user.id
         })
 
         return {
@@ -84,7 +93,20 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
             sid,
             content: input.content,
             status: 'available',
+            editAccess: session ? 'owner-editable' : 'anonymous-editable',
             saveResult: 'created'
+          }
+        }
+      }
+
+      if (existing.authorSessionId && existing.authorSessionId !== session?.user.id) {
+        return {
+          status: 'forbidden',
+          error: {
+            sid,
+            code: 'NOTE_FORBIDDEN',
+            status: 'forbidden',
+            message: '当前账户不能修改这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
           }
         }
       }
@@ -97,6 +119,7 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
           sid,
           content: input.content,
           status: 'available',
+          editAccess: existing.authorSessionId ? 'owner-editable' : 'anonymous-editable',
           saveResult: 'updated'
         }
       }
@@ -110,8 +133,23 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
 }
 
 describe('notes write endpoint', () => {
+  const authSessionService = createAuthSessionService({
+    sessionTtlSeconds: 600
+  })
+  const ownerCookie = `sid=${authSessionService.createSession({
+    id: '1001',
+    displayName: 'Owner'
+  })}`
+  const otherCookie = `sid=${authSessionService.createSession({
+    id: '2002',
+    displayName: 'Other User'
+  })}`
+
   it('creates a new note on the first PUT and keeps it readable through GET', async () => {
-    const app = buildApp(createFakeNoteServices())
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
 
     try {
       const putResponse = await app.inject({
@@ -127,6 +165,7 @@ describe('notes write endpoint', () => {
         sid: 'new123',
         content: '第一次保存的正文。',
         status: 'available',
+        editAccess: 'anonymous-editable',
         saveResult: 'created'
       })
 
@@ -139,7 +178,8 @@ describe('notes write endpoint', () => {
       expect(getResponse.json()).toEqual({
         sid: 'new123',
         content: '第一次保存的正文。',
-        status: 'available'
+        status: 'available',
+        editAccess: 'anonymous-editable'
       })
     } finally {
       await app.close()
@@ -147,14 +187,15 @@ describe('notes write endpoint', () => {
   })
 
   it('updates an existing note in place and keeps the sid stable', async () => {
-    const app = buildApp(
-      createFakeNoteServices([
+    const app = buildApp({
+      ...createFakeNoteServices([
         {
           sid: 'existing123',
           content: '旧内容。'
         }
-      ])
-    )
+      ]),
+      authSessionService
+    })
 
     try {
       const response = await app.inject({
@@ -170,6 +211,7 @@ describe('notes write endpoint', () => {
         sid: 'existing123',
         content: '更新后的最新内容。',
         status: 'available',
+        editAccess: 'anonymous-editable',
         saveResult: 'updated'
       })
 
@@ -182,7 +224,8 @@ describe('notes write endpoint', () => {
       expect(getResponse.json()).toEqual({
         sid: 'existing123',
         content: '更新后的最新内容。',
-        status: 'available'
+        status: 'available',
+        editAccess: 'anonymous-editable'
       })
     } finally {
       await app.close()
@@ -190,7 +233,10 @@ describe('notes write endpoint', () => {
   })
 
   it('rejects blank sid params for PUT just like the read endpoint', async () => {
-    const app = buildApp(createFakeNoteServices())
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
 
     try {
       const response = await app.inject({
@@ -212,7 +258,10 @@ describe('notes write endpoint', () => {
   })
 
   it('returns a stable conflict payload when duplicate sid risk is detected', async () => {
-    const app = buildApp(createFakeNoteServices())
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
 
     try {
       const response = await app.inject({
@@ -235,15 +284,16 @@ describe('notes write endpoint', () => {
   })
 
   it('does not revive deleted notes through the save endpoint', async () => {
-    const app = buildApp(
-      createFakeNoteServices([
+    const app = buildApp({
+      ...createFakeNoteServices([
         {
           sid: 'deleted123',
           content: '已删除内容。',
           deleted: true
         }
-      ])
-    )
+      ]),
+      authSessionService
+    })
 
     try {
       const response = await app.inject({
@@ -259,6 +309,72 @@ describe('notes write endpoint', () => {
         sid: 'deleted123',
         code: 'NOTE_DELETED',
         status: 'deleted'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('binds an authenticated creator as the default editor on first save', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/owner123',
+        headers: {
+          cookie: ownerCookie
+        },
+        payload: {
+          content: '创建者的第一版内容。'
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toEqual({
+        sid: 'owner123',
+        content: '创建者的第一版内容。',
+        status: 'available',
+        editAccess: 'owner-editable',
+        saveResult: 'created'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('rejects updates from a different authenticated session for owner-bound notes', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'owner123',
+          content: '创建者原始正文。',
+          authorSessionId: '1001'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/owner123',
+        headers: {
+          cookie: otherCookie
+        },
+        payload: {
+          content: '非创建者试图覆盖。'
+        }
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.json()).toMatchObject({
+        sid: 'owner123',
+        code: 'NOTE_FORBIDDEN',
+        status: 'forbidden'
       })
     } finally {
       await app.close()

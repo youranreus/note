@@ -9,8 +9,10 @@ import {
 } from '@/services/note-methods'
 
 import {
+  canEditOnlineNote,
   createOnlineNoteCopyFailureFeedback,
   createOnlineNoteCopySuccessFeedback,
+  downgradeOnlineNoteDetailToForbidden,
   isOnlineNoteDetailDto,
   isOnlineNoteSaveResponseDto,
   resolveNoteReadErrorDto,
@@ -66,6 +68,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const saveFeedback = computed(() =>
     resolveOnlineNoteSaveFeedback({
       viewStatus: viewModel.value.status,
+      editAccess: viewModel.value.editAccess,
       saveState: saveState.value,
       hasUnsavedChanges: hasUnsavedChanges.value,
       errorMessage: saveErrorMessage.value
@@ -75,6 +78,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     resolveOnlineNoteObjectHeader({
       sid: sidValue.value,
       viewStatus: viewModel.value.status,
+      editAccess: viewModel.value.editAccess,
       saveState: saveState.value
     })
   )
@@ -96,6 +100,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       status,
       sid: nextSid,
       content: null,
+      editAccess: null,
       title: status === 'deleted' ? '该在线便签已删除' : '保存当前在线便签失败',
       description: errorMessage
     }
@@ -138,6 +143,10 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       return
     }
 
+    if (currentViewStatus === 'available' && !canEditOnlineNote(viewModel.value.editAccess)) {
+      return
+    }
+
     if (saveState.value === 'saving') {
       return
     }
@@ -172,7 +181,8 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         data: {
           sid: response.sid,
           content: response.content,
-          status: 'available'
+          status: 'available',
+          editAccess: response.editAccess
         },
         error: undefined
       })
@@ -192,6 +202,22 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
 
       if (noteWriteError?.code === 'NOTE_DELETED') {
         setTerminalViewModel(currentSid, noteWriteError.message, 'deleted')
+        return
+      }
+
+      if (noteWriteError?.code === 'NOTE_FORBIDDEN') {
+        const forbiddenNote = downgradeOnlineNoteDetailToForbidden(
+          readRequest.data.value,
+          currentSid
+        )
+
+        if (forbiddenNote) {
+          readRequest.update({
+            data: forbiddenNote,
+            error: undefined
+          })
+        }
+
         return
       }
 

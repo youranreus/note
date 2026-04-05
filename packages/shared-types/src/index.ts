@@ -10,6 +10,7 @@ export type NoteMode = 'online' | 'local'
 export type InteractionState = 'default' | 'focus' | 'error' | 'disabled'
 
 export type NoteReadStatus = 'available' | 'not-found' | 'deleted'
+export type NoteEditAccess = 'owner-editable' | 'anonymous-editable' | 'forbidden'
 
 export type NoteReadViewStatus = 'loading' | NoteReadStatus | 'invalid-sid' | 'error'
 
@@ -23,9 +24,13 @@ export type NoteReadErrorStatus = Exclude<NoteReadViewStatus, 'loading' | 'avail
 
 export type OnlineNoteSaveResult = 'created' | 'updated'
 
-export type NoteWriteErrorCode = 'INVALID_SID' | 'NOTE_DELETED' | 'NOTE_SID_CONFLICT'
+export type NoteWriteErrorCode =
+  | 'INVALID_SID'
+  | 'NOTE_DELETED'
+  | 'NOTE_FORBIDDEN'
+  | 'NOTE_SID_CONFLICT'
 
-export type NoteWriteErrorStatus = 'invalid-sid' | 'deleted' | 'error'
+export type NoteWriteErrorStatus = 'invalid-sid' | 'deleted' | 'forbidden' | 'error'
 
 export interface ShellRouteDefinition {
   mode: NoteMode
@@ -73,6 +78,7 @@ export interface OnlineNoteDetailDto {
   sid: string
   content: string
   status: 'available'
+  editAccess: NoteEditAccess
 }
 
 export interface OnlineNoteSaveRequestDto {

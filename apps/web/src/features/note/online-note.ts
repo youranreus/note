@@ -2,6 +2,7 @@ import type { AxiosError } from 'axios'
 
 import type {
   InteractionState,
+  NoteEditAccess,
   NoteReadErrorDto,
   NoteReadViewStatus,
   NoteWriteErrorDto,
@@ -16,6 +17,7 @@ export interface OnlineNoteViewModel {
   status: NoteReadViewStatus
   sid: string | null
   content: string | null
+  editAccess: NoteEditAccess | null
   title: string
   description: string
 }
@@ -51,6 +53,7 @@ export interface OnlineNoteObjectHeaderModel {
 
 interface OnlineNoteSaveFeedbackInput {
   viewStatus: NoteReadViewStatus
+  editAccess: NoteEditAccess | null
   saveState: OnlineNoteSaveState
   hasUnsavedChanges: boolean
   errorMessage?: string | null
@@ -59,6 +62,7 @@ interface OnlineNoteSaveFeedbackInput {
 interface OnlineNoteObjectHeaderInput {
   sid: string | null
   viewStatus: NoteReadViewStatus
+  editAccess: NoteEditAccess | null
   saveState: OnlineNoteSaveState
 }
 
@@ -105,15 +109,33 @@ function createViewModel(
   sid: string | null,
   title: string,
   description: string,
-  content: string | null = null
+  content: string | null = null,
+  editAccess: NoteEditAccess | null = null
 ): OnlineNoteViewModel {
   return {
     status,
     sid,
     content,
+    editAccess,
     title,
     description
   }
+}
+
+function createAvailableDescription(editAccess: NoteEditAccess) {
+  if (editAccess === 'owner-editable') {
+    return '当前对象已经绑定到你的创建者身份，可以继续编辑并保存更新。'
+  }
+
+  if (editAccess === 'forbidden') {
+    return '当前对象已绑定创建者身份，你现在可以查看内容，但不能修改或保存更新。'
+  }
+
+  return '当前对象已经存在，持有链接即可继续编辑并保存更新。'
+}
+
+export function canEditOnlineNote(editAccess: NoteEditAccess | null) {
+  return editAccess !== 'forbidden'
 }
 
 export function isNoteReadErrorDto(value: unknown): value is NoteReadErrorDto {
@@ -156,7 +178,10 @@ export function isOnlineNoteDetailDto(value: unknown): value is OnlineNoteDetail
   return (
     typeof candidate.sid === 'string' &&
     typeof candidate.content === 'string' &&
-    candidate.status === 'available'
+    candidate.status === 'available' &&
+    (candidate.editAccess === 'owner-editable' ||
+      candidate.editAccess === 'anonymous-editable' ||
+      candidate.editAccess === 'forbidden')
   )
 }
 
@@ -171,6 +196,9 @@ export function isOnlineNoteSaveResponseDto(value: unknown): value is OnlineNote
     typeof candidate.sid === 'string' &&
     typeof candidate.content === 'string' &&
     candidate.status === 'available' &&
+    (candidate.editAccess === 'owner-editable' ||
+      candidate.editAccess === 'anonymous-editable' ||
+      candidate.editAccess === 'forbidden') &&
     (candidate.saveResult === 'created' || candidate.saveResult === 'updated')
   )
 }
@@ -226,8 +254,9 @@ export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): O
       'available',
       snapshot.note.sid,
       '在线便签内容',
-      '当前对象已经存在，可以继续编辑并保存更新。',
-      snapshot.note.content
+      createAvailableDescription(snapshot.note.editAccess),
+      snapshot.note.content,
+      snapshot.note.editAccess
     )
   }
 
@@ -278,6 +307,15 @@ export function resolveOnlineNoteSaveFeedback(
     }
   }
 
+  if (input.viewStatus === 'available' && input.editAccess === 'forbidden') {
+    return {
+      tone: 'warning',
+      state: 'default',
+      title: '当前账户只能查看',
+      description: '该对象已绑定创建者，如需编辑请先使用创建者身份恢复登录。'
+    }
+  }
+
   if (input.saveState === 'saved') {
     return {
       tone: 'success',
@@ -308,6 +346,49 @@ export function resolveOnlineNoteSaveFeedback(
   return null
 }
 
+export function downgradeOnlineNoteDetailToForbidden(note: unknown, sid: string) {
+  if (!isOnlineNoteDetailDto(note) || note.sid !== sid) {
+    return null
+  }
+
+  return {
+    ...note,
+    editAccess: 'forbidden' as const
+  }
+}
+
+function resolveEditStatus(input: OnlineNoteObjectHeaderInput) {
+  if (input.viewStatus === 'not-found') {
+    return {
+      label: '首次保存后决定编辑身份',
+      tone: 'warning' as const,
+      caption: '已登录时会绑定创建者，未登录则保持匿名可编辑。'
+    }
+  }
+
+  if (input.editAccess === 'owner-editable') {
+    return {
+      label: '创建者可编辑',
+      tone: 'success' as const,
+      caption: '当前登录身份与对象作者一致，可以继续保存更新。'
+    }
+  }
+
+  if (input.editAccess === 'forbidden') {
+    return {
+      label: '当前账户不可编辑',
+      tone: 'danger' as const,
+      caption: '请使用创建者身份重新登录后再试。'
+    }
+  }
+
+  return {
+    label: '匿名可编辑',
+    tone: 'warning' as const,
+    caption: '该对象尚未绑定创建者，持有链接即可继续修改。'
+  }
+}
+
 export function resolveOnlineNoteObjectHeader(
   input: OnlineNoteObjectHeaderInput
 ): OnlineNoteObjectHeaderModel | null {
@@ -322,6 +403,7 @@ export function resolveOnlineNoteObjectHeader(
   const saveStatus = resolveSaveStatusLabel(input.viewStatus, input.saveState)
   const canCopyShareLink = input.viewStatus === 'available' && input.saveState !== 'saving'
   const isExistingSharedObject = input.viewStatus === 'available'
+const editStatus = resolveEditStatus(input)
 
   return {
     sid: input.sid,
@@ -334,9 +416,9 @@ export function resolveOnlineNoteObjectHeader(
         ? '当前固定链接仍然可分享，接收者会先看到最近一次成功保存的内容，最新修改保存完成后再同步。'
         : '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。'
       : '先完成首次保存，当前 sid 才会成为可直接分享的稳定对象链接。',
-    editStatusLabel: '当前可继续编辑',
-    editStatusTone: 'accent',
-    editStatusCaption: '权限模型待 Epic 2 接入',
+    editStatusLabel: editStatus.label,
+    editStatusTone: editStatus.tone,
+    editStatusCaption: editStatus.caption,
     canCopyShareLink,
     copyButtonLabel: '复制链接',
     copyButtonState: canCopyShareLink ? 'default' : 'disabled'

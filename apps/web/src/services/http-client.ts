@@ -3,6 +3,8 @@ import { createAlova } from 'alova'
 import VueHook from 'alova/vue'
 import axios from 'axios'
 
+import type { AxiosResponse } from 'axios'
+
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 
 export const axiosClient = axios.create({
@@ -16,7 +18,8 @@ export const alovaClient = createAlova({
   statesHook: VueHook,
   requestAdapter: axiosRequestAdapter({
     axios: axiosClient
-  })
+  }),
+  responded: (response: AxiosResponse) => response.data
 })
 
 export function resolveCallbackUrl() {

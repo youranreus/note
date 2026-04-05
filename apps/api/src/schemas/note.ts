@@ -6,8 +6,9 @@ const noteReadErrorCodes = [
 ] as const
 
 const noteReadErrorStatuses = ['invalid-sid', 'not-found', 'deleted', 'error'] as const
-const noteWriteErrorCodes = ['INVALID_SID', 'NOTE_DELETED', 'NOTE_SID_CONFLICT'] as const
-const noteWriteErrorStatuses = ['invalid-sid', 'deleted', 'error'] as const
+const noteEditAccessValues = ['owner-editable', 'anonymous-editable', 'forbidden'] as const
+const noteWriteErrorCodes = ['INVALID_SID', 'NOTE_DELETED', 'NOTE_FORBIDDEN', 'NOTE_SID_CONFLICT'] as const
+const noteWriteErrorStatuses = ['invalid-sid', 'deleted', 'forbidden', 'error'] as const
 
 export const noteReadParamsSchema = {
   type: 'object',
@@ -32,26 +33,34 @@ export const noteWriteBodySchema = {
 
 export const noteDetailResponseSchema = {
   type: 'object',
-  required: ['sid', 'content', 'status'],
+  required: ['sid', 'content', 'status', 'editAccess'],
   properties: {
     sid: { type: 'string' },
     content: { type: 'string' },
     status: {
       type: 'string',
       enum: ['available']
+    },
+    editAccess: {
+      type: 'string',
+      enum: noteEditAccessValues
     }
   }
 } as const
 
 export const noteWriteResponseSchema = {
   type: 'object',
-  required: ['sid', 'content', 'status', 'saveResult'],
+  required: ['sid', 'content', 'status', 'editAccess', 'saveResult'],
   properties: {
     sid: { type: 'string' },
     content: { type: 'string' },
     status: {
       type: 'string',
       enum: ['available']
+    },
+    editAccess: {
+      type: 'string',
+      enum: noteEditAccessValues
     },
     saveResult: {
       type: 'string',

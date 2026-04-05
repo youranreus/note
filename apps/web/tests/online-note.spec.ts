@@ -22,6 +22,7 @@ const mockedViewModel = vi.hoisted(
       status: 'loading',
       sid: 'note123abc4',
       content: null,
+      editAccess: null,
       title: '正在读取在线便签',
       description: '我们正在根据当前 sid 拉取该在线便签的最新已保存内容。'
     }
@@ -66,6 +67,7 @@ function createViewModel(overrides: Partial<OnlineNoteViewModel>): OnlineNoteVie
     status: 'loading',
     sid: 'note123abc4',
     content: null,
+    editAccess: null,
     title: '正在读取在线便签',
     description: '我们正在根据当前 sid 拉取该在线便签的最新已保存内容。',
     ...overrides
@@ -117,9 +119,9 @@ describe('online note shell', () => {
       shareStatusLabel: '保存后可分享',
       shareStatusTone: 'warning',
       shareStatusDescription: '先完成首次保存，当前 sid 才会成为可直接分享的稳定对象链接。',
-      editStatusLabel: '当前可继续编辑',
-      editStatusTone: 'accent',
-      editStatusCaption: '权限模型待 Epic 2 接入',
+      editStatusLabel: '首次保存后决定编辑身份',
+      editStatusTone: 'warning',
+      editStatusCaption: '已登录时会绑定创建者，未登录则保持匿名可编辑。',
       canCopyShareLink: false,
       copyButtonLabel: '复制链接',
       copyButtonState: 'disabled'
@@ -139,8 +141,9 @@ describe('online note shell', () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
       title: '在线便签内容',
-      description: '当前对象已经存在，可以继续编辑并保存更新。',
-      content: '这是最新已保存内容。'
+      description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
+      content: '这是最新已保存内容。',
+      editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '这是最新已保存内容。'
     mockedSaveState.value = 'saved'
@@ -157,9 +160,9 @@ describe('online note shell', () => {
       shareStatusLabel: '可分享',
       shareStatusTone: 'success',
       shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
-      editStatusLabel: '当前可继续编辑',
-      editStatusTone: 'accent',
-      editStatusCaption: '权限模型待 Epic 2 接入',
+      editStatusLabel: '匿名可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '该对象尚未绑定创建者，持有链接即可继续修改。',
       canCopyShareLink: true,
       copyButtonLabel: '复制链接',
       copyButtonState: 'default'
@@ -173,14 +176,15 @@ describe('online note shell', () => {
     expect(wrapper.text()).toContain('保存更新')
     expect(wrapper.text()).toContain('已保存')
     expect(wrapper.text()).toContain('可分享')
-    expect(wrapper.text()).toContain('当前可继续编辑')
+    expect(wrapper.text()).toContain('匿名可编辑')
     expect(wrapper.text()).toContain('复制链接')
   })
 
   it('shows a saving indicator while the save request is in flight', () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
-      content: '草稿内容。'
+      content: '草稿内容。',
+      editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '草稿内容。'
     mockedSaveState.value = 'saving'
@@ -197,9 +201,9 @@ describe('online note shell', () => {
       shareStatusLabel: '可分享',
       shareStatusTone: 'success',
       shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
-      editStatusLabel: '当前可继续编辑',
-      editStatusTone: 'accent',
-      editStatusCaption: '权限模型待 Epic 2 接入',
+      editStatusLabel: '匿名可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '该对象尚未绑定创建者，持有链接即可继续修改。',
       canCopyShareLink: true,
       copyButtonLabel: '复制链接',
       copyButtonState: 'default'
@@ -217,7 +221,8 @@ describe('online note shell', () => {
   it('shows a clear failure message while preserving the local draft after save errors', () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
-      content: '旧内容。'
+      content: '旧内容。',
+      editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '用户尚未保存的新草稿。'
     mockedSaveState.value = 'save-error'
@@ -234,9 +239,9 @@ describe('online note shell', () => {
       shareStatusLabel: '可分享',
       shareStatusTone: 'success',
       shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
-      editStatusLabel: '当前可继续编辑',
-      editStatusTone: 'accent',
-      editStatusCaption: '权限模型待 Epic 2 接入',
+      editStatusLabel: '匿名可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '该对象尚未绑定创建者，持有链接即可继续修改。',
       canCopyShareLink: true,
       copyButtonLabel: '复制链接',
       copyButtonState: 'default'
@@ -268,12 +273,57 @@ describe('online note shell', () => {
     expect(wrapper.text()).not.toContain('复制链接')
   })
 
+  it('shows owner-bound notes as readable but not editable for the current account', () => {
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已绑定创建者身份，你现在可以查看内容，但不能修改或保存更新。',
+      content: '创建者正文。',
+      editAccess: 'forbidden'
+    })
+    mockedDraftContent.value = '创建者正文。'
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = {
+      tone: 'warning',
+      state: 'default',
+      title: '当前账户只能查看',
+      description: '该对象已绑定创建者，如需编辑请先使用创建者身份恢复登录。'
+    }
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '当前账户不可编辑',
+      editStatusTone: 'danger',
+      editStatusCaption: '请使用创建者身份重新登录后再试。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default'
+    }
+
+    const wrapper = mountShell()
+    const textarea = wrapper.find('textarea')
+    const buttons = wrapper.findAll('button')
+    const saveButton = buttons.find((button) => button.text().includes('当前不可保存'))
+
+    expect(textarea.exists()).toBe(true)
+    expect((textarea.element as HTMLTextAreaElement).disabled).toBe(true)
+    expect(wrapper.text()).toContain('只读查看')
+    expect(wrapper.text()).toContain('当前账户不可编辑')
+    expect(wrapper.text()).toContain('当前账户只能查看')
+    expect(saveButton?.attributes('disabled')).toBeDefined()
+  })
+
   it('calls the share action when the copy button is triggered from the object header', async () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
       title: '在线便签内容',
-      description: '当前对象已经存在，可以继续编辑并保存更新。',
-      content: '这是最新已保存内容。'
+      description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
+      content: '这是最新已保存内容。',
+      editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '这是最新已保存内容。'
     mockedSaveState.value = 'saved'
@@ -290,9 +340,9 @@ describe('online note shell', () => {
       shareStatusLabel: '可分享',
       shareStatusTone: 'success',
       shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
-      editStatusLabel: '当前可继续编辑',
-      editStatusTone: 'accent',
-      editStatusCaption: '权限模型待 Epic 2 接入',
+      editStatusLabel: '匿名可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '该对象尚未绑定创建者，持有链接即可继续修改。',
       canCopyShareLink: true,
       copyButtonLabel: '复制链接',
       copyButtonState: 'default'
@@ -351,6 +401,26 @@ describe('resolveOnlineNoteViewModel', () => {
     })
     expect(viewModel.description).toContain('首次保存')
   })
+
+  it('surfaces owner-bound notes as readable but non-editable in the view model', () => {
+    const viewModel = resolveOnlineNoteViewModel({
+      sid: 'owner123',
+      loading: false,
+      note: {
+        sid: 'owner123',
+        content: '创建者正文。',
+        status: 'available',
+        editAccess: 'forbidden'
+      }
+    })
+
+    expect(viewModel).toMatchObject({
+      status: 'available',
+      sid: 'owner123',
+      editAccess: 'forbidden'
+    })
+    expect(viewModel.description).toContain('不能修改')
+  })
 })
 
 describe('resolveOnlineNoteObjectHeader', () => {
@@ -358,6 +428,7 @@ describe('resolveOnlineNoteObjectHeader', () => {
     const header = resolveOnlineNoteObjectHeader({
       sid: 'note123abc4',
       viewStatus: 'available',
+      editAccess: 'anonymous-editable',
       saveState: 'saving'
     })
 

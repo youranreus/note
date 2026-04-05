@@ -1,26 +1,23 @@
 import type {
+  AuthenticatedSessionDto,
+  NoteEditAccess,
   NoteWriteErrorDto,
   OnlineNoteSaveRequestDto,
   OnlineNoteSaveResponseDto
 } from '@note/shared-types'
 
+import {
+  getPrismaClient,
+  type PrismaClientLike,
+  type PrismaTransactionalClientLike
+} from './prisma-client.js'
 import { NoteSidConflictError } from './note-read-service.js'
-
-interface PrismaTransactionalClientLike {
-  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
-  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>
-}
-
-interface PrismaClientLike extends PrismaTransactionalClientLike {
-  $transaction<T>(callback: (transactionClient: PrismaTransactionalClientLike) => Promise<T>): Promise<T>
-}
-
-interface PrismaModuleLike {
-  PrismaClient?: new () => PrismaClientLike
-  default?: {
-    PrismaClient?: new () => PrismaClientLike
-  }
-}
+import {
+  createPrismaUserRepository,
+  normalizeAuthSessionSsoId,
+  toBigInt,
+  type UserRepository
+} from './user-service.js'
 
 interface PrismaNoteWriteRepositoryOptions {
   getPrismaClient?: () => Promise<PrismaClientLike>
@@ -34,6 +31,7 @@ interface NoteWriteRecordRow {
   id: number | bigint
   sid: string
   content: string
+  authorId: number | bigint | null
   deletedAt: Date | null
 }
 
@@ -43,46 +41,36 @@ export type NoteWriteServiceResult =
       note: OnlineNoteSaveResponseDto
     }
   | {
-      status: 'deleted'
+      status: 'deleted' | 'forbidden'
       error: NoteWriteErrorDto
     }
 
 export interface NoteWriteRepository {
-  saveBySid(sid: string, input: OnlineNoteSaveRequestDto): Promise<NoteWriteServiceResult>
+  saveBySid(
+    sid: string,
+    input: OnlineNoteSaveRequestDto,
+    session: AuthenticatedSessionDto | null
+  ): Promise<NoteWriteServiceResult>
 }
 
 export interface NoteWriteService {
-  saveBySid(sid: string, input: OnlineNoteSaveRequestDto): Promise<NoteWriteServiceResult>
+  saveBySid(
+    sid: string,
+    input: OnlineNoteSaveRequestDto,
+    session: AuthenticatedSessionDto | null
+  ): Promise<NoteWriteServiceResult>
 }
 
 const noteWriteLookupSql =
-  'SELECT id, sid, content, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2 FOR UPDATE'
-const noteInsertSql = 'INSERT INTO notes (sid, content) VALUES (?, ?)'
-const noteUpdateSql = 'UPDATE notes SET content = ? WHERE id = ? LIMIT 1'
+  'SELECT id, sid, content, author_id AS authorId, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2 FOR UPDATE'
+const noteInsertAnonymousSql =
+  'INSERT INTO notes (sid, content, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))'
+const noteInsertOwnedSql =
+  'INSERT INTO notes (sid, content, author_id, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))'
+const noteUpdateSql =
+  'UPDATE notes SET content = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? LIMIT 1'
 const acquireSidWriteLockSql = 'SELECT GET_LOCK(?, 5) AS acquired'
 const releaseSidWriteLockSql = 'SELECT RELEASE_LOCK(?)'
-
-let prismaClientPromise: Promise<PrismaClientLike> | undefined
-
-async function getPrismaClient() {
-  if (!prismaClientPromise) {
-    prismaClientPromise = import('@prisma/client').then((module) => {
-      const prismaModule = module as PrismaModuleLike
-      const PrismaClientConstructor =
-        prismaModule.PrismaClient ?? prismaModule.default?.PrismaClient
-
-      if (!PrismaClientConstructor) {
-        throw new Error(
-          'PrismaClient is unavailable. Run pnpm --filter @note/api db:init to generate the client.'
-        )
-      }
-
-      return new PrismaClientConstructor()
-    })
-  }
-
-  return prismaClientPromise
-}
 
 function createNoteWriteError(
   sid: string,
@@ -98,15 +86,24 @@ function createNoteWriteError(
   }
 }
 
+function createForbiddenError(
+  sid: string,
+  message = '当前账户不能修改这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
+): NoteWriteErrorDto {
+  return createNoteWriteError(sid, 'NOTE_FORBIDDEN', 'forbidden', message)
+}
+
 function createSuccessNote(
   sid: string,
   content: string,
-  saveResult: OnlineNoteSaveResponseDto['saveResult']
+  saveResult: OnlineNoteSaveResponseDto['saveResult'],
+  editAccess: NoteEditAccess
 ): OnlineNoteSaveResponseDto {
   return {
     sid,
     content,
     status: 'available',
+    editAccess,
     saveResult
   }
 }
@@ -115,26 +112,33 @@ function resolveLockName(sid: string) {
   return `notes:write:${sid}`
 }
 
+async function acquireWriteLock(
+  transactionClient: PrismaTransactionalClientLike,
+  sid: string
+) {
+  const lockName = resolveLockName(sid)
+  const lockRows = await transactionClient.$queryRawUnsafe<LockRow[]>(acquireSidWriteLockSql, lockName)
+  const lockAcquired = Number(lockRows[0]?.acquired ?? 0)
+
+  if (lockAcquired !== 1) {
+    throw new Error(`Unable to acquire note write lock for sid "${sid}".`)
+  }
+
+  return lockName
+}
+
 export function createPrismaNoteWriteRepository(
   options: PrismaNoteWriteRepositoryOptions = {}
 ): NoteWriteRepository {
   const resolvePrismaClient = options.getPrismaClient ?? getPrismaClient
+  const userRepository = createPrismaUserRepository(options)
 
   return {
-    async saveBySid(sid, input) {
+    async saveBySid(sid, input, session) {
       const prisma = await resolvePrismaClient()
 
       return prisma.$transaction(async (transactionClient) => {
-        const lockName = resolveLockName(sid)
-        const lockRows = await transactionClient.$queryRawUnsafe<LockRow[]>(
-          acquireSidWriteLockSql,
-          lockName
-        )
-        const lockAcquired = Number(lockRows[0]?.acquired ?? 0)
-
-        if (lockAcquired !== 1) {
-          throw new Error(`Unable to acquire note write lock for sid "${sid}".`)
-        }
+        const lockName = await acquireWriteLock(transactionClient, sid)
 
         try {
           const matchedNotes = await transactionClient.$queryRawUnsafe<NoteWriteRecordRow[]>(
@@ -147,13 +151,40 @@ export function createPrismaNoteWriteRepository(
           }
 
           const matchedNote = matchedNotes[0]
+          const sessionSsoId = normalizeAuthSessionSsoId(session)
 
           if (!matchedNote) {
-            await transactionClient.$executeRawUnsafe(noteInsertSql, sid, input.content)
+            if (!session) {
+              await transactionClient.$executeRawUnsafe(noteInsertAnonymousSql, sid, input.content)
+
+              return {
+                status: 'created',
+                note: createSuccessNote(sid, input.content, 'created', 'anonymous-editable')
+              }
+            }
+
+            if (!sessionSsoId) {
+              return {
+                status: 'forbidden',
+                error: createForbiddenError(
+                  sid,
+                  '当前登录身份无法映射为有效作者，请重新登录后再试。'
+                )
+              }
+            }
+
+            const matchedUser = await userRepository.ensureBySsoId(sessionSsoId, transactionClient)
+
+            await transactionClient.$executeRawUnsafe(
+              noteInsertOwnedSql,
+              sid,
+              input.content,
+              toBigInt(matchedUser.id).toString()
+            )
 
             return {
               status: 'created',
-              note: createSuccessNote(sid, input.content, 'created')
+              note: createSuccessNote(sid, input.content, 'created', 'owner-editable')
             }
           }
 
@@ -169,14 +200,41 @@ export function createPrismaNoteWriteRepository(
             }
           }
 
+          if (matchedNote.authorId != null) {
+            if (!sessionSsoId) {
+              return {
+                status: 'forbidden',
+                error: createForbiddenError(sid)
+              }
+            }
+
+            const matchedUser = await userRepository.findBySsoId(sessionSsoId, transactionClient)
+
+            if (!matchedUser || toBigInt(matchedUser.id) !== toBigInt(matchedNote.authorId)) {
+              return {
+                status: 'forbidden',
+                error: createForbiddenError(sid)
+              }
+            }
+
+            await transactionClient.$executeRawUnsafe(noteUpdateSql, input.content, matchedNote.id)
+
+            return {
+              status: 'updated',
+              note: createSuccessNote(sid, input.content, 'updated', 'owner-editable')
+            }
+          }
+
           await transactionClient.$executeRawUnsafe(noteUpdateSql, input.content, matchedNote.id)
 
           return {
             status: 'updated',
-            note: createSuccessNote(sid, input.content, 'updated')
+            note: createSuccessNote(sid, input.content, 'updated', 'anonymous-editable')
           }
         } finally {
-          await transactionClient.$queryRawUnsafe(releaseSidWriteLockSql, lockName).catch(() => undefined)
+          await transactionClient
+            .$queryRawUnsafe(releaseSidWriteLockSql, lockName)
+            .catch(() => undefined)
         }
       })
     }
@@ -187,8 +245,8 @@ export function createNoteWriteService(
   repository: NoteWriteRepository = createPrismaNoteWriteRepository()
 ): NoteWriteService {
   return {
-    saveBySid(sid, input) {
-      return repository.saveBySid(sid, input)
+    saveBySid(sid, input, session) {
+      return repository.saveBySid(sid, input, session)
     }
   }
 }

@@ -1,19 +1,26 @@
-import type { NoteReadErrorDto, OnlineNoteDetailDto } from '@note/shared-types'
+import type {
+  AuthenticatedSessionDto,
+  NoteEditAccess,
+  NoteReadErrorDto,
+  OnlineNoteDetailDto
+} from '@note/shared-types'
 
-interface PrismaClientLike {
-  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
-}
+import { getPrismaClient, type PrismaClientLike } from './prisma-client.js'
+import {
+  createPrismaUserRepository,
+  normalizeAuthSessionSsoId,
+  toBigInt,
+  type UserRepository
+} from './user-service.js'
 
-interface PrismaModuleLike {
-  PrismaClient?: new () => PrismaClientLike
-  default?: {
-    PrismaClient?: new () => PrismaClientLike
-  }
+interface PrismaNoteReadRepositoryOptions {
+  getPrismaClient?: () => Promise<PrismaClientLike>
 }
 
 export interface NoteRecordRow {
   sid: string
   content: string
+  authorId: number | bigint | null
   deletedAt: Date | null
 }
 
@@ -32,33 +39,11 @@ export type NoteReadServiceResult =
     }
 
 export interface NoteReadService {
-  getBySid(sid: string): Promise<NoteReadServiceResult>
+  getBySid(sid: string, session: AuthenticatedSessionDto | null): Promise<NoteReadServiceResult>
 }
 
 const noteLookupSql =
-  'SELECT sid, content, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2'
-
-let prismaClientPromise: Promise<PrismaClientLike> | undefined
-
-async function getPrismaClient() {
-  if (!prismaClientPromise) {
-    prismaClientPromise = import('@prisma/client').then((module) => {
-      const prismaModule = module as PrismaModuleLike
-      const PrismaClientConstructor =
-        prismaModule.PrismaClient ?? prismaModule.default?.PrismaClient
-
-      if (!PrismaClientConstructor) {
-        throw new Error(
-          'PrismaClient is unavailable. Run pnpm --filter @note/api db:init to generate the client.'
-        )
-      }
-
-      return new PrismaClientConstructor()
-    })
-  }
-
-  return prismaClientPromise
-}
+  'SELECT sid, content, author_id AS authorId, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2'
 
 function createNoteReadError(
   sid: string,
@@ -74,6 +59,19 @@ function createNoteReadError(
   }
 }
 
+function createAvailableNote(
+  sid: string,
+  content: string,
+  editAccess: NoteEditAccess
+): OnlineNoteDetailDto {
+  return {
+    sid,
+    content,
+    status: 'available',
+    editAccess
+  }
+}
+
 export class NoteSidConflictError extends Error {
   constructor(readonly sid: string) {
     super(`Multiple note records matched sid "${sid}".`)
@@ -81,21 +79,50 @@ export class NoteSidConflictError extends Error {
   }
 }
 
-export function createPrismaNoteReadRepository(): NoteReadRepository {
+export function createPrismaNoteReadRepository(
+  options: PrismaNoteReadRepositoryOptions = {}
+): NoteReadRepository {
+  const resolvePrismaClient = options.getPrismaClient ?? getPrismaClient
+
   return {
     async findBySid(sid) {
-      const prisma = await getPrismaClient()
+      const prisma = await resolvePrismaClient()
 
       return prisma.$queryRawUnsafe<NoteRecordRow[]>(noteLookupSql, sid)
     }
   }
 }
 
+async function resolveEditAccess(
+  authorId: number | bigint | null,
+  session: AuthenticatedSessionDto | null,
+  userRepository: UserRepository
+): Promise<NoteEditAccess> {
+  if (authorId == null) {
+    return 'anonymous-editable'
+  }
+
+  const ssoId = normalizeAuthSessionSsoId(session)
+
+  if (!ssoId) {
+    return 'forbidden'
+  }
+
+  const matchedUser = await userRepository.findBySsoId(ssoId)
+
+  if (!matchedUser) {
+    return 'forbidden'
+  }
+
+  return toBigInt(matchedUser.id) === toBigInt(authorId) ? 'owner-editable' : 'forbidden'
+}
+
 export function createNoteReadService(
-  repository: NoteReadRepository = createPrismaNoteReadRepository()
+  repository: NoteReadRepository = createPrismaNoteReadRepository(),
+  userRepository: UserRepository = createPrismaUserRepository()
 ): NoteReadService {
   return {
-    async getBySid(sid) {
+    async getBySid(sid, session) {
       const matchedNotes = await repository.findBySid(sid)
 
       if (matchedNotes.length > 1) {
@@ -128,13 +155,11 @@ export function createNoteReadService(
         }
       }
 
+      const editAccess = await resolveEditAccess(matchedNote.authorId, session, userRepository)
+
       return {
         status: 'available',
-        note: {
-          sid: matchedNote.sid,
-          content: matchedNote.content,
-          status: 'available'
-        }
+        note: createAvailableNote(matchedNote.sid, matchedNote.content, editAccess)
       }
     }
   }

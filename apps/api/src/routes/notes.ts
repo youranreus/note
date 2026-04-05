@@ -77,7 +77,8 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
       }
 
       try {
-        const result = await noteReadService.getBySid(normalizedSid)
+        const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
+        const result = await noteReadService.getBySid(normalizedSid, session)
 
         if (result.status === 'available') {
           return result.note
@@ -103,6 +104,7 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
         response: {
           200: noteWriteResponseSchema,
           400: noteWriteErrorSchema,
+          403: noteWriteErrorSchema,
           409: noteWriteErrorSchema
         }
       }
@@ -115,13 +117,22 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
       }
 
       try {
-        const result = await noteWriteService.saveBySid(normalizedSid, request.body)
+        const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
+        const result = await noteWriteService.saveBySid(normalizedSid, request.body, session)
 
         if (result.status === 'deleted') {
           return reply.status(409).send(result.error)
         }
 
-        return result.note
+        if (result.status === 'forbidden') {
+          return reply.status(403).send(result.error)
+        }
+
+        if (result.status === 'created' || result.status === 'updated') {
+          return result.note
+        }
+
+        throw new Error('Unhandled note write result.')
       } catch (error) {
         if (error instanceof NoteSidConflictError) {
           return reply.status(409).send(createConflictError(error.sid))
