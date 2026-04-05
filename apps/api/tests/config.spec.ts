@@ -21,12 +21,14 @@ describe('config normalization', () => {
         WEB_ORIGIN: 'http://localhost:5173/',
         API_ORIGIN: '',
         PORT: '',
+        VITE_SSO_URL: 'https://sso-web.example.test',
         VITE_BASE_URL: '/app/'
       })
     ).toMatchObject({
       webOrigin: 'http://localhost:5173',
       apiOrigin: 'http://localhost:3001',
       port: 3001,
+      ssoBrowserUrl: 'https://sso-web.example.test',
       ssoRedirect: 'http://localhost:5173/app/auth/callback'
     })
   })

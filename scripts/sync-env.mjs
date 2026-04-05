@@ -176,7 +176,7 @@ async function main() {
 
   const apiEnv = Object.fromEntries(
     Object.entries(normalizedEnv).filter(
-      ([key]) => !key.startsWith('VITE_') || key === 'VITE_BASE_URL'
+      ([key]) => !key.startsWith('VITE_') || key === 'VITE_BASE_URL' || key === 'VITE_SSO_URL'
     )
   )
 

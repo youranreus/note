@@ -85,9 +85,37 @@ dotenv.config(envFilePath ? { path: envFilePath } : undefined)
 
 export interface AppConfig {
   apiOrigin: string
+  authFlowCookieName: string
+  cookieName: string
+  cookieSecure: boolean
   port: number
+  sessionTtlSeconds: number
+  ssoBrowserUrl: string
+  ssoId: string
   ssoRedirect: string
+  ssoSecret?: string
+  ssoUrl: string
+  ssoMockEnabled: boolean
+  ssoMockTicketPrefix: string
   webOrigin: string
+}
+
+function readBooleanValue(value: string | undefined, fallback: boolean) {
+  const normalizedValue = readDefinedValue(value)
+
+  if (!normalizedValue) {
+    return fallback
+  }
+
+  if (normalizedValue === 'true') {
+    return true
+  }
+
+  if (normalizedValue === 'false') {
+    return false
+  }
+
+  return fallback
 }
 
 export function normalizeCallbackUrl(
@@ -126,17 +154,53 @@ export function resolveAppConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): Ap
     'http://localhost:3001',
     'API_ORIGIN'
   )
+  const cookieName = readDefinedValue(overrides.COOKIE_NAME, process.env.COOKIE_NAME) ?? 'sid'
+  const cookieSecure = readBooleanValue(
+    overrides.COOKIE_SECURE ?? process.env.COOKIE_SECURE,
+    false
+  )
   const port = Number(readDefinedValue(overrides.PORT, process.env.PORT) ?? '3001')
+  const sessionTtlSeconds = Number(
+    readDefinedValue(overrides.SESSION_TTL_SECONDS, process.env.SESSION_TTL_SECONDS) ?? '604800'
+  )
+  const ssoBrowserUrl = normalizeOrigin(
+    overrides.VITE_SSO_URL ?? process.env.VITE_SSO_URL,
+    'https://sf.imouto.tech',
+    'VITE_SSO_URL'
+  )
+  const ssoId = readDefinedValue(overrides.SSO_ID, process.env.SSO_ID) ?? 'note-web'
   const ssoRedirect = normalizeCallbackUrl(
     overrides.SSO_REDIRECT ?? process.env.SSO_REDIRECT,
     webOrigin,
     basePath
   )
+  const ssoSecret = readDefinedValue(overrides.SSO_SECRET, process.env.SSO_SECRET)
+  const ssoUrl = normalizeOrigin(
+    overrides.SSO_URL ?? process.env.SSO_URL,
+    'https://sf.imouto.tech',
+    'SSO_URL'
+  )
+  const ssoMockEnabled = readBooleanValue(
+    overrides.SSO_MOCK_ENABLED ?? process.env.SSO_MOCK_ENABLED,
+    false
+  )
+  const ssoMockTicketPrefix =
+    readDefinedValue(overrides.SSO_MOCK_TICKET_PREFIX, process.env.SSO_MOCK_TICKET_PREFIX) ?? 'mock:'
 
   return {
     apiOrigin,
+    authFlowCookieName: `${cookieName}_flow`,
+    cookieName,
+    cookieSecure,
     port,
+    sessionTtlSeconds,
+    ssoBrowserUrl,
+    ssoId,
     ssoRedirect,
+    ssoSecret,
+    ssoUrl,
+    ssoMockEnabled,
+    ssoMockTicketPrefix,
     webOrigin
   }
 }
