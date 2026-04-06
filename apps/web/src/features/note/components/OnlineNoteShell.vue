@@ -8,90 +8,33 @@ import InlineFeedback from '@/components/ui/InlineFeedback.vue'
 import LoadingCard from '@/components/ui/LoadingCard.vue'
 import SurfaceCard from '@/components/ui/SurfaceCard.vue'
 import TextInput from '@/components/ui/TextInput.vue'
+import { useAuthStore } from '@/stores/auth-store'
 
 import NoteObjectHeader from './NoteObjectHeader.vue'
+import { resolveOnlineNoteAuthorizationUiModel } from '../online-note'
 import { useOnlineNote } from '../use-online-note'
 
 const props = defineProps<{
   sid: string | null
 }>()
 
-const { viewModel, draftContent, saveState, primaryFeedback, objectHeader, saveNote, copyShareLink } =
+const authStore = useAuthStore()
+const { viewModel, draftContent, editKey, saveState, primaryFeedback, objectHeader, saveNote, copyShareLink } =
   useOnlineNote(
   computed(() => props.sid)
 )
 
-const canShowEditor = computed(() => {
-  return viewModel.value.status === 'available' || viewModel.value.status === 'not-found'
-})
-
-const canSave = computed(() => {
-  if (viewModel.value.status === 'not-found') {
-    return true
-  }
-
-  if (viewModel.value.status !== 'available') {
-    return false
-  }
-
-  return viewModel.value.editAccess !== 'forbidden'
-})
-
-const shellDescription = computed(() => {
-  switch (viewModel.value.status) {
-    case 'available':
-      if (viewModel.value.editAccess === 'owner-editable') {
-        return '当前固定链接已经绑定到你的创建者对象，后续保存会持续更新同一 sid 下的最新正文。'
-      }
-
-      if (viewModel.value.editAccess === 'forbidden') {
-        return '当前固定链接已绑定到创建者对象。你现在仍可阅读内容，但需要切回创建者身份后才能继续保存。'
-      }
-
-      return '当前固定链接已经绑定到真实在线对象，持有链接即可继续保存更新。'
-    case 'loading':
-      return '正在根据当前 sid 读取在线便签的最新已保存内容。'
-    case 'not-found':
-      return '当前链接已经成立，但还没有保存过正文。你可以直接开始输入并首次保存。'
-    case 'deleted':
-      return '当前链接曾关联在线便签，但该对象已经被删除。'
-    case 'invalid-sid':
-      return '路由缺少有效 sid，页面不会把空值或异常参数默默转成伪造对象。'
-    default:
-      return '读取当前在线对象时发生异常，请稍后刷新重试。'
-  }
-})
-
-const modeBadgeLabel = computed(() => {
-  if (viewModel.value.status === 'not-found') {
-    return '待首次保存'
-  }
-
-  if (viewModel.value.status === 'available') {
-    if (viewModel.value.editAccess === 'forbidden') {
-      return '只读查看'
-    }
-
-    return '可持续更新'
-  }
-
-  if (viewModel.value.status === 'loading') {
-    return '读取中'
-  }
-
-  return '异常态'
-})
-
-const actionLabel = computed(() => {
-  if (!canSave.value && viewModel.value.status === 'available') {
-    return '当前不可保存'
-  }
-
-  return viewModel.value.status === 'not-found' ? '首次保存' : '保存更新'
-})
+const authorizationUi = computed(() =>
+  resolveOnlineNoteAuthorizationUiModel({
+    viewStatus: viewModel.value.status,
+    editAccess: viewModel.value.editAccess,
+    authStatus: authStore.status,
+    hasEditKeyValue: editKey.value.trim() !== ''
+  })
+)
 
 const editorInputState = computed<InteractionState>(() => {
-  if (!canSave.value) {
+  if (!authorizationUi.value.canSave) {
     return 'disabled'
   }
 
@@ -107,7 +50,7 @@ const editorInputState = computed<InteractionState>(() => {
 })
 
 const actionState = computed<InteractionState>(() => {
-  return saveState.value === 'saving' || !canSave.value ? 'disabled' : 'default'
+  return saveState.value === 'saving' || !authorizationUi.value.canSave ? 'disabled' : 'default'
 })
 
 const feedbackTone = computed(() => {
@@ -120,28 +63,16 @@ const feedbackState = computed(() => {
   return viewModel.value.status === 'error' ? 'error' : 'default'
 })
 
-const editorHint = computed(() => {
-  if (viewModel.value.status === 'not-found') {
-    return '首次保存会在当前 sid 下创建在线便签对象，后续继续沿用同一链接更新。'
+const editKeyInputState = computed<InteractionState>(() => {
+  if (viewModel.value.editAccess === 'forbidden' || saveState.value === 'saving') {
+    return 'disabled'
   }
 
-  if (viewModel.value.editAccess === 'forbidden') {
-    return '当前对象已绑定创建者身份，你可以继续阅读内容；如需修改，请先使用创建者身份恢复登录。'
+  if (saveState.value === 'save-error') {
+    return 'error'
   }
 
-  return '当前正文始终以这个 sid 为边界；点击保存后会更新该固定链接下的最新版本。'
-})
-
-const editorPlaceholder = computed(() => {
-  if (viewModel.value.status === 'not-found') {
-    return '在这里输入第一版在线便签正文…'
-  }
-
-  if (viewModel.value.editAccess === 'forbidden') {
-    return '当前账户仅可查看此在线便签…'
-  }
-
-  return '继续编辑当前在线便签正文…'
+  return 'focus'
 })
 
 function handleSave() {
@@ -161,11 +92,11 @@ function handleCopyShareLink() {
         <div>
           <h2 class="text-2xl font-semibold">SID: {{ viewModel.sid ?? 'invalid' }}</h2>
           <p class="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-secondary)]">
-            {{ shellDescription }}
+            {{ authorizationUi.shellDescription }}
           </p>
         </div>
         <div class="rounded-full border border-accent-200 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700">
-          {{ modeBadgeLabel }}
+          {{ authorizationUi.modeBadgeLabel }}
         </div>
       </div>
     </SurfaceCard>
@@ -180,7 +111,7 @@ function handleCopyShareLink() {
       <LoadingCard state="focus" />
     </div>
 
-    <SurfaceCard v-else-if="canShowEditor" state="focus">
+    <SurfaceCard v-else-if="authorizationUi.canShowEditor" state="focus">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">对象内容</p>
@@ -212,6 +143,15 @@ function handleCopyShareLink() {
         :state="primaryFeedback.state"
       />
 
+      <InlineFeedback
+        v-if="authorizationUi.shouldShowEditKeyRisk"
+        class="mt-5"
+        title="遗失编辑密钥后将无法恢复编辑权"
+        description="当前这次首次保存会把对象创建成共享编辑模式；如果你之后忘记这枚密钥，系统不会帮你找回匿名编辑权限。"
+        tone="warning"
+        state="default"
+      />
+
       <div class="mt-5 rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-ink-50/60 p-4">
         <TextInput
           v-model="draftContent"
@@ -219,9 +159,21 @@ function handleCopyShareLink() {
           multiline
           :rows="14"
           :state="editorInputState"
-          :placeholder="editorPlaceholder"
-          :hint="editorHint"
+          :placeholder="authorizationUi.editorPlaceholder"
+          :hint="authorizationUi.editorHint"
         />
+
+        <div v-if="authorizationUi.shouldShowEditKeyInput" class="mt-4">
+          <TextInput
+            v-model="editKey"
+            :label="authorizationUi.editKeyLabel"
+            type="password"
+            auto-complete="off"
+            :state="editKeyInputState"
+            placeholder="输入编辑密钥…"
+            :hint="authorizationUi.editKeyHint"
+          />
+        </div>
       </div>
 
       <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -229,7 +181,7 @@ function handleCopyShareLink() {
           保存不会改变当前链接；后续再次打开同一 `sid` 时会读取这里最后一次成功保存的内容。
         </p>
         <Button :state="actionState" leading-label="online" @click="handleSave">
-          {{ actionLabel }}
+          {{ authorizationUi.actionLabel }}
         </Button>
       </div>
     </SurfaceCard>

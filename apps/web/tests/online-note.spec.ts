@@ -2,9 +2,11 @@
 
 import { computed, ref } from 'vue'
 import { mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  resolveOnlineNoteAuthorizationUiModel,
   resolveOnlineNoteObjectHeader,
   resolveOnlineNoteViewModel,
   type OnlineNoteObjectHeaderModel,
@@ -13,6 +15,7 @@ import {
   type OnlineNoteViewModel
 } from '../src/features/note/online-note'
 import OnlineNoteShell from '../src/features/note/components/OnlineNoteShell.vue'
+import { useAuthStore } from '../src/stores/auth-store'
 
 const mockedViewModel = vi.hoisted(
   (): {
@@ -30,6 +33,7 @@ const mockedViewModel = vi.hoisted(
 )
 
 const mockedDraftContent = vi.hoisted(() => ({ value: '' }))
+const mockedEditKey = vi.hoisted(() => ({ value: '' }))
 const mockedSaveState = vi.hoisted((): { value: OnlineNoteSaveState } => ({ value: 'unsaved' }))
 const mockedSaveFeedback = vi.hoisted((): { value: OnlineNoteSaveFeedback | null } => ({ value: null }))
 const mockedObjectHeader = vi.hoisted(
@@ -50,6 +54,12 @@ vi.mock('../src/features/note/use-online-note', async () => {
         get: () => mockedDraftContent.value,
         set: (value: string) => {
           mockedDraftContent.value = value
+        }
+      }),
+      editKey: computed({
+        get: () => mockedEditKey.value,
+        set: (value: string) => {
+          mockedEditKey.value = value
         }
       }),
       saveState: computed(() => mockedSaveState.value),
@@ -74,10 +84,28 @@ function createViewModel(overrides: Partial<OnlineNoteViewModel>): OnlineNoteVie
   }
 }
 
-function mountShell() {
+function mountShell(authStatus: 'anonymous' | 'authenticated' = 'anonymous') {
+  const pinia = createPinia()
+  const authStore = useAuthStore(pinia)
+
+  if (authStatus === 'authenticated') {
+    authStore.setAuthenticated({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+  } else {
+    authStore.setAnonymous()
+  }
+
   return mount(OnlineNoteShell, {
     props: {
       sid: mockedViewModel.value.sid
+    },
+    global: {
+      plugins: [pinia]
     }
   })
 }
@@ -88,6 +116,7 @@ describe('online note shell', () => {
       status: 'loading'
     })
     mockedDraftContent.value = ''
+    mockedEditKey.value = ''
     mockedSaveState.value = 'unsaved'
     mockedSaveFeedback.value = null
     mockedObjectHeader.value = null
@@ -105,6 +134,7 @@ describe('online note shell', () => {
       description: '你可以直接开始输入正文，并在当前固定链接下首次保存。'
     })
     mockedDraftContent.value = ''
+    mockedEditKey.value = ''
     mockedSaveState.value = 'unsaved'
     mockedSaveFeedback.value = {
       tone: 'warning',
@@ -146,6 +176,7 @@ describe('online note shell', () => {
       editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '这是最新已保存内容。'
+    mockedEditKey.value = ''
     mockedSaveState.value = 'saved'
     mockedSaveFeedback.value = {
       tone: 'success',
@@ -187,6 +218,7 @@ describe('online note shell', () => {
       editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '草稿内容。'
+    mockedEditKey.value = ''
     mockedSaveState.value = 'saving'
     mockedSaveFeedback.value = {
       tone: 'info',
@@ -225,6 +257,7 @@ describe('online note shell', () => {
       editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '用户尚未保存的新草稿。'
+    mockedEditKey.value = ''
     mockedSaveState.value = 'save-error'
     mockedSaveFeedback.value = {
       tone: 'danger',
@@ -261,6 +294,7 @@ describe('online note shell', () => {
       description: '该在线便签已删除，当前链接不可继续读取。'
     })
     mockedDraftContent.value = ''
+    mockedEditKey.value = ''
     mockedSaveState.value = 'unsaved'
     mockedSaveFeedback.value = null
     mockedObjectHeader.value = null
@@ -282,6 +316,7 @@ describe('online note shell', () => {
       editAccess: 'forbidden'
     })
     mockedDraftContent.value = '创建者正文。'
+    mockedEditKey.value = ''
     mockedSaveState.value = 'saved'
     mockedSaveFeedback.value = {
       tone: 'warning',
@@ -317,6 +352,109 @@ describe('online note shell', () => {
     expect(saveButton?.attributes('disabled')).toBeDefined()
   })
 
+  it('shows keyed notes as readable objects that need an edit key before saving', () => {
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象可以正常查看，但需要输入编辑密钥后才能继续保存更新。',
+      content: '共享正文。',
+      editAccess: 'key-required'
+    })
+    mockedDraftContent.value = '共享正文。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'unsaved'
+    mockedSaveFeedback.value = {
+      tone: 'warning',
+      state: 'default',
+      title: '需要编辑密钥',
+      description: '当前对象需要输入编辑密钥后才能保存更新。'
+    }
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '未保存变更',
+      saveStatusTone: 'warning',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '输入密钥后可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '当前对象开启了共享编辑保护，输入正确密钥后才能保存更新。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default'
+    }
+
+    const wrapper = mountShell()
+
+    expect(wrapper.text()).toContain('输入密钥后可编辑')
+    expect(wrapper.text()).toContain('需要编辑密钥')
+    expect(wrapper.text()).toContain('编辑密钥')
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(wrapper.text()).toContain('保存更新')
+  })
+
+  it('shows the irreversible-risk warning only for anonymous first saves with an edit key', () => {
+    mockedViewModel.value = createViewModel({
+      status: 'not-found',
+      title: '这个 sid 还没有保存内容',
+      description: '你可以直接开始输入正文，并在当前固定链接下首次保存。'
+    })
+    mockedDraftContent.value = '待保存正文。'
+    mockedEditKey.value = 'shared-secret'
+    mockedSaveState.value = 'unsaved'
+    mockedSaveFeedback.value = {
+      tone: 'warning',
+      state: 'default',
+      title: '尚未保存',
+      description: '当前 sid 还没有远端对象，点击保存后会创建第一版内容。'
+    }
+    mockedObjectHeader.value = null
+
+    const anonymousWrapper = mountShell('anonymous')
+    const authenticatedWrapper = mountShell('authenticated')
+
+    expect(anonymousWrapper.text()).toContain('遗失编辑密钥后将无法恢复编辑权')
+    expect(authenticatedWrapper.text()).not.toContain('遗失编辑密钥后将无法恢复编辑权')
+  })
+
+  it('does not render an edit-key input for forbidden notes', () => {
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已绑定创建者身份，你现在可以查看内容，但不能修改或保存更新。',
+      content: '创建者正文。',
+      editAccess: 'forbidden'
+    })
+    mockedDraftContent.value = '创建者正文。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = {
+      tone: 'warning',
+      state: 'default',
+      title: '当前账户只能查看',
+      description: '该对象已绑定创建者，如需编辑请先使用创建者身份恢复登录。'
+    }
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '当前账户不可编辑',
+      editStatusTone: 'danger',
+      editStatusCaption: '请使用创建者身份重新登录后再试。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default'
+    }
+
+    const wrapper = mountShell()
+
+    expect(wrapper.text()).not.toContain('设置/更新编辑密钥')
+    expect(wrapper.text()).not.toContain('编辑密钥')
+  })
+
   it('calls the share action when the copy button is triggered from the object header', async () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
@@ -326,6 +464,7 @@ describe('online note shell', () => {
       editAccess: 'anonymous-editable'
     })
     mockedDraftContent.value = '这是最新已保存内容。'
+    mockedEditKey.value = ''
     mockedSaveState.value = 'saved'
     mockedSaveFeedback.value = {
       tone: 'success',
@@ -421,6 +560,26 @@ describe('resolveOnlineNoteViewModel', () => {
     })
     expect(viewModel.description).toContain('不能修改')
   })
+
+  it('surfaces keyed notes as readable objects that still need an edit key', () => {
+    const viewModel = resolveOnlineNoteViewModel({
+      sid: 'shared123',
+      loading: false,
+      note: {
+        sid: 'shared123',
+        content: '共享正文。',
+        status: 'available',
+        editAccess: 'key-required'
+      }
+    })
+
+    expect(viewModel).toMatchObject({
+      status: 'available',
+      sid: 'shared123',
+      editAccess: 'key-required'
+    })
+    expect(viewModel.description).toContain('需要输入编辑密钥')
+  })
 })
 
 describe('resolveOnlineNoteObjectHeader', () => {
@@ -439,5 +598,93 @@ describe('resolveOnlineNoteObjectHeader', () => {
       copyButtonState: 'disabled'
     })
     expect(header?.shareStatusDescription).toContain('最近一次成功保存')
+  })
+
+  it('describes key-protected notes as unlockable before editing', () => {
+    const header = resolveOnlineNoteObjectHeader({
+      sid: 'shared123',
+      viewStatus: 'available',
+      editAccess: 'key-required',
+      saveState: 'unsaved'
+    })
+
+    expect(header).toMatchObject({
+      editStatusLabel: '输入密钥后可编辑',
+      editStatusTone: 'warning'
+    })
+    expect(header?.editStatusCaption).toContain('输入正确密钥')
+  })
+})
+
+describe('resolveOnlineNoteAuthorizationUiModel', () => {
+  it('describes key-required notes as readable but waiting for key verification', () => {
+    const uiModel = resolveOnlineNoteAuthorizationUiModel({
+      viewStatus: 'available',
+      editAccess: 'key-required',
+      authStatus: 'anonymous',
+      hasEditKeyValue: false
+    })
+
+    expect(uiModel).toMatchObject({
+      canShowEditor: true,
+      canSave: true,
+      modeBadgeLabel: '等待密钥',
+      actionLabel: '验证密钥并保存',
+      editKeyLabel: '编辑密钥'
+    })
+    expect(uiModel.shellDescription).toContain('需要输入编辑密钥')
+    expect(uiModel.editorHint).toContain('共享编辑保护')
+  })
+
+  it('describes forbidden notes as readable but not savable', () => {
+    const uiModel = resolveOnlineNoteAuthorizationUiModel({
+      viewStatus: 'available',
+      editAccess: 'forbidden',
+      authStatus: 'anonymous',
+      hasEditKeyValue: false
+    })
+
+    expect(uiModel).toMatchObject({
+      canShowEditor: true,
+      canSave: false,
+      modeBadgeLabel: '只读查看',
+      actionLabel: '当前不可保存',
+      shouldShowEditKeyInput: false
+    })
+    expect(uiModel.editorPlaceholder).toContain('仅可查看')
+  })
+
+  it('downgrades key-editable to key-required when the current page no longer holds the key', () => {
+    const uiModel = resolveOnlineNoteAuthorizationUiModel({
+      viewStatus: 'available',
+      editAccess: 'key-editable',
+      authStatus: 'anonymous',
+      hasEditKeyValue: false
+    })
+
+    expect(uiModel).toMatchObject({
+      modeBadgeLabel: '等待密钥',
+      actionLabel: '验证密钥并保存',
+      editKeyLabel: '编辑密钥'
+    })
+  })
+
+  it('shows irreversible key risk only for anonymous first-save flows with a key value', () => {
+    const anonymousUi = resolveOnlineNoteAuthorizationUiModel({
+      viewStatus: 'not-found',
+      editAccess: null,
+      authStatus: 'anonymous',
+      hasEditKeyValue: true
+    })
+    const authenticatedUi = resolveOnlineNoteAuthorizationUiModel({
+      viewStatus: 'not-found',
+      editAccess: null,
+      authStatus: 'authenticated',
+      hasEditKeyValue: true
+    })
+
+    expect(anonymousUi.shouldShowEditKeyRisk).toBe(true)
+    expect(authenticatedUi.shouldShowEditKeyRisk).toBe(false)
+    expect(anonymousUi.editKeyLabel).toBe('编辑密钥（可选）')
   })
 })

@@ -9,7 +9,7 @@ import { createAuthSessionService } from '../src/services/auth-session-service.j
 
 function createFakeNoteReadService(): NoteReadService {
   return {
-    async getBySid(sid: string, session): Promise<NoteReadServiceResult> {
+    async getBySid(sid: string, session, editKey): Promise<NoteReadServiceResult> {
       if (sid === 'readable123' || sid === 'shell-status') {
         return {
           status: 'available',
@@ -30,6 +30,30 @@ function createFakeNoteReadService(): NoteReadService {
             content: '创建者的正文。',
             status: 'available',
             editAccess: session?.user.id === '1001' ? 'owner-editable' : 'forbidden'
+          }
+        }
+      }
+
+      if (sid === 'keyed123') {
+        return {
+          status: 'available',
+          note: {
+            sid,
+            content: '需要密钥的正文。',
+            status: 'available',
+            editAccess: editKey === 'shared-secret' ? 'key-editable' : 'key-required'
+          }
+        }
+      }
+
+      if (sid === 'owner-keyed123') {
+        return {
+          status: 'available',
+          note: {
+            sid,
+            content: '创建者 + 密钥保护的正文。',
+            status: 'available',
+            editAccess: session?.user.id === '1001' ? 'owner-editable' : 'key-required'
           }
         }
       }
@@ -162,6 +186,57 @@ describe('notes read endpoint', () => {
     expect(response.json()).toEqual({
       sid: 'owner123',
       content: '创建者的正文。',
+      status: 'available',
+      editAccess: 'owner-editable'
+    })
+  })
+
+  it('keeps keyed notes readable but reports key-required access for anonymous viewers', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notes/keyed123'
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      sid: 'keyed123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-required'
+    })
+  })
+
+  it('returns key-editable when the caller reads a keyed note with the current edit key', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notes/keyed123',
+      headers: {
+        'x-note-edit-key': 'shared-secret'
+      }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      sid: 'keyed123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-editable'
+    })
+  })
+
+  it('keeps keyed owner-bound notes owner-editable for the matching session', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notes/owner-keyed123',
+      headers: {
+        cookie: ownerSessionCookie
+      }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      sid: 'owner-keyed123',
+      content: '创建者 + 密钥保护的正文。',
       status: 'available',
       editAccess: 'owner-editable'
     })

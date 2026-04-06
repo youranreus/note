@@ -1,4 +1,5 @@
 import type {
+  OnlineNoteDetailRequestDto,
   OnlineNoteDetailDto,
   OnlineNoteSaveRequestDto,
   OnlineNoteSaveResponseDto
@@ -6,11 +7,24 @@ import type {
 
 import { alovaClient } from './http-client'
 
-export function createGetOnlineNoteDetailMethod(sid: string) {
-  return alovaClient.Get<OnlineNoteDetailDto>(`/api/notes/${encodeURIComponent(sid)}`, {
-    name: `online-note-detail:${sid}`,
-    cacheFor: 0
-  })
+export function createGetOnlineNoteDetailMethod(
+  sid: string,
+  request: OnlineNoteDetailRequestDto = {}
+) {
+  const normalizedEditKey = request.editKey?.trim()
+
+  return alovaClient.Get<OnlineNoteDetailDto>(
+    `/api/notes/${encodeURIComponent(sid)}`,
+    {
+      headers: normalizedEditKey
+        ? {
+            'x-note-edit-key': normalizedEditKey
+          }
+        : undefined,
+      name: `online-note-detail:${sid}`,
+      cacheFor: 0
+    }
+  )
 }
 
 export function createSaveOnlineNoteMethod(sid: string, payload: OnlineNoteSaveRequestDto) {

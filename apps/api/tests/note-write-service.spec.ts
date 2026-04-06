@@ -108,6 +108,17 @@ function createFakePrismaHarness(lookupRows: Array<Record<string, unknown>>): Fa
   }
 }
 
+function createFakeEditKeyService() {
+  return {
+    async hashKey(key: string) {
+      return `hashed:${key}`
+    },
+    async verifyKey(key: string, storedHash: string) {
+      return storedHash === `hashed:${key}`
+    }
+  }
+}
+
 function createAuthenticatedSession(userId = '1001'): AuthenticatedSessionDto {
   return {
     status: 'authenticated',
@@ -272,5 +283,412 @@ describe('note write service', () => {
     })
     expect(harness.updatedValues).toEqual([])
     expect(harness.releasedLocks).toEqual(['notes:write:owned123'])
+  })
+
+  it('allows the owner to set an edit key while updating an existing owned note', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'owned123',
+        content: '旧内容。',
+        authorId: 7,
+        keyHash: null,
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'owned123',
+      {
+        content: '带共享密钥的新正文。',
+        editKey: 'shared-secret',
+        editKeyAction: 'set'
+      },
+      createAuthenticatedSession('1001')
+    )
+
+    expect(result).toEqual({
+      status: 'updated',
+      note: {
+        sid: 'owned123',
+        content: '带共享密钥的新正文。',
+        status: 'available',
+        editAccess: 'owner-editable',
+        saveResult: 'updated'
+      }
+    })
+    expect(harness.updatedValues).toEqual([['带共享密钥的新正文。', 'hashed:shared-secret', 42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:owned123'])
+  })
+
+  it('still lets the owner update a keyed owned note without re-entering the edit key', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'owned123',
+        content: '旧内容。',
+        authorId: 7,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'owned123',
+      {
+        content: '创建者继续更新。'
+      },
+      createAuthenticatedSession('1001')
+    )
+
+    expect(result).toEqual({
+      status: 'updated',
+      note: {
+        sid: 'owned123',
+        content: '创建者继续更新。',
+        status: 'available',
+        editAccess: 'owner-editable',
+        saveResult: 'updated'
+      }
+    })
+    expect(harness.updatedValues).toEqual([['创建者继续更新。', 42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:owned123'])
+  })
+
+  it('creates an anonymous shared-edit note when the first save sets an edit key', async () => {
+    const harness = createFakePrismaHarness([])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '带密钥的首版正文。',
+        editKey: 'shared-secret',
+        editKeyAction: 'set'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'created',
+      note: {
+        sid: 'shared123',
+        content: '带密钥的首版正文。',
+        status: 'available',
+        editAccess: 'key-editable',
+        saveResult: 'created'
+      }
+    })
+    expect(harness.insertedValues).toEqual([['shared123', '带密钥的首版正文。', 'hashed:shared-secret']])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('rejects a provided edit key when the request does not declare whether it is set or use', async () => {
+    const harness = createFakePrismaHarness([])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '带密钥但未声明用途的正文。',
+        editKey: 'shared-secret'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_ACTION_INVALID',
+        status: 'forbidden',
+        message: '当前请求提供了编辑密钥，但没有声明要设置还是使用该密钥。'
+      }
+    })
+    expect(harness.insertedValues).toEqual([])
+    expect(harness.updatedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('rejects setting an edit key with an empty value instead of silently falling back', async () => {
+    const harness = createFakePrismaHarness([])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '尝试设置空白密钥的正文。',
+        editKey: '   ',
+        editKeyAction: 'set'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_REQUIRED',
+        status: 'forbidden',
+        message: '设置编辑密钥时必须提供非空密钥。'
+      }
+    })
+    expect(harness.insertedValues).toEqual([])
+    expect(harness.updatedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('requires an edit key when updating an existing keyed anonymous note', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'shared123',
+        content: '旧正文。',
+        authorId: null,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '新正文。'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_REQUIRED',
+        status: 'forbidden',
+        message: '当前对象需要输入编辑密钥后才能保存更新。'
+      }
+    })
+    expect(harness.updatedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('rejects use-mode saves for notes that do not have edit-key protection', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'shared123',
+        content: '旧正文。',
+        authorId: null,
+        keyHash: null,
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '新正文。',
+        editKey: 'shared-secret',
+        editKeyAction: 'use'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_ACTION_INVALID',
+        status: 'forbidden',
+        message: '当前对象尚未启用编辑密钥，请改为直接保存或设置密钥。'
+      }
+    })
+    expect(harness.updatedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('rejects an invalid edit key for a keyed anonymous note', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'shared123',
+        content: '旧正文。',
+        authorId: null,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '新正文。',
+        editKey: 'wrong-secret',
+        editKeyAction: 'use'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_INVALID',
+        status: 'forbidden',
+        message: '当前编辑密钥不正确，请确认后重试。'
+      }
+    })
+    expect(harness.updatedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('allows updates with the correct edit key for a keyed anonymous note', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'shared123',
+        content: '旧正文。',
+        authorId: null,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '新正文。',
+        editKey: 'shared-secret',
+        editKeyAction: 'use'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'updated',
+      note: {
+        sid: 'shared123',
+        content: '新正文。',
+        status: 'available',
+        editAccess: 'key-editable',
+        saveResult: 'updated'
+      }
+    })
+    expect(harness.updatedValues).toEqual([['新正文。', 42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('allows a non-owner collaborator to update an owner-bound keyed note with the correct key', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'owner-keyed123',
+        content: '旧正文。',
+        authorId: 9,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'owner-keyed123',
+      {
+        content: '协作者新正文。',
+        editKey: 'shared-secret',
+        editKeyAction: 'use'
+      },
+      createAuthenticatedSession('2002')
+    )
+
+    expect(result).toEqual({
+      status: 'updated',
+      note: {
+        sid: 'owner-keyed123',
+        content: '协作者新正文。',
+        status: 'available',
+        editAccess: 'key-editable',
+        saveResult: 'updated'
+      }
+    })
+    expect(harness.updatedValues).toEqual([['协作者新正文。', 42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:owner-keyed123'])
+  })
+
+  it('rejects unsupported edit key actions instead of silently treating them as no-op', async () => {
+    const harness = createFakePrismaHarness([])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '带无效操作的正文。',
+        editKey: 'shared-secret',
+        editKeyAction: 'swap' as 'set'
+      },
+      null
+    )
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_ACTION_INVALID',
+        status: 'forbidden',
+        message: '当前请求中的编辑密钥操作无效，请改为使用 set 或 use 后重试。'
+      }
+    })
+    expect(harness.insertedValues).toEqual([])
+    expect(harness.updatedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
   })
 })

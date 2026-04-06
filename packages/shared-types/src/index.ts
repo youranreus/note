@@ -10,7 +10,12 @@ export type NoteMode = 'online' | 'local'
 export type InteractionState = 'default' | 'focus' | 'error' | 'disabled'
 
 export type NoteReadStatus = 'available' | 'not-found' | 'deleted'
-export type NoteEditAccess = 'owner-editable' | 'anonymous-editable' | 'forbidden'
+export type NoteEditAccess =
+  | 'owner-editable'
+  | 'anonymous-editable'
+  | 'key-required'
+  | 'key-editable'
+  | 'forbidden'
 
 export type NoteReadViewStatus = 'loading' | NoteReadStatus | 'invalid-sid' | 'error'
 
@@ -27,6 +32,9 @@ export type OnlineNoteSaveResult = 'created' | 'updated'
 export type NoteWriteErrorCode =
   | 'INVALID_SID'
   | 'NOTE_DELETED'
+  | 'NOTE_EDIT_KEY_ACTION_INVALID'
+  | 'NOTE_EDIT_KEY_REQUIRED'
+  | 'NOTE_EDIT_KEY_INVALID'
   | 'NOTE_FORBIDDEN'
   | 'NOTE_SID_CONFLICT'
 
@@ -81,8 +89,16 @@ export interface OnlineNoteDetailDto {
   editAccess: NoteEditAccess
 }
 
+export interface OnlineNoteDetailRequestDto {
+  editKey?: string
+}
+
+export type OnlineNoteEditKeyAction = 'none' | 'set' | 'use'
+
 export interface OnlineNoteSaveRequestDto {
   content: string
+  editKey?: string
+  editKeyAction?: OnlineNoteEditKeyAction
 }
 
 export interface OnlineNoteSaveResponseDto extends OnlineNoteDetailDto {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { nextTick, ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const requestHarness = vi.hoisted(() => {
@@ -150,7 +151,7 @@ vi.mock('../src/services/note-methods', () => {
       kind: 'read',
       sid
     }),
-    createSaveOnlineNoteMethod: (sid: string, payload: { content: string }) => ({
+    createSaveOnlineNoteMethod: (sid: string, payload: Record<string, unknown>) => ({
       kind: 'save',
       sid,
       payload
@@ -159,6 +160,7 @@ vi.mock('../src/services/note-methods', () => {
 })
 
 import { useOnlineNote } from '../src/features/note/use-online-note'
+import { useAuthStore } from '../src/stores/auth-store'
 
 async function flushState() {
   await Promise.resolve()
@@ -169,6 +171,7 @@ async function flushState() {
 
 describe('useOnlineNote', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     requestHarness.reset()
     vi.restoreAllMocks()
   })
@@ -245,12 +248,15 @@ describe('useOnlineNote', () => {
     })
     await flushState()
 
+    note.editKey.value = 'shared-secret'
     note.draftContent.value = '准备首次保存的正文。'
     const savePromise = note.saveNote()
 
     expect(requestHarness.getSaveArg()).toEqual({
       sid: 'gone123',
-      content: '准备首次保存的正文。'
+      content: '准备首次保存的正文。',
+      editKey: 'shared-secret',
+      editKeyAction: 'set'
     })
 
     requestHarness.rejectSave({
@@ -272,6 +278,7 @@ describe('useOnlineNote', () => {
       sid: 'gone123',
       title: '该在线便签已删除'
     })
+    expect(note.editKey.value).toBe('')
   })
 
   it('falls back to a terminal error state when the save endpoint reports NOTE_SID_CONFLICT', async () => {
@@ -514,9 +521,279 @@ describe('useOnlineNote', () => {
       editStatusTone: 'danger'
     })
     expect(note.primaryFeedback.value).toMatchObject({
-      tone: 'danger',
-      title: '保存失败',
+      tone: 'warning',
+      title: '当前账户只能查看',
       description: '当前账户没有权限更新该在线便签。'
+    })
+  })
+
+  it('re-reads the current note when auth state changes so authorization can refresh in place', async () => {
+    const sid = ref('owner123')
+    const note = useOnlineNote(sid)
+    const authStore = useAuthStore()
+
+    requestHarness.resolveRead({
+      sid: 'owner123',
+      content: '创建者正文。',
+      status: 'available',
+      editAccess: 'forbidden'
+    })
+    await flushState()
+
+    authStore.setAuthenticated({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Owner'
+      }
+    })
+    await flushState()
+
+    expect(requestHarness.getReadArg()).toBe('owner123')
+
+    requestHarness.resolveRead({
+      sid: 'owner123',
+      content: '创建者正文。',
+      status: 'available',
+      editAccess: 'owner-editable'
+    })
+    await flushState()
+
+    expect(note.viewModel.value).toMatchObject({
+      status: 'available',
+      sid: 'owner123',
+      editAccess: 'owner-editable'
+    })
+  })
+
+  it('sends edit key payload when a new note is first saved in shared-edit mode', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.rejectRead({
+      response: {
+        data: {
+          sid: 'shared123',
+          code: 'NOTE_NOT_FOUND',
+          status: 'not-found',
+          message: '未找到与当前 sid 对应的在线便签。'
+        }
+      }
+    })
+    await flushState()
+
+    note.draftContent.value = '带密钥的正文。'
+    note.editKey.value = 'shared-secret'
+
+    const savePromise = note.saveNote()
+
+    expect(requestHarness.getSaveArg()).toEqual({
+      sid: 'shared123',
+      content: '带密钥的正文。',
+      editKey: 'shared-secret',
+      editKeyAction: 'set'
+    })
+
+    requestHarness.resolveSave({
+      sid: 'shared123',
+      content: '带密钥的正文。',
+      status: 'available',
+      editAccess: 'key-editable',
+      saveResult: 'created'
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(note.viewModel.value).toMatchObject({
+      status: 'available',
+      sid: 'shared123',
+      editAccess: 'key-editable'
+    })
+  })
+
+  it('keeps edit key in memory for keyed saves and clears it after sid switches', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-required'
+    })
+    await flushState()
+
+    note.editKey.value = 'shared-secret'
+    note.draftContent.value = '更新后的正文。'
+    const savePromise = note.saveNote()
+
+    expect(requestHarness.getSaveArg()).toEqual({
+      sid: 'shared123',
+      content: '更新后的正文。',
+      editKey: 'shared-secret',
+      editKeyAction: 'use'
+    })
+
+    requestHarness.resolveSave({
+      sid: 'shared123',
+      content: '更新后的正文。',
+      status: 'available',
+      editAccess: 'key-editable',
+      saveResult: 'updated'
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(note.editKey.value).toBe('shared-secret')
+
+    sid.value = 'other123'
+    await flushState()
+
+    expect(note.editKey.value).toBe('')
+  })
+
+  it('only treats key-editable as active while the current page still holds the key', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-editable'
+    })
+    await flushState()
+
+    expect(note.viewModel.value.editAccess).toBe('key-required')
+
+    note.editKey.value = 'shared-secret'
+    await flushState()
+
+    expect(note.viewModel.value.editAccess).toBe('key-editable')
+
+    note.editKey.value = ''
+    await flushState()
+
+    expect(note.viewModel.value.editAccess).toBe('key-required')
+  })
+
+  it('surfaces distinct feedback when a keyed note is missing an edit key', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-required'
+    })
+    await flushState()
+
+    note.draftContent.value = '用户草稿。'
+    const savePromise = note.saveNote()
+
+    requestHarness.rejectSave({
+      response: {
+        data: {
+          sid: 'shared123',
+          code: 'NOTE_EDIT_KEY_REQUIRED',
+          status: 'forbidden',
+          message: '当前对象需要输入编辑密钥后才能保存更新。'
+        }
+      }
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(note.primaryFeedback.value).toMatchObject({
+      tone: 'warning',
+      title: '需要编辑密钥',
+      description: '当前对象需要输入编辑密钥后才能保存更新。'
+    })
+    expect(note.draftContent.value).toBe('用户草稿。')
+  })
+
+  it('surfaces distinct feedback when the entered edit key is invalid', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-required'
+    })
+    await flushState()
+
+    note.editKey.value = 'wrong-secret'
+    note.draftContent.value = '用户草稿。'
+    const savePromise = note.saveNote()
+
+    requestHarness.rejectSave({
+      response: {
+        data: {
+          sid: 'shared123',
+          code: 'NOTE_EDIT_KEY_INVALID',
+          status: 'forbidden',
+          message: '当前编辑密钥不正确，请确认后重试。'
+        }
+      }
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(note.primaryFeedback.value).toMatchObject({
+      tone: 'danger',
+      title: '编辑密钥不正确',
+      description: '当前编辑密钥不正确，请确认后重试。'
+    })
+    expect(note.editKey.value).toBe('wrong-secret')
+    expect(note.draftContent.value).toBe('用户草稿。')
+  })
+
+  it('clears stale key-related save errors as soon as the user changes the edit key', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '需要密钥的正文。',
+      status: 'available',
+      editAccess: 'key-required'
+    })
+    await flushState()
+
+    note.editKey.value = 'wrong-secret'
+    note.draftContent.value = '用户草稿。'
+    const savePromise = note.saveNote()
+
+    requestHarness.rejectSave({
+      response: {
+        data: {
+          sid: 'shared123',
+          code: 'NOTE_EDIT_KEY_INVALID',
+          status: 'forbidden',
+          message: '当前编辑密钥不正确，请确认后重试。'
+        }
+      }
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(note.saveState.value).toBe('save-error')
+
+    note.editKey.value = 'shared-secret'
+    await flushState()
+
+    expect(note.saveState.value).toBe('unsaved')
+    expect(note.primaryFeedback.value).toMatchObject({
+      tone: 'warning',
+      title: '需要编辑密钥'
     })
   })
 })

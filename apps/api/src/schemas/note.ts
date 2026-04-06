@@ -6,8 +6,22 @@ const noteReadErrorCodes = [
 ] as const
 
 const noteReadErrorStatuses = ['invalid-sid', 'not-found', 'deleted', 'error'] as const
-const noteEditAccessValues = ['owner-editable', 'anonymous-editable', 'forbidden'] as const
-const noteWriteErrorCodes = ['INVALID_SID', 'NOTE_DELETED', 'NOTE_FORBIDDEN', 'NOTE_SID_CONFLICT'] as const
+const noteEditAccessValues = [
+  'owner-editable',
+  'anonymous-editable',
+  'key-required',
+  'key-editable',
+  'forbidden'
+] as const
+const noteWriteErrorCodes = [
+  'INVALID_SID',
+  'NOTE_DELETED',
+  'NOTE_EDIT_KEY_ACTION_INVALID',
+  'NOTE_EDIT_KEY_REQUIRED',
+  'NOTE_EDIT_KEY_INVALID',
+  'NOTE_FORBIDDEN',
+  'NOTE_SID_CONFLICT'
+] as const
 const noteWriteErrorStatuses = ['invalid-sid', 'deleted', 'forbidden', 'error'] as const
 
 export const noteReadParamsSchema = {
@@ -27,6 +41,24 @@ export const noteWriteBodySchema = {
   properties: {
     content: {
       type: 'string'
+    },
+    editKey: {
+      type: 'string',
+      maxLength: 128
+    },
+    editKeyAction: {
+      type: 'string',
+      enum: ['none', 'set', 'use']
+    }
+  }
+} as const
+
+export const noteReadHeadersSchema = {
+  type: 'object',
+  properties: {
+    'x-note-edit-key': {
+      type: 'string',
+      maxLength: 128
     }
   }
 } as const

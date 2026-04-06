@@ -5,6 +5,7 @@ import type { OnlineNoteSaveRequestDto } from '@note/shared-types'
 import {
   noteDetailResponseSchema,
   noteReadErrorSchema,
+  noteReadHeadersSchema,
   noteReadParamsSchema,
   noteWriteBodySchema,
   noteWriteErrorSchema,
@@ -20,6 +21,10 @@ import { createNoteWriteService, type NoteWriteService } from '../services/note-
 
 interface NoteRouteParams {
   sid: string
+}
+
+interface NoteReadHeaders {
+  'x-note-edit-key'?: string | string[]
 }
 
 interface NoteRoutesOptions {
@@ -56,11 +61,12 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
     scope: createModuleScopeMessage('notes')
   }))
 
-  app.get<{ Params: NoteRouteParams }>(
+  app.get<{ Params: NoteRouteParams; Headers: NoteReadHeaders }>(
     '/:sid',
     {
       schema: {
         params: noteReadParamsSchema,
+        headers: noteReadHeadersSchema,
         response: {
           200: noteDetailResponseSchema,
           400: noteReadErrorSchema,
@@ -78,7 +84,12 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
 
       try {
         const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
-        const result = await noteReadService.getBySid(normalizedSid, session)
+        const rawEditKey = request.headers['x-note-edit-key']
+        const result = await noteReadService.getBySid(
+          normalizedSid,
+          session,
+          (Array.isArray(rawEditKey) ? rawEditKey[0] : rawEditKey)?.trim() || null
+        )
 
         if (result.status === 'available') {
           return result.note

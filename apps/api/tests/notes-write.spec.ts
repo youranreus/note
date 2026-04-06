@@ -10,13 +10,14 @@ interface StoredNote {
   content: string
   deleted?: boolean
   authorSessionId?: string
+  editKey?: string
 }
 
 function createFakeNoteServices(seedNotes: StoredNote[] = []) {
   const store = new Map(seedNotes.map((note) => [note.sid, note]))
 
   const noteReadService: NoteReadService = {
-    async getBySid(sid: string, session): Promise<NoteReadServiceResult> {
+    async getBySid(sid: string, session, editKey): Promise<NoteReadServiceResult> {
       const note = store.get(sid)
 
       if (!note) {
@@ -51,9 +52,17 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
           status: 'available',
           editAccess:
             note.authorSessionId && note.authorSessionId !== session?.user.id
-              ? 'forbidden'
+              ? note.editKey
+                ? editKey === note.editKey
+                  ? 'key-editable'
+                  : 'key-required'
+                : 'forbidden'
               : note.authorSessionId
                 ? 'owner-editable'
+                : note.editKey
+                ? editKey === note.editKey
+                  ? 'key-editable'
+                  : 'key-required'
                 : 'anonymous-editable'
         }
       }
@@ -84,7 +93,8 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
         store.set(sid, {
           sid,
           content: input.content,
-          authorSessionId: session?.user.id
+          authorSessionId: session?.user.id,
+          editKey: input.editKeyAction === 'set' ? input.editKey : undefined
         })
 
         return {
@@ -93,13 +103,23 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
             sid,
             content: input.content,
             status: 'available',
-            editAccess: session ? 'owner-editable' : 'anonymous-editable',
+            editAccess: input.editKeyAction === 'set'
+              ? session
+                ? 'owner-editable'
+                : 'key-editable'
+              : session
+                ? 'owner-editable'
+                : 'anonymous-editable',
             saveResult: 'created'
           }
         }
       }
 
-      if (existing.authorSessionId && existing.authorSessionId !== session?.user.id) {
+      const isOwner = existing.authorSessionId
+        ? existing.authorSessionId === session?.user.id
+        : false
+
+      if (existing.authorSessionId && !isOwner && !existing.editKey) {
         return {
           status: 'forbidden',
           error: {
@@ -107,6 +127,45 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
             code: 'NOTE_FORBIDDEN',
             status: 'forbidden',
             message: '当前账户不能修改这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
+          }
+        }
+      }
+
+      if (existing.editKey) {
+        if (input.editKeyAction !== 'use' || !input.editKey) {
+          return {
+            status: 'forbidden',
+            error: {
+              sid,
+              code: 'NOTE_EDIT_KEY_REQUIRED',
+              status: 'forbidden',
+              message: '当前对象需要输入编辑密钥后才能保存更新。'
+            }
+          }
+        }
+
+        if (input.editKey !== existing.editKey) {
+          return {
+            status: 'forbidden',
+            error: {
+              sid,
+              code: 'NOTE_EDIT_KEY_INVALID',
+              status: 'forbidden',
+              message: '当前编辑密钥不正确，请确认后重试。'
+            }
+          }
+        }
+
+        existing.content = input.content
+
+        return {
+          status: 'updated',
+          note: {
+            sid,
+            content: input.content,
+            status: 'available',
+            editAccess: isOwner ? 'owner-editable' : 'key-editable',
+            saveResult: 'updated'
           }
         }
       }
@@ -226,6 +285,161 @@ describe('notes write endpoint', () => {
         content: '更新后的最新内容。',
         status: 'available',
         editAccess: 'anonymous-editable'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('creates a keyed note when the first save explicitly sets an edit key', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/keyed123',
+        payload: {
+          content: '带密钥的正文。',
+          editKey: 'shared-secret',
+          editKeyAction: 'set'
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toEqual({
+        sid: 'keyed123',
+        content: '带密钥的正文。',
+        status: 'available',
+        editAccess: 'key-editable',
+        saveResult: 'created'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_EDIT_KEY_REQUIRED when updating a keyed note without a key', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'keyed123',
+          content: '旧正文。',
+          editKey: 'shared-secret'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/keyed123',
+        payload: {
+          content: '新正文。'
+        }
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.json()).toEqual({
+        sid: 'keyed123',
+        code: 'NOTE_EDIT_KEY_REQUIRED',
+        status: 'forbidden',
+        message: '当前对象需要输入编辑密钥后才能保存更新。'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_EDIT_KEY_INVALID when the provided key is wrong', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'keyed123',
+          content: '旧正文。',
+          editKey: 'shared-secret'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/keyed123',
+        payload: {
+          content: '新正文。',
+          editKey: 'wrong-secret',
+          editKeyAction: 'use'
+        }
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.json()).toEqual({
+        sid: 'keyed123',
+        code: 'NOTE_EDIT_KEY_INVALID',
+        status: 'forbidden',
+        message: '当前编辑密钥不正确，请确认后重试。'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('lets a non-owner collaborator update an owner-bound keyed note with the correct key', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'owner-keyed123',
+          content: '创建者 + 密钥保护的旧正文。',
+          authorSessionId: '1001',
+          editKey: 'shared-secret'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/owner-keyed123',
+        headers: {
+          cookie: otherCookie
+        },
+        payload: {
+          content: '协作者更新后的正文。',
+          editKey: 'shared-secret',
+          editKeyAction: 'use'
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toEqual({
+        sid: 'owner-keyed123',
+        content: '协作者更新后的正文。',
+        status: 'available',
+        editAccess: 'key-editable',
+        saveResult: 'updated'
+      })
+
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: '/api/notes/owner-keyed123',
+        headers: {
+          cookie: otherCookie,
+          'x-note-edit-key': 'shared-secret'
+        }
+      })
+
+      expect(getResponse.statusCode).toBe(200)
+      expect(getResponse.json()).toEqual({
+        sid: 'owner-keyed123',
+        content: '协作者更新后的正文。',
+        status: 'available',
+        editAccess: 'key-editable'
       })
     } finally {
       await app.close()

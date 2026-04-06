@@ -6,10 +6,10 @@ import type {
 } from '@note/shared-types'
 
 import { getPrismaClient, type PrismaClientLike } from './prisma-client.js'
+import { createNoteEditKeyService, type NoteEditKeyService } from './note-edit-key-service.js'
+import { resolveNoteAuthorizationContext } from './note-authorization-service.js'
 import {
   createPrismaUserRepository,
-  normalizeAuthSessionSsoId,
-  toBigInt,
   type UserRepository
 } from './user-service.js'
 
@@ -21,6 +21,7 @@ export interface NoteRecordRow {
   sid: string
   content: string
   authorId: number | bigint | null
+  keyHash: string | null
   deletedAt: Date | null
 }
 
@@ -39,11 +40,15 @@ export type NoteReadServiceResult =
     }
 
 export interface NoteReadService {
-  getBySid(sid: string, session: AuthenticatedSessionDto | null): Promise<NoteReadServiceResult>
+  getBySid(
+    sid: string,
+    session: AuthenticatedSessionDto | null,
+    editKey?: string | null
+  ): Promise<NoteReadServiceResult>
 }
 
 const noteLookupSql =
-  'SELECT sid, content, author_id AS authorId, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2'
+  'SELECT sid, content, author_id AS authorId, key_hash AS keyHash, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2'
 
 function createNoteReadError(
   sid: string,
@@ -93,36 +98,13 @@ export function createPrismaNoteReadRepository(
   }
 }
 
-async function resolveEditAccess(
-  authorId: number | bigint | null,
-  session: AuthenticatedSessionDto | null,
-  userRepository: UserRepository
-): Promise<NoteEditAccess> {
-  if (authorId == null) {
-    return 'anonymous-editable'
-  }
-
-  const ssoId = normalizeAuthSessionSsoId(session)
-
-  if (!ssoId) {
-    return 'forbidden'
-  }
-
-  const matchedUser = await userRepository.findBySsoId(ssoId)
-
-  if (!matchedUser) {
-    return 'forbidden'
-  }
-
-  return toBigInt(matchedUser.id) === toBigInt(authorId) ? 'owner-editable' : 'forbidden'
-}
-
 export function createNoteReadService(
   repository: NoteReadRepository = createPrismaNoteReadRepository(),
-  userRepository: UserRepository = createPrismaUserRepository()
+  userRepository: UserRepository = createPrismaUserRepository(),
+  editKeyService: NoteEditKeyService = createNoteEditKeyService()
 ): NoteReadService {
   return {
-    async getBySid(sid, session) {
+    async getBySid(sid, session, editKey) {
       const matchedNotes = await repository.findBySid(sid)
 
       if (matchedNotes.length > 1) {
@@ -155,11 +137,37 @@ export function createNoteReadService(
         }
       }
 
-      const editAccess = await resolveEditAccess(matchedNote.authorId, session, userRepository)
+      const authorizationContext = await resolveNoteAuthorizationContext(
+        {
+          authorId: matchedNote.authorId,
+          keyHash: matchedNote.keyHash
+        },
+        session,
+        userRepository
+      )
+
+      let editAccess: NoteEditAccess = authorizationContext.editAccess
+      const normalizedEditKey = editKey?.trim()
+
+      if (
+        authorizationContext.editAccess === 'key-required' &&
+        normalizedEditKey &&
+        matchedNote.keyHash
+      ) {
+        const isValidEditKey = await editKeyService.verifyKey(normalizedEditKey, matchedNote.keyHash)
+
+        if (isValidEditKey) {
+          editAccess = 'key-editable'
+        }
+      }
 
       return {
         status: 'available',
-        note: createAvailableNote(matchedNote.sid, matchedNote.content, editAccess)
+        note: createAvailableNote(
+          matchedNote.sid,
+          matchedNote.content,
+          editAccess
+        )
       }
     }
   }
