@@ -1,15 +1,20 @@
 import { randomBytes } from 'node:crypto'
 
-import type { AuthUserDto, AuthenticatedSessionDto } from '@note/shared-types'
+import type {
+  AuthUserDto,
+  AuthenticatedSessionDto,
+  PostLoginActionDto
+} from '@note/shared-types'
 
 export interface PendingAuthFlow {
   expiresAt: number
+  postLoginAction: PostLoginActionDto | null
   returnTo: string
   state: string
 }
 
 export interface AuthSessionService {
-  createPendingFlow: (returnTo: string) => PendingAuthFlow
+  createPendingFlow: (returnTo: string, postLoginAction?: PostLoginActionDto | null) => PendingAuthFlow
   createSession: (user: AuthUserDto) => string
   getSession: (sessionId: string | undefined) => AuthenticatedSessionDto | null
   parsePendingFlow: (cookieValue: string | undefined) => PendingAuthFlow | null
@@ -55,9 +60,10 @@ export function createAuthSessionService(options: { sessionTtlSeconds: number })
   }
 
   return {
-    createPendingFlow(returnTo) {
+    createPendingFlow(returnTo, postLoginAction = null) {
       return {
         expiresAt: now() + 10 * 60 * 1000,
+        postLoginAction,
         returnTo,
         state: randomBytes(16).toString('hex')
       }
@@ -103,6 +109,17 @@ export function createAuthSessionService(options: { sessionTtlSeconds: number })
           typeof parsedValue.state !== 'string' ||
           typeof parsedValue.returnTo !== 'string' ||
           typeof parsedValue.expiresAt !== 'number'
+        ) {
+          return null
+        }
+
+        if (
+          parsedValue.postLoginAction != null &&
+          (
+            typeof parsedValue.postLoginAction !== 'object' ||
+            parsedValue.postLoginAction.type !== 'favorite-note' ||
+            typeof parsedValue.postLoginAction.sid !== 'string'
+          )
         ) {
           return null
         }

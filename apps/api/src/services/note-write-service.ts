@@ -132,11 +132,15 @@ function createSuccessNote(
   saveResult: OnlineNoteSaveResponseDto['saveResult'],
   editAccess: NoteEditAccess
 ): OnlineNoteSaveResponseDto {
+  const favoriteState =
+    editAccess === 'owner-editable' ? 'self-owned' : 'not-favorited'
+
   return {
     sid,
     content,
     status: 'available',
     editAccess,
+    favoriteState,
     saveResult
   }
 }

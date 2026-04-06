@@ -1,4 +1,5 @@
 export type AuthStatus = 'anonymous' | 'authenticated' | 'recovering'
+export type PostLoginActionType = 'favorite-note'
 
 export type AuthCallbackErrorCode =
   | 'AUTH_CODE_MISSING'
@@ -18,6 +19,7 @@ export type NoteEditAccess =
   | 'forbidden'
 
 export type NoteReadViewStatus = 'loading' | NoteReadStatus | 'invalid-sid' | 'error'
+export type OnlineNoteFavoriteState = 'not-favorited' | 'favorited' | 'self-owned'
 
 export type NoteReadErrorCode =
   | 'INVALID_SID'
@@ -39,6 +41,19 @@ export type NoteWriteErrorCode =
   | 'NOTE_SID_CONFLICT'
 
 export type NoteWriteErrorStatus = 'invalid-sid' | 'deleted' | 'forbidden' | 'error'
+export type FavoriteErrorCode =
+  | 'FAVORITE_AUTH_REQUIRED'
+  | 'FAVORITE_NOTE_NOT_FOUND'
+  | 'FAVORITE_NOTE_DELETED'
+  | 'FAVORITE_SELF_OWNED_NOT_ALLOWED'
+  | 'FAVORITE_NOTE_SID_CONFLICT'
+
+export type FavoriteErrorStatus =
+  | 'unauthorized'
+  | 'not-found'
+  | 'deleted'
+  | 'forbidden'
+  | 'error'
 
 export interface ShellRouteDefinition {
   mode: NoteMode
@@ -69,8 +84,16 @@ export interface AuthenticatedSessionDto {
 
 export type SessionResponseDto = AnonymousSessionDto | AuthenticatedSessionDto
 
+export interface FavoriteNotePostLoginActionDto {
+  type: 'favorite-note'
+  sid: string
+}
+
+export type PostLoginActionDto = FavoriteNotePostLoginActionDto
+
 export interface AuthCallbackSuccessDto extends AuthenticatedSessionDto {
   returnTo: string
+  postLoginAction: PostLoginActionDto | null
   message: string
 }
 
@@ -87,6 +110,7 @@ export interface OnlineNoteDetailDto {
   content: string
   status: 'available'
   editAccess: NoteEditAccess
+  favoriteState: OnlineNoteFavoriteState
 }
 
 export interface OnlineNoteDetailRequestDto {
@@ -116,6 +140,22 @@ export interface NoteWriteErrorDto {
   sid: string
   code: NoteWriteErrorCode
   status: NoteWriteErrorStatus
+  message: string
+}
+
+export interface FavoriteRequestDto {
+  sid: string
+}
+
+export interface FavoriteResponseDto {
+  sid: string
+  favoriteState: 'favorited'
+}
+
+export interface FavoriteErrorDto {
+  sid: string
+  code: FavoriteErrorCode
+  status: FavoriteErrorStatus
   message: string
 }
 

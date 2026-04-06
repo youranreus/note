@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import { normalizeAuthReturnToPath, type AuthCallbackErrorDto } from '@note/shared-types'
+import {
+  normalizeAuthReturnToPath,
+  type AuthCallbackErrorDto,
+  type PostLoginActionDto
+} from '@note/shared-types'
 
 import { createModuleScopeMessage } from '../services/module-shell-service.js'
 import { AuthSsoServiceError } from '../services/auth-sso-service.js'
@@ -13,14 +17,42 @@ function createAuthError(code: AuthCallbackErrorDto['code'], message: string): A
   }
 }
 
+function resolvePostLoginAction(input: {
+  intent?: string
+  sid?: string
+}): PostLoginActionDto | null {
+  if (input.intent !== 'favorite-note') {
+    return null
+  }
+
+  const normalizedSid = input.sid?.trim()
+
+  if (!normalizedSid) {
+    return null
+  }
+
+  return {
+    type: 'favorite-note',
+    sid: normalizedSid
+  }
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.get<{
     Querystring: {
       returnTo?: string
+      intent?: string
+      sid?: string
     }
   }>('/login', async (request, reply) => {
     const returnTo = normalizeAuthReturnToPath(request.query.returnTo, '/')
-    const pendingFlow = app.authSessionService.createPendingFlow(returnTo)
+    const pendingFlow = app.authSessionService.createPendingFlow(
+      returnTo,
+      resolvePostLoginAction({
+        intent: request.query.intent,
+        sid: request.query.sid
+      })
+    )
 
     reply.setCookie(
       app.authConfig.authFlowCookieName,
@@ -83,6 +115,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         status: 'authenticated',
         user,
         returnTo: pendingFlow.returnTo,
+        postLoginAction: pendingFlow.postLoginAction,
         message: '登录已完成，正在恢复原页面上下文。'
       }
     } catch (error) {

@@ -84,7 +84,7 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="sso-confirm-action"]').trigger('keydown.enter')
     await flushPromises()
 
-    expect(createAuthLoginUrlMock).toHaveBeenCalledWith('/note/o/demo123')
+    expect(createAuthLoginUrlMock).toHaveBeenCalledWith('/note/o/demo123', null)
     expect(redirectToLoginMock).toHaveBeenCalledWith(
       'http://localhost:3001/api/auth/login?returnTo=%2Fnote%2Fo%2Fdemo123'
     )

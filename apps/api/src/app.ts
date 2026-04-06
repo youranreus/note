@@ -5,6 +5,7 @@ import type { NoteWriteService } from './services/note-write-service.js'
 import type { AppConfig } from './infra/config.js'
 import type { AuthSessionService } from './services/auth-session-service.js'
 import type { AuthSsoService } from './services/auth-sso-service.js'
+import type { FavoriteService } from './services/favorite-service.js'
 
 import { authPlugin } from './plugins/auth.js'
 import { cookiePlugin } from './plugins/cookies.js'
@@ -19,6 +20,7 @@ export interface BuildAppOptions {
   authSessionService?: AuthSessionService
   authSsoService?: AuthSsoService
   config?: AppConfig
+  favoriteService?: FavoriteService
   noteReadService?: NoteReadService
   noteWriteService?: NoteWriteService
 }
@@ -42,7 +44,10 @@ export function buildApp(options: BuildAppOptions = {}) {
     noteReadService: options.noteReadService,
     noteWriteService: options.noteWriteService
   })
-  app.register(favoriteRoutes, { prefix: '/api/favorites' })
+  app.register(favoriteRoutes, {
+    prefix: '/api/favorites',
+    favoriteService: options.favoriteService
+  })
   app.register(meRoutes, { prefix: '/api/me' })
 
   return app

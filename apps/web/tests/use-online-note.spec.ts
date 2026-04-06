@@ -25,6 +25,7 @@ const requestHarness = vi.hoisted(() => {
   let invocation = 0
   let readController: RequestController | null = null
   let saveController: RequestController | null = null
+  let favoriteController: RequestController | null = null
 
   function createDeferred<T>(): Deferred<T> {
     let resolve!: (value: T) => void
@@ -41,8 +42,9 @@ const requestHarness = vi.hoisted(() => {
     }
   }
 
-  function getController(kind: 'read' | 'save') {
-    const controller = kind === 'read' ? readController : saveController
+  function getController(kind: 'read' | 'save' | 'favorite') {
+    const controller =
+      kind === 'read' ? readController : kind === 'save' ? saveController : favoriteController
 
     if (!controller) {
       throw new Error(`Missing ${kind} request controller`)
@@ -56,6 +58,7 @@ const requestHarness = vi.hoisted(() => {
       invocation = 0
       readController = null
       saveController = null
+      favoriteController = null
     },
     useRequestFactory(refFactory: typeof ref) {
       return () => {
@@ -90,8 +93,10 @@ const requestHarness = vi.hoisted(() => {
 
         if (invocation === 0) {
           readController = controller
-        } else {
+        } else if (invocation === 1) {
           saveController = controller
+        } else {
+          favoriteController = controller
         }
         invocation += 1
 
@@ -133,6 +138,24 @@ const requestHarness = vi.hoisted(() => {
     },
     getSaveArg() {
       return getController('save').lastArg
+    },
+    resolveFavorite(value: unknown) {
+      const controller = getController('favorite')
+      controller.loading.value = false
+      controller.data.value = value
+      controller.error.value = undefined
+      controller.pending?.resolve(value)
+      controller.pending = null
+    },
+    rejectFavorite(reason: unknown) {
+      const controller = getController('favorite')
+      controller.loading.value = false
+      controller.error.value = reason
+      controller.pending?.reject(reason)
+      controller.pending = null
+    },
+    getFavoriteArg() {
+      return getController('favorite').lastArg
     }
   }
 })
@@ -154,6 +177,15 @@ vi.mock('../src/services/note-methods', () => {
     createSaveOnlineNoteMethod: (sid: string, payload: Record<string, unknown>) => ({
       kind: 'save',
       sid,
+      payload
+    })
+  }
+})
+
+vi.mock('../src/services/favorite-methods', () => {
+  return {
+    createFavoriteNoteMethod: (payload: Record<string, unknown>) => ({
+      kind: 'favorite',
       payload
     })
   }
@@ -202,7 +234,8 @@ describe('useOnlineNote', () => {
       sid: 'note-a',
       status: 'available',
       content: 'note a',
-      editAccess: 'anonymous-editable'
+      editAccess: 'anonymous-editable',
+      favoriteState: 'not-favorited'
     })
     await flushState()
 
@@ -215,7 +248,8 @@ describe('useOnlineNote', () => {
       sid: 'note-b',
       status: 'available',
       content: 'note b',
-      editAccess: 'anonymous-editable'
+      editAccess: 'anonymous-editable',
+      favoriteState: 'not-favorited'
     })
     await flushState()
 
@@ -795,5 +829,72 @@ describe('useOnlineNote', () => {
       tone: 'warning',
       title: '需要编辑密钥'
     })
+  })
+
+  it('opens the existing login modal instead of firing a favorite request for anonymous users', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+    const authStore = useAuthStore()
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '可收藏的正文。',
+      status: 'available',
+      editAccess: 'forbidden',
+      favoriteState: 'not-favorited'
+    })
+    await flushState()
+
+    await note.favoriteNote()
+    await flushState()
+
+    expect(authStore.loginModalOpen).toBe(true)
+    expect(requestHarness.getFavoriteArg()).toBeUndefined()
+  })
+
+  it('resumes a pending favorite intent once after login and updates the current note state to favorited', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+    const authStore = useAuthStore()
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '可收藏的正文。',
+      status: 'available',
+      editAccess: 'forbidden',
+      favoriteState: 'not-favorited'
+    })
+    await flushState()
+
+    authStore.setAuthenticated(
+      {
+        status: 'authenticated',
+        user: {
+          id: '1001',
+          displayName: 'Receiver'
+        }
+      },
+      {
+        type: 'favorite-note',
+        sid: 'shared123'
+      }
+    )
+    await flushState()
+
+    expect(requestHarness.getFavoriteArg()).toEqual({
+      sid: 'shared123'
+    })
+
+    requestHarness.resolveFavorite({
+      sid: 'shared123',
+      favoriteState: 'favorited'
+    })
+    await flushState()
+
+    expect(note.viewModel.value).toMatchObject({
+      sid: 'shared123',
+      favoriteState: 'favorited'
+    })
+    expect(note.primaryFeedback.value?.title).toBe('已收藏当前在线便签')
   })
 })

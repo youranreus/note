@@ -50,6 +50,10 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
           sid,
           content: note.content,
           status: 'available',
+          favoriteState:
+            note.authorSessionId && note.authorSessionId === session?.user.id
+              ? 'self-owned'
+              : 'not-favorited',
           editAccess:
             note.authorSessionId && note.authorSessionId !== session?.user.id
               ? note.editKey
@@ -103,6 +107,7 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
             sid,
             content: input.content,
             status: 'available',
+            favoriteState: session ? 'self-owned' : 'not-favorited',
             editAccess: input.editKeyAction === 'set'
               ? session
                 ? 'owner-editable'
@@ -164,6 +169,7 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
             sid,
             content: input.content,
             status: 'available',
+            favoriteState: isOwner ? 'self-owned' : 'not-favorited',
             editAccess: isOwner ? 'owner-editable' : 'key-editable',
             saveResult: 'updated'
           }
@@ -178,6 +184,7 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
           sid,
           content: input.content,
           status: 'available',
+          favoriteState: existing.authorSessionId ? 'self-owned' : 'not-favorited',
           editAccess: existing.authorSessionId ? 'owner-editable' : 'anonymous-editable',
           saveResult: 'updated'
         }
@@ -225,6 +232,7 @@ describe('notes write endpoint', () => {
         content: '第一次保存的正文。',
         status: 'available',
         editAccess: 'anonymous-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'created'
       })
 
@@ -238,7 +246,8 @@ describe('notes write endpoint', () => {
         sid: 'new123',
         content: '第一次保存的正文。',
         status: 'available',
-        editAccess: 'anonymous-editable'
+        editAccess: 'anonymous-editable',
+        favoriteState: 'not-favorited'
       })
     } finally {
       await app.close()
@@ -271,6 +280,7 @@ describe('notes write endpoint', () => {
         content: '更新后的最新内容。',
         status: 'available',
         editAccess: 'anonymous-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'updated'
       })
 
@@ -284,7 +294,8 @@ describe('notes write endpoint', () => {
         sid: 'existing123',
         content: '更新后的最新内容。',
         status: 'available',
-        editAccess: 'anonymous-editable'
+        editAccess: 'anonymous-editable',
+        favoriteState: 'not-favorited'
       })
     } finally {
       await app.close()
@@ -314,6 +325,7 @@ describe('notes write endpoint', () => {
         content: '带密钥的正文。',
         status: 'available',
         editAccess: 'key-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'created'
       })
     } finally {
@@ -422,6 +434,7 @@ describe('notes write endpoint', () => {
         content: '协作者更新后的正文。',
         status: 'available',
         editAccess: 'key-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'updated'
       })
 
@@ -439,7 +452,8 @@ describe('notes write endpoint', () => {
         sid: 'owner-keyed123',
         content: '协作者更新后的正文。',
         status: 'available',
-        editAccess: 'key-editable'
+        editAccess: 'key-editable',
+        favoriteState: 'not-favorited'
       })
     } finally {
       await app.close()
@@ -553,6 +567,7 @@ describe('notes write endpoint', () => {
         content: '创建者的第一版内容。',
         status: 'available',
         editAccess: 'owner-editable',
+        favoriteState: 'self-owned',
         saveResult: 'created'
       })
     } finally {

@@ -1,13 +1,22 @@
-import type { AuthCallbackResponseDto, SessionResponseDto } from '@note/shared-types'
+import type {
+  AuthCallbackResponseDto,
+  PostLoginActionDto,
+  SessionResponseDto
+} from '@note/shared-types'
 
 import { normalizeAuthReturnToPath } from '@note/shared-types'
 
 import { axiosClient, apiBaseUrl } from './http-client'
 
-export function createAuthLoginUrl(returnTo: string) {
+export function createAuthLoginUrl(returnTo: string, intent: PostLoginActionDto | null = null) {
   const loginUrl = new URL('/api/auth/login', apiBaseUrl)
 
   loginUrl.searchParams.set('returnTo', normalizeAuthReturnToPath(returnTo, '/'))
+
+  if (intent?.type === 'favorite-note') {
+    loginUrl.searchParams.set('intent', intent.type)
+    loginUrl.searchParams.set('sid', intent.sid)
+  }
 
   return loginUrl.toString()
 }

@@ -5,7 +5,11 @@ import type {
   OnlineNoteDetailDto
 } from '@note/shared-types'
 
-import { getPrismaClient, type PrismaClientLike } from './prisma-client.js'
+import {
+  getPrismaClient,
+  type PrismaClientLike,
+  type PrismaQueryClientLike
+} from './prisma-client.js'
 import { createNoteEditKeyService, type NoteEditKeyService } from './note-edit-key-service.js'
 import { resolveNoteAuthorizationContext } from './note-authorization-service.js'
 import {
@@ -18,11 +22,20 @@ interface PrismaNoteReadRepositoryOptions {
 }
 
 export interface NoteRecordRow {
+  id: number | bigint
   sid: string
   content: string
   authorId: number | bigint | null
   keyHash: string | null
   deletedAt: Date | null
+}
+
+export interface FavoriteSummaryRepository {
+  isFavoritedByUser(
+    noteId: number | bigint,
+    userId: number | bigint,
+    queryClient?: PrismaQueryClientLike
+  ): Promise<boolean>
 }
 
 export interface NoteReadRepository {
@@ -48,7 +61,9 @@ export interface NoteReadService {
 }
 
 const noteLookupSql =
-  'SELECT sid, content, author_id AS authorId, key_hash AS keyHash, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2'
+  'SELECT id, sid, content, author_id AS authorId, key_hash AS keyHash, deleted_at AS deletedAt FROM notes WHERE sid = ? ORDER BY id DESC LIMIT 2'
+const favoriteLookupSql =
+  'SELECT 1 AS matched FROM note_favorites WHERE note_id = ? AND user_id = ? LIMIT 1'
 
 function createNoteReadError(
   sid: string,
@@ -73,7 +88,8 @@ function createAvailableNote(
     sid,
     content,
     status: 'available',
-    editAccess
+    editAccess,
+    favoriteState: 'not-favorited'
   }
 }
 
@@ -98,10 +114,30 @@ export function createPrismaNoteReadRepository(
   }
 }
 
+export function createPrismaFavoriteSummaryRepository(
+  options: PrismaNoteReadRepositoryOptions = {}
+): FavoriteSummaryRepository {
+  const resolvePrismaClient = options.getPrismaClient ?? getPrismaClient
+
+  return {
+    async isFavoritedByUser(noteId, userId, queryClient) {
+      const prisma = queryClient ?? (await resolvePrismaClient())
+      const matchedRows = await prisma.$queryRawUnsafe<Array<{ matched: number }>>(
+        favoriteLookupSql,
+        typeof noteId === 'bigint' ? noteId.toString() : noteId,
+        typeof userId === 'bigint' ? userId.toString() : userId
+      )
+
+      return matchedRows.length > 0
+    }
+  }
+}
+
 export function createNoteReadService(
   repository: NoteReadRepository = createPrismaNoteReadRepository(),
   userRepository: UserRepository = createPrismaUserRepository(),
-  editKeyService: NoteEditKeyService = createNoteEditKeyService()
+  editKeyService: NoteEditKeyService = createNoteEditKeyService(),
+  favoriteSummaryRepository: FavoriteSummaryRepository = createPrismaFavoriteSummaryRepository()
 ): NoteReadService {
   return {
     async getBySid(sid, session, editKey) {
@@ -161,13 +197,31 @@ export function createNoteReadService(
         }
       }
 
+      let favoriteState: OnlineNoteDetailDto['favoriteState'] = 'not-favorited'
+
+      if (authorizationContext.actor === 'owner') {
+        favoriteState = 'self-owned'
+      } else if (authorizationContext.actor === 'session-non-owner') {
+        const matchedUser = await userRepository.findBySsoId(
+          BigInt(session?.user.id ?? '0')
+        )
+
+        if (matchedUser) {
+          const isFavorited = await favoriteSummaryRepository.isFavoritedByUser(
+            matchedNote.id,
+            matchedUser.id
+          )
+
+          favoriteState = isFavorited ? 'favorited' : 'not-favorited'
+        }
+      }
+
       return {
         status: 'available',
-        note: createAvailableNote(
-          matchedNote.sid,
-          matchedNote.content,
-          editAccess
-        )
+        note: {
+          ...createAvailableNote(matchedNote.sid, matchedNote.content, editAccess),
+          favoriteState
+        }
       }
     }
   }

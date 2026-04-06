@@ -4,6 +4,7 @@ import { computed, shallowRef, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import type { NoteWriteErrorCode, OnlineNoteSaveRequestDto } from '@note/shared-types'
 
+import { createFavoriteNoteMethod } from '@/services/favorite-methods'
 import {
   createGetOnlineNoteDetailMethod,
   createSaveOnlineNoteMethod
@@ -13,9 +14,12 @@ import {
   canEditOnlineNote,
   createOnlineNoteCopyFailureFeedback,
   createOnlineNoteCopySuccessFeedback,
+  createOnlineNoteFavoriteSuccessFeedback,
   downgradeOnlineNoteDetailToForbidden,
+  isFavoriteResponseDto,
   isOnlineNoteDetailDto,
   isOnlineNoteSaveResponseDto,
+  resolveFavoriteErrorDto,
   resolveNoteReadErrorDto,
   resolveNoteWriteErrorDto,
   resolveInteractiveEditAccess,
@@ -56,6 +60,12 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       immediate: false
     }
   )
+  const favoriteRequest = useRequest(
+    (payload: { sid: string }) => createFavoriteNoteMethod(payload),
+    {
+      immediate: false
+    }
+  )
 
   const draftContent = shallowRef('')
   const baselineContent = shallowRef('')
@@ -67,7 +77,11 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const saveErrorMessage = shallowRef<string | null>(null)
   const terminalViewModel = shallowRef<OnlineNoteViewModel | null>(null)
   const copyFeedback = shallowRef<ReturnType<typeof createOnlineNoteCopySuccessFeedback> | null>(null)
+  const favoriteFeedback = shallowRef<ReturnType<typeof createOnlineNoteFavoriteSuccessFeedback> | null>(null)
   const hasEditKeyValue = computed(() => editKey.value.trim() !== '')
+  const favoriteActionState = computed(() =>
+    favoriteRequest.loading.value ? 'disabled' : 'default'
+  )
 
   const rawViewModel = computed(() => {
     const activeTerminalViewModel = terminalViewModel.value
@@ -125,11 +139,26 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       sid: sidValue.value,
       viewStatus: viewModel.value.status,
       editAccess: viewModel.value.editAccess,
-      saveState: saveState.value
+      favoriteState: viewModel.value.favoriteState,
+      authStatus: authStore.status,
+      saveState: saveState.value,
+      favoriteActionState: favoriteActionState.value
     })
   )
-  const primaryFeedback = computed(() => copyFeedback.value ?? saveFeedback.value)
+  const primaryFeedback = computed(
+    () => favoriteFeedback.value ?? copyFeedback.value ?? saveFeedback.value
+  )
   const authSignature = computed(() => `${authStore.status}:${authStore.user?.id ?? ''}`)
+
+  function resolveCurrentReadableNote(currentSid: string) {
+    const currentNote = readRequest.data.value
+
+    if (isOnlineNoteDetailDto(currentNote) && currentNote.sid === currentSid) {
+      return currentNote
+    }
+
+    return null
+  }
 
   function resetEditorState(nextSid: string | null) {
     draftContent.value = ''
@@ -142,6 +171,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     saveErrorMessage.value = null
     terminalViewModel.value = null
     copyFeedback.value = null
+    favoriteFeedback.value = null
   }
 
   function setTerminalViewModel(nextSid: string, errorMessage: string, status: 'deleted' | 'error') {
@@ -151,6 +181,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       sid: nextSid,
       content: null,
       editAccess: null,
+      favoriteState: null,
       title: status === 'deleted' ? '该在线便签已删除' : '保存当前在线便签失败',
       description: errorMessage
     }
@@ -272,7 +303,8 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
           sid: response.sid,
           content: response.content,
           status: 'available',
-          editAccess: response.editAccess
+          editAccess: response.editAccess,
+          favoriteState: response.favoriteState
         },
         error: undefined
       })
@@ -318,6 +350,76 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     }
   }
 
+  async function favoriteNote() {
+    const currentSid = sidValue.value
+    const currentNote = currentSid ? resolveCurrentReadableNote(currentSid) : null
+
+    if (!currentSid || !currentNote || currentNote.favoriteState === 'self-owned') {
+      return
+    }
+
+    if (currentNote.favoriteState === 'favorited' || favoriteRequest.loading.value) {
+      return
+    }
+
+    if (authStore.status !== 'authenticated') {
+      authStore.openLoginModal({
+        type: 'favorite-note',
+        sid: currentSid
+      })
+      return
+    }
+
+    copyFeedback.value = null
+
+    try {
+      const response = await favoriteRequest.send({
+        sid: currentSid
+      })
+
+      if (sidValue.value !== currentSid || !isFavoriteResponseDto(response)) {
+        return
+      }
+
+      favoriteFeedback.value = createOnlineNoteFavoriteSuccessFeedback()
+      const latestNote = resolveCurrentReadableNote(currentSid)
+
+      if (latestNote) {
+        readRequest.update({
+          data: {
+            ...latestNote,
+            favoriteState: response.favoriteState
+          },
+          error: undefined
+        })
+      }
+    } catch (error) {
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
+      const favoriteError = resolveFavoriteErrorDto(error)
+
+      if (favoriteError?.code === 'FAVORITE_AUTH_REQUIRED') {
+        authStore.openLoginModal({
+          type: 'favorite-note',
+          sid: currentSid
+        })
+        return
+      }
+
+      favoriteFeedback.value = {
+        tone: favoriteError?.status === 'forbidden' ? 'warning' : 'danger',
+        state: favoriteError?.status === 'forbidden' ? 'default' : 'error',
+        title:
+          favoriteError?.code === 'FAVORITE_SELF_OWNED_NOT_ALLOWED'
+            ? '自己的便签无需收藏'
+            : '收藏失败',
+        description: favoriteError?.message ?? '当前在线便签暂时无法加入收藏，请稍后重试。'
+      }
+    }
+  }
+
   async function copyShareLink() {
     const currentHeader = objectHeader.value
     const currentSid = sidValue.value
@@ -354,11 +456,16 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     (nextSid, _previousSid, onCleanup) => {
       void readRequest.abort()
       void saveRequest.abort()
+      void favoriteRequest.abort()
       readRequest.update({
         data: undefined,
         error: undefined
       })
       saveRequest.update({
+        data: undefined,
+        error: undefined
+      })
+      favoriteRequest.update({
         data: undefined,
         error: undefined
       })
@@ -372,6 +479,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       onCleanup(() => {
         void readRequest.abort()
         void saveRequest.abort()
+        void favoriteRequest.abort()
       })
     },
     {
@@ -389,6 +497,42 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     void readRequest.abort()
     void readRequest.send(currentSid).catch(() => undefined)
   })
+
+  watch(
+    [
+      sidValue,
+      () => authStore.status,
+      () => authStore.pendingPostLoginAction,
+      () => readRequest.data.value,
+      () => favoriteRequest.loading.value
+    ],
+    ([currentSid, authStatus, pendingAction, currentNote, favoriteLoading]) => {
+      const readableNote =
+        currentSid && isOnlineNoteDetailDto(currentNote) && currentNote.sid === currentSid
+          ? currentNote
+          : null
+
+      if (
+        !currentSid ||
+        authStatus !== 'authenticated' ||
+        !pendingAction ||
+        pendingAction.type !== 'favorite-note' ||
+        pendingAction.sid !== currentSid ||
+        !readableNote ||
+        readableNote.favoriteState === 'favorited' ||
+        readableNote.favoriteState === 'self-owned' ||
+        favoriteLoading
+      ) {
+        return
+      }
+
+      authStore.clearPendingPostLoginAction()
+      void favoriteNote()
+    },
+    {
+      immediate: true
+    }
+  )
 
   watch(
     [sidValue, () => readRequest.loading.value, () => readRequest.data.value, () => readRequest.error.value],
@@ -467,6 +611,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     primaryFeedback,
     objectHeader,
     saveNote,
-    copyShareLink
+    copyShareLink,
+    favoriteNote
   }
 }

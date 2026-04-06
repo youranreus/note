@@ -24,7 +24,7 @@ export function useAuthFlow() {
   const authStore = useAuthStore()
   const route = useRoute()
   const router = useRouter()
-  const { loginModalOpen, sessionHydrated, status } = storeToRefs(authStore)
+  const { loginIntent, loginModalOpen, sessionHydrated, status } = storeToRefs(authStore)
   const callbackPhase = shallowRef<'loading' | 'success' | 'error'>('loading')
   const callbackMessage = shallowRef<string | null>(null)
   let sessionRequest: Promise<void> | null = null
@@ -70,7 +70,7 @@ export function useAuthFlow() {
 
   function startLoginUpgrade() {
     const returnTo = resolveSafeReturnTo(route.fullPath)
-    const loginUrl = createAuthLoginUrl(returnTo)
+    const loginUrl = createAuthLoginUrl(returnTo, loginIntent.value)
 
     authStore.closeLoginModal()
     redirectToLogin(loginUrl)
@@ -133,7 +133,7 @@ export function useAuthFlow() {
       authStore.setAuthenticated({
         status: 'authenticated',
         user: response.user
-      })
+      }, response.postLoginAction ?? null)
       callbackPhase.value = 'success'
       callbackMessage.value = response.message
       await router.replace(resolveSafeReturnTo(response.returnTo))

@@ -13,6 +13,7 @@ const noteEditAccessValues = [
   'key-editable',
   'forbidden'
 ] as const
+const noteFavoriteStateValues = ['not-favorited', 'favorited', 'self-owned'] as const
 const noteWriteErrorCodes = [
   'INVALID_SID',
   'NOTE_DELETED',
@@ -65,7 +66,7 @@ export const noteReadHeadersSchema = {
 
 export const noteDetailResponseSchema = {
   type: 'object',
-  required: ['sid', 'content', 'status', 'editAccess'],
+  required: ['sid', 'content', 'status', 'editAccess', 'favoriteState'],
   properties: {
     sid: { type: 'string' },
     content: { type: 'string' },
@@ -76,13 +77,17 @@ export const noteDetailResponseSchema = {
     editAccess: {
       type: 'string',
       enum: noteEditAccessValues
+    },
+    favoriteState: {
+      type: 'string',
+      enum: noteFavoriteStateValues
     }
   }
 } as const
 
 export const noteWriteResponseSchema = {
   type: 'object',
-  required: ['sid', 'content', 'status', 'editAccess', 'saveResult'],
+  required: ['sid', 'content', 'status', 'editAccess', 'favoriteState', 'saveResult'],
   properties: {
     sid: { type: 'string' },
     content: { type: 'string' },
@@ -93,6 +98,10 @@ export const noteWriteResponseSchema = {
     editAccess: {
       type: 'string',
       enum: noteEditAccessValues
+    },
+    favoriteState: {
+      type: 'string',
+      enum: noteFavoriteStateValues
     },
     saveResult: {
       type: 'string',

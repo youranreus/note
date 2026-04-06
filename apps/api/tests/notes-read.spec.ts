@@ -17,7 +17,8 @@ function createFakeNoteReadService(): NoteReadService {
             sid,
             content: sid === 'shell-status' ? '保留字 sid 也应命中真实对象。' : '这是最新已保存内容。',
             status: 'available',
-            editAccess: 'anonymous-editable'
+            editAccess: 'anonymous-editable',
+            favoriteState: 'not-favorited'
           }
         }
       }
@@ -29,7 +30,8 @@ function createFakeNoteReadService(): NoteReadService {
             sid,
             content: '创建者的正文。',
             status: 'available',
-            editAccess: session?.user.id === '1001' ? 'owner-editable' : 'forbidden'
+            editAccess: session?.user.id === '1001' ? 'owner-editable' : 'forbidden',
+            favoriteState: session?.user.id === '1001' ? 'self-owned' : 'not-favorited'
           }
         }
       }
@@ -41,7 +43,8 @@ function createFakeNoteReadService(): NoteReadService {
             sid,
             content: '需要密钥的正文。',
             status: 'available',
-            editAccess: editKey === 'shared-secret' ? 'key-editable' : 'key-required'
+            editAccess: editKey === 'shared-secret' ? 'key-editable' : 'key-required',
+            favoriteState: 'not-favorited'
           }
         }
       }
@@ -53,7 +56,8 @@ function createFakeNoteReadService(): NoteReadService {
             sid,
             content: '创建者 + 密钥保护的正文。',
             status: 'available',
-            editAccess: session?.user.id === '1001' ? 'owner-editable' : 'key-required'
+            editAccess: session?.user.id === '1001' ? 'owner-editable' : 'key-required',
+            favoriteState: session?.user.id === '1001' ? 'self-owned' : 'not-favorited'
           }
         }
       }
@@ -111,7 +115,8 @@ describe('notes read endpoint', () => {
       sid: 'readable123',
       content: '这是最新已保存内容。',
       status: 'available',
-      editAccess: 'anonymous-editable'
+      editAccess: 'anonymous-editable',
+      favoriteState: 'not-favorited'
     })
   })
 
@@ -154,7 +159,8 @@ describe('notes read endpoint', () => {
       sid: 'shell-status',
       content: '保留字 sid 也应命中真实对象。',
       status: 'available',
-      editAccess: 'anonymous-editable'
+      editAccess: 'anonymous-editable',
+      favoriteState: 'not-favorited'
     })
   })
 
@@ -169,7 +175,8 @@ describe('notes read endpoint', () => {
       sid: 'owner123',
       content: '创建者的正文。',
       status: 'available',
-      editAccess: 'forbidden'
+      editAccess: 'forbidden',
+      favoriteState: 'not-favorited'
     })
   })
 
@@ -187,7 +194,8 @@ describe('notes read endpoint', () => {
       sid: 'owner123',
       content: '创建者的正文。',
       status: 'available',
-      editAccess: 'owner-editable'
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned'
     })
   })
 
@@ -202,7 +210,8 @@ describe('notes read endpoint', () => {
       sid: 'keyed123',
       content: '需要密钥的正文。',
       status: 'available',
-      editAccess: 'key-required'
+      editAccess: 'key-required',
+      favoriteState: 'not-favorited'
     })
   })
 
@@ -220,7 +229,8 @@ describe('notes read endpoint', () => {
       sid: 'keyed123',
       content: '需要密钥的正文。',
       status: 'available',
-      editAccess: 'key-editable'
+      editAccess: 'key-editable',
+      favoriteState: 'not-favorited'
     })
   })
 
@@ -238,7 +248,8 @@ describe('notes read endpoint', () => {
       sid: 'owner-keyed123',
       content: '创建者 + 密钥保护的正文。',
       status: 'available',
-      editAccess: 'owner-editable'
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned'
     })
   })
 

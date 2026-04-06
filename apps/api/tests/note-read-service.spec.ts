@@ -20,6 +20,7 @@ describe('note read service', () => {
       async findBySid() {
         return [
           {
+            id: 1,
             sid: 'shared123',
             content: '需要密钥的正文。',
             authorId: null,
@@ -55,7 +56,8 @@ describe('note read service', () => {
         sid: 'shared123',
         content: '需要密钥的正文。',
         status: 'available',
-        editAccess: 'key-editable'
+        editAccess: 'key-editable',
+        favoriteState: 'not-favorited'
       }
     })
   })
@@ -65,6 +67,7 @@ describe('note read service', () => {
       async findBySid() {
         return [
           {
+            id: 1,
             sid: 'shared123',
             content: '需要密钥的正文。',
             authorId: null,
@@ -82,7 +85,8 @@ describe('note read service', () => {
         sid: 'shared123',
         content: '需要密钥的正文。',
         status: 'available',
-        editAccess: 'key-required'
+        editAccess: 'key-required',
+        favoriteState: 'not-favorited'
       }
     })
   })
@@ -92,6 +96,7 @@ describe('note read service', () => {
       async findBySid() {
         return [
           {
+            id: 1,
             sid: 'owner-keyed',
             content: '创建者正文。',
             authorId: 7,
@@ -111,6 +116,10 @@ describe('note read service', () => {
           ssoId: 2002
         }
       }
+    }, undefined, {
+      async isFavoritedByUser() {
+        return false
+      }
     })
 
     await expect(service.getBySid('owner-keyed', createSession('2002'))).resolves.toEqual({
@@ -119,7 +128,8 @@ describe('note read service', () => {
         sid: 'owner-keyed',
         content: '创建者正文。',
         status: 'available',
-        editAccess: 'key-required'
+        editAccess: 'key-required',
+        favoriteState: 'not-favorited'
       }
     })
   })

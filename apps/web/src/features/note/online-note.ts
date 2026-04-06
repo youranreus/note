@@ -2,6 +2,8 @@ import type { AxiosError } from 'axios'
 
 import type {
   AuthStatus,
+  FavoriteErrorDto,
+  FavoriteResponseDto,
   InteractionState,
   NoteEditAccess,
   NoteReadErrorDto,
@@ -9,6 +11,7 @@ import type {
   NoteWriteErrorCode,
   NoteWriteErrorDto,
   OnlineNoteDetailDto,
+  OnlineNoteFavoriteState,
   OnlineNoteSaveResponseDto
 } from '@note/shared-types'
 
@@ -20,6 +23,7 @@ export interface OnlineNoteViewModel {
   sid: string | null
   content: string | null
   editAccess: NoteEditAccess | null
+  favoriteState: OnlineNoteFavoriteState | null
   title: string
   description: string
 }
@@ -51,6 +55,9 @@ export interface OnlineNoteObjectHeaderModel {
   canCopyShareLink: boolean
   copyButtonLabel: string
   copyButtonState: InteractionState
+  showFavoriteButton?: boolean
+  favoriteButtonLabel?: string
+  favoriteButtonState?: InteractionState
 }
 
 export interface OnlineNoteAuthorizationUiModel {
@@ -80,7 +87,10 @@ interface OnlineNoteObjectHeaderInput {
   sid: string | null
   viewStatus: NoteReadViewStatus
   editAccess: NoteEditAccess | null
+  favoriteState?: OnlineNoteFavoriteState | null
+  authStatus?: AuthStatus
   saveState: OnlineNoteSaveState
+  favoriteActionState?: InteractionState
 }
 
 interface OnlineNoteAuthorizationUiInput {
@@ -134,13 +144,15 @@ function createViewModel(
   title: string,
   description: string,
   content: string | null = null,
-  editAccess: NoteEditAccess | null = null
+  editAccess: NoteEditAccess | null = null,
+  favoriteState: OnlineNoteFavoriteState | null = null
 ): OnlineNoteViewModel {
   return {
     status,
     sid,
     content,
     editAccess,
+    favoriteState,
     title,
     description
   }
@@ -350,7 +362,11 @@ export function isOnlineNoteDetailDto(value: unknown): value is OnlineNoteDetail
       candidate.editAccess === 'anonymous-editable' ||
       candidate.editAccess === 'key-required' ||
       candidate.editAccess === 'key-editable' ||
-      candidate.editAccess === 'forbidden')
+      candidate.editAccess === 'forbidden') &&
+    (candidate.favoriteState == null ||
+      candidate.favoriteState === 'not-favorited' ||
+      candidate.favoriteState === 'favorited' ||
+      candidate.favoriteState === 'self-owned')
   )
 }
 
@@ -370,8 +386,22 @@ export function isOnlineNoteSaveResponseDto(value: unknown): value is OnlineNote
       candidate.editAccess === 'key-required' ||
       candidate.editAccess === 'key-editable' ||
       candidate.editAccess === 'forbidden') &&
+    (candidate.favoriteState == null ||
+      candidate.favoriteState === 'not-favorited' ||
+      candidate.favoriteState === 'favorited' ||
+      candidate.favoriteState === 'self-owned') &&
     (candidate.saveResult === 'created' || candidate.saveResult === 'updated')
   )
+}
+
+export function isFavoriteResponseDto(value: unknown): value is FavoriteResponseDto {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as Partial<FavoriteResponseDto>
+
+  return typeof candidate.sid === 'string' && candidate.favoriteState === 'favorited'
 }
 
 export function resolveNoteReadErrorDto(error: unknown) {
@@ -386,6 +416,22 @@ export function resolveNoteWriteErrorDto(error: unknown) {
   return isNoteWriteErrorDto(responseData) ? responseData : null
 }
 
+export function resolveFavoriteErrorDto(error: unknown) {
+  const responseData = (error as AxiosError<unknown> | undefined)?.response?.data as Partial<FavoriteErrorDto> | undefined
+
+  if (
+    responseData &&
+    typeof responseData.sid === 'string' &&
+    typeof responseData.code === 'string' &&
+    typeof responseData.status === 'string' &&
+    typeof responseData.message === 'string'
+  ) {
+    return responseData as FavoriteErrorDto
+  }
+
+  return null
+}
+
 export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): OnlineNoteViewModel {
   if (!snapshot.sid) {
     return createViewModel(
@@ -393,15 +439,6 @@ export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): O
       null,
       '当前链接缺少有效 sid',
       '路由参数必须是单个非空字符串，页面不会把空值或异常参数默默转成伪造对象。'
-    )
-  }
-
-  if (snapshot.loading) {
-    return createViewModel(
-      'loading',
-      snapshot.sid,
-      '正在读取在线便签',
-      '我们正在根据当前 sid 拉取该在线便签的最新已保存内容。'
     )
   }
 
@@ -427,7 +464,17 @@ export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): O
       '在线便签内容',
       createAvailableDescription(snapshot.note.editAccess),
       snapshot.note.content,
-      snapshot.note.editAccess
+      snapshot.note.editAccess,
+      snapshot.note.favoriteState ?? 'not-favorited'
+    )
+  }
+
+  if (snapshot.loading) {
+    return createViewModel(
+      'loading',
+      snapshot.sid,
+      '正在读取在线便签',
+      '我们正在根据当前 sid 拉取该在线便签的最新已保存内容。'
     )
   }
 
@@ -621,6 +668,38 @@ function resolveEditStatus(input: OnlineNoteObjectHeaderInput) {
   }
 }
 
+function resolveFavoriteAction(input: OnlineNoteObjectHeaderInput) {
+  if (input.viewStatus !== 'available') {
+    return {
+      showFavoriteButton: false,
+      favoriteButtonLabel: '',
+      favoriteButtonState: 'disabled' as InteractionState
+    }
+  }
+
+  if (input.favoriteState === 'self-owned') {
+    return {
+      showFavoriteButton: false,
+      favoriteButtonLabel: '',
+      favoriteButtonState: 'disabled' as InteractionState
+    }
+  }
+
+  if (input.favoriteState === 'favorited') {
+    return {
+      showFavoriteButton: true,
+      favoriteButtonLabel: '已收藏',
+      favoriteButtonState: 'disabled' as InteractionState
+    }
+  }
+
+  return {
+    showFavoriteButton: true,
+    favoriteButtonLabel: (input.authStatus ?? 'anonymous') === 'anonymous' ? '登录后收藏' : '收藏',
+    favoriteButtonState: input.favoriteActionState ?? 'default'
+  }
+}
+
 export function resolveOnlineNoteObjectHeader(
   input: OnlineNoteObjectHeaderInput
 ): OnlineNoteObjectHeaderModel | null {
@@ -636,6 +715,7 @@ export function resolveOnlineNoteObjectHeader(
   const canCopyShareLink = input.viewStatus === 'available' && input.saveState !== 'saving'
   const isExistingSharedObject = input.viewStatus === 'available'
   const editStatus = resolveEditStatus(input)
+  const favoriteAction = resolveFavoriteAction(input)
 
   return {
     sid: input.sid,
@@ -653,7 +733,10 @@ export function resolveOnlineNoteObjectHeader(
     editStatusCaption: editStatus.caption,
     canCopyShareLink,
     copyButtonLabel: '复制链接',
-    copyButtonState: canCopyShareLink ? 'default' : 'disabled'
+    copyButtonState: canCopyShareLink ? 'default' : 'disabled',
+    showFavoriteButton: favoriteAction.showFavoriteButton,
+    favoriteButtonLabel: favoriteAction.favoriteButtonLabel,
+    favoriteButtonState: favoriteAction.favoriteButtonState
   }
 }
 
@@ -674,5 +757,14 @@ export function createOnlineNoteCopyFailureFeedback(
     state: 'error',
     title: '复制当前在线便签链接失败',
     description
+  }
+}
+
+export function createOnlineNoteFavoriteSuccessFeedback(): OnlineNoteSaveFeedback {
+  return {
+    tone: 'success',
+    state: 'default',
+    title: '已收藏当前在线便签',
+    description: '这条内容已经进入你的收藏资产，后续可从“我的收藏”继续回访。'
   }
 }

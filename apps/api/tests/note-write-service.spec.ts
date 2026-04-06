@@ -148,6 +148,7 @@ describe('note write service', () => {
         content: '第一次写入。',
         status: 'available',
         editAccess: 'anonymous-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'created'
       }
     })
@@ -181,6 +182,7 @@ describe('note write service', () => {
         content: '更新后的内容。',
         status: 'available',
         editAccess: 'anonymous-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'updated'
       }
     })
@@ -241,6 +243,7 @@ describe('note write service', () => {
         content: '由创建者首次保存。',
         status: 'available',
         editAccess: 'owner-editable',
+        favoriteState: 'self-owned',
         saveResult: 'created'
       }
     })
@@ -319,6 +322,7 @@ describe('note write service', () => {
         content: '带共享密钥的新正文。',
         status: 'available',
         editAccess: 'owner-editable',
+        favoriteState: 'self-owned',
         saveResult: 'updated'
       }
     })
@@ -358,6 +362,7 @@ describe('note write service', () => {
         content: '创建者继续更新。',
         status: 'available',
         editAccess: 'owner-editable',
+        favoriteState: 'self-owned',
         saveResult: 'updated'
       }
     })
@@ -390,6 +395,7 @@ describe('note write service', () => {
         content: '带密钥的首版正文。',
         status: 'available',
         editAccess: 'key-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'created'
       }
     })
@@ -612,6 +618,7 @@ describe('note write service', () => {
         content: '新正文。',
         status: 'available',
         editAccess: 'key-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'updated'
       }
     })
@@ -653,6 +660,7 @@ describe('note write service', () => {
         content: '协作者新正文。',
         status: 'available',
         editAccess: 'key-editable',
+        favoriteState: 'not-favorited',
         saveResult: 'updated'
       }
     })

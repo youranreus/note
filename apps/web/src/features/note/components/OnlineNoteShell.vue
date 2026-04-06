@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const { viewModel, draftContent, editKey, saveState, primaryFeedback, objectHeader, saveNote, copyShareLink } =
+const { viewModel, draftContent, editKey, saveState, primaryFeedback, objectHeader, saveNote, copyShareLink, favoriteNote } =
   useOnlineNote(
   computed(() => props.sid)
 )
@@ -82,6 +82,10 @@ function handleSave() {
 function handleCopyShareLink() {
   void copyShareLink()
 }
+
+function handleFavoriteNote() {
+  void favoriteNote()
+}
 </script>
 
 <template>
@@ -132,6 +136,7 @@ function handleCopyShareLink() {
         class="mt-5"
         :model="objectHeader"
         @copy="handleCopyShareLink"
+        @favorite="handleFavoriteNote"
       />
 
       <InlineFeedback

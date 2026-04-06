@@ -11,6 +11,7 @@ defineProps<{
 
 const emit = defineEmits<{
   copy: []
+  favorite: []
 }>()
 </script>
 
@@ -25,14 +26,26 @@ const emit = defineEmits<{
         </p>
       </div>
 
-      <Button
-        :state="model.copyButtonState"
-        leading-label="share"
-        variant="secondary"
-        @click="emit('copy')"
-      >
-        {{ model.copyButtonLabel }}
-      </Button>
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <Button
+          v-if="model.showFavoriteButton"
+          :state="model.favoriteButtonState"
+          leading-label="favorite"
+          variant="secondary"
+          @click="emit('favorite')"
+        >
+          {{ model.favoriteButtonLabel }}
+        </Button>
+
+        <Button
+          :state="model.copyButtonState"
+          leading-label="share"
+          variant="secondary"
+          @click="emit('copy')"
+        >
+          {{ model.copyButtonLabel }}
+        </Button>
+      </div>
     </div>
 
     <div class="mt-5 grid gap-3 md:grid-cols-3">

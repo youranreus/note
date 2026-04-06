@@ -1,13 +1,20 @@
 import { defineStore } from 'pinia'
 import { computed, shallowRef } from 'vue'
 
-import type { AuthStatus, AuthenticatedSessionDto, AuthUserDto } from '@note/shared-types'
+import type {
+  AuthStatus,
+  AuthenticatedSessionDto,
+  AuthUserDto,
+  PostLoginActionDto
+} from '@note/shared-types'
 
 export const useAuthStore = defineStore('auth', () => {
   const status = shallowRef<AuthStatus>('anonymous')
   const user = shallowRef<AuthUserDto | null>(null)
   const loginModalOpen = shallowRef(false)
   const sessionHydrated = shallowRef(false)
+  const loginIntent = shallowRef<PostLoginActionDto | null>(null)
+  const pendingPostLoginAction = shallowRef<PostLoginActionDto | null>(null)
 
   const label = computed(() => {
     if (status.value === 'recovering') {
@@ -45,16 +52,18 @@ export const useAuthStore = defineStore('auth', () => {
     return 'neutral'
   })
 
-  function openLoginModal() {
+  function openLoginModal(intent: PostLoginActionDto | null = null) {
     if (status.value !== 'anonymous') {
       return
     }
 
+    loginIntent.value = intent
     loginModalOpen.value = true
   }
 
   function closeLoginModal() {
     loginModalOpen.value = false
+    loginIntent.value = null
   }
 
   function setRecovering() {
@@ -62,9 +71,13 @@ export const useAuthStore = defineStore('auth', () => {
     closeLoginModal()
   }
 
-  function setAuthenticated(session: AuthenticatedSessionDto) {
+  function setAuthenticated(
+    session: AuthenticatedSessionDto,
+    postLoginAction: PostLoginActionDto | null = null
+  ) {
     status.value = 'authenticated'
     user.value = session.user
+    pendingPostLoginAction.value = postLoginAction
     sessionHydrated.value = true
     closeLoginModal()
   }
@@ -72,12 +85,17 @@ export const useAuthStore = defineStore('auth', () => {
   function setAnonymous() {
     status.value = 'anonymous'
     user.value = null
+    pendingPostLoginAction.value = null
     sessionHydrated.value = true
     closeLoginModal()
   }
 
   function markSessionHydrated() {
     sessionHydrated.value = true
+  }
+
+  function clearPendingPostLoginAction() {
+    pendingPostLoginAction.value = null
   }
 
   return {
@@ -88,11 +106,14 @@ export const useAuthStore = defineStore('auth', () => {
     tone,
     loginModalOpen,
     sessionHydrated,
+    loginIntent,
+    pendingPostLoginAction,
     openLoginModal,
     closeLoginModal,
     setRecovering,
     setAuthenticated,
     setAnonymous,
-    markSessionHydrated
+    markSessionHydrated,
+    clearPendingPostLoginAction
   }
 })

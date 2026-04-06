@@ -101,6 +101,7 @@ describe('auth endpoints', () => {
         displayName: 'Demo User'
       },
       returnTo: '/note/o/demo123',
+      postLoginAction: null,
       message: '登录已完成，正在恢复原页面上下文。'
     })
 
@@ -167,6 +168,38 @@ describe('auth endpoints', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       status: 'anonymous'
+    })
+  })
+
+  it('preserves a favorite intent through the login callback and returns it exactly once', async () => {
+    const loginResponse = await app.inject({
+      method: 'GET',
+      url: '/api/auth/login?returnTo=/note/o/demo123&intent=favorite-note&sid=demo123'
+    })
+    const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
+    const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
+
+    const callbackResponse = await app.inject({
+      method: 'GET',
+      url: `/api/auth/callback?code=valid-code&state=${state}`,
+      headers: {
+        cookie: flowCookie
+      }
+    })
+
+    expect(callbackResponse.statusCode).toBe(200)
+    expect(callbackResponse.json()).toEqual({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      },
+      returnTo: '/note/o/demo123',
+      postLoginAction: {
+        type: 'favorite-note',
+        sid: 'demo123'
+      },
+      message: '登录已完成，正在恢复原页面上下文。'
     })
   })
 })

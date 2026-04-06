@@ -10,6 +10,7 @@ datasource db {
 model User {
   id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
   ssoId     BigInt   @unique @map("sso_id") @db.UnsignedBigInt
+  favorites NoteFavorite[]
   notes     Note[]
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -24,6 +25,7 @@ model Note {
   keyHash   String?   @map("key_hash") @db.VarChar(255)
   authorId  BigInt?   @map("author_id") @db.UnsignedBigInt
   author    User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  favorites NoteFavorite[]
   createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt DateTime? @map("deleted_at") @db.DateTime(3)
@@ -31,4 +33,17 @@ model Note {
   @@index([authorId], map: "idx_note_author_id")
   @@index([authorId, updatedAt], map: "idx_author_updated")
   @@map("notes")
+}
+
+model NoteFavorite {
+  noteId    BigInt   @map("note_id") @db.UnsignedBigInt
+  userId    BigInt   @map("user_id") @db.UnsignedBigInt
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@id([noteId, userId])
+  @@index([userId, createdAt(sort: Desc)], map: "idx_user_created")
+  @@index([noteId], map: "idx_note")
+  @@map("note_favorites")
 }

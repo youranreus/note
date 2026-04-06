@@ -26,6 +26,7 @@ const mockedViewModel = vi.hoisted(
       sid: 'note123abc4',
       content: null,
       editAccess: null,
+      favoriteState: null,
       title: '正在读取在线便签',
       description: '我们正在根据当前 sid 拉取该在线便签的最新已保存内容。'
     }
@@ -45,6 +46,7 @@ const mockedObjectHeader = vi.hoisted(
 )
 const mockedSaveNote = vi.hoisted(() => vi.fn(async () => undefined))
 const mockedCopyShareLink = vi.hoisted(() => vi.fn(async () => undefined))
+const mockedFavoriteNote = vi.hoisted(() => vi.fn(async () => undefined))
 
 vi.mock('../src/features/note/use-online-note', async () => {
   return {
@@ -67,7 +69,8 @@ vi.mock('../src/features/note/use-online-note', async () => {
       primaryFeedback: computed(() => mockedSaveFeedback.value),
       objectHeader: computed(() => mockedObjectHeader.value),
       saveNote: mockedSaveNote,
-      copyShareLink: mockedCopyShareLink
+      copyShareLink: mockedCopyShareLink,
+      favoriteNote: mockedFavoriteNote
     })
   }
 })
@@ -78,6 +81,7 @@ function createViewModel(overrides: Partial<OnlineNoteViewModel>): OnlineNoteVie
     sid: 'note123abc4',
     content: null,
     editAccess: null,
+    favoriteState: null,
     title: '正在读取在线便签',
     description: '我们正在根据当前 sid 拉取该在线便签的最新已保存内容。',
     ...overrides
@@ -173,7 +177,8 @@ describe('online note shell', () => {
       title: '在线便签内容',
       description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
       content: '这是最新已保存内容。',
-      editAccess: 'anonymous-editable'
+      editAccess: 'anonymous-editable',
+      favoriteState: 'not-favorited'
     })
     mockedDraftContent.value = '这是最新已保存内容。'
     mockedEditKey.value = ''
@@ -196,7 +201,10 @@ describe('online note shell', () => {
       editStatusCaption: '该对象尚未绑定创建者，持有链接即可继续修改。',
       canCopyShareLink: true,
       copyButtonLabel: '复制链接',
-      copyButtonState: 'default'
+      copyButtonState: 'default',
+      showFavoriteButton: true,
+      favoriteButtonLabel: '登录后收藏',
+      favoriteButtonState: 'default'
     }
 
     const wrapper = mountShell()
@@ -209,6 +217,43 @@ describe('online note shell', () => {
     expect(wrapper.text()).toContain('可分享')
     expect(wrapper.text()).toContain('匿名可编辑')
     expect(wrapper.text()).toContain('复制链接')
+    expect(wrapper.text()).toContain('登录后收藏')
+  })
+
+  it('shows an authenticated favorite action on readable shared notes', () => {
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已绑定创建者身份，你现在可以查看内容，但不能修改或保存更新。',
+      content: '这是分享给我的正文。',
+      editAccess: 'forbidden',
+      favoriteState: 'not-favorited'
+    })
+    mockedDraftContent.value = '这是分享给我的正文。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '当前账户不可编辑',
+      editStatusTone: 'danger',
+      editStatusCaption: '请使用创建者身份重新登录后再试。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default',
+      showFavoriteButton: true,
+      favoriteButtonLabel: '收藏',
+      favoriteButtonState: 'default'
+    }
+
+    const wrapper = mountShell('authenticated')
+
+    expect(wrapper.text()).toContain('收藏')
   })
 
   it('shows a saving indicator while the save request is in flight', () => {
@@ -579,6 +624,27 @@ describe('resolveOnlineNoteViewModel', () => {
       editAccess: 'key-required'
     })
     expect(viewModel.description).toContain('需要输入编辑密钥')
+  })
+
+  it('keeps the latest readable note visible while a background refetch is still loading', () => {
+    const viewModel = resolveOnlineNoteViewModel({
+      sid: 'shared123',
+      loading: true,
+      note: {
+        sid: 'shared123',
+        content: '共享正文。',
+        status: 'available',
+        editAccess: 'forbidden',
+        favoriteState: 'favorited'
+      }
+    })
+
+    expect(viewModel).toMatchObject({
+      status: 'available',
+      sid: 'shared123',
+      editAccess: 'forbidden',
+      favoriteState: 'favorited'
+    })
   })
 })
 
