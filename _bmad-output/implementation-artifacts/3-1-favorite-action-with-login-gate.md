@@ -1,6 +1,6 @@
 # Story 3.1: 登录门槛下的收藏动作
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

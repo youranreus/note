@@ -1,6 +1,6 @@
 # Story 2.4: 查看权与编辑权的统一授权状态
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

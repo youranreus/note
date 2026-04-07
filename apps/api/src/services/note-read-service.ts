@@ -201,19 +201,13 @@ export function createNoteReadService(
 
       if (authorizationContext.actor === 'owner') {
         favoriteState = 'self-owned'
-      } else if (authorizationContext.actor === 'session-non-owner') {
-        const matchedUser = await userRepository.findBySsoId(
-          BigInt(session?.user.id ?? '0')
+      } else if (authorizationContext.actorUserId != null) {
+        const isFavorited = await favoriteSummaryRepository.isFavoritedByUser(
+          matchedNote.id,
+          authorizationContext.actorUserId
         )
 
-        if (matchedUser) {
-          const isFavorited = await favoriteSummaryRepository.isFavoritedByUser(
-            matchedNote.id,
-            matchedUser.id
-          )
-
-          favoriteState = isFavorited ? 'favorited' : 'not-favorited'
-        }
+        favoriteState = isFavorited ? 'favorited' : 'not-favorited'
       }
 
       return {

@@ -14,6 +14,7 @@ export interface NoteAuthorizationRecord {
 
 export interface NoteAuthorizationContext {
   actor: 'anonymous' | 'owner' | 'session-non-owner'
+  actorUserId: number | bigint | null
   editAccess: NoteEditAccess
   hasEditKeyProtection: boolean
 }
@@ -25,30 +26,24 @@ export async function resolveNoteAuthorizationContext(
   queryClient?: PrismaQueryClientLike
 ): Promise<NoteAuthorizationContext> {
   const hasEditKeyProtection = record.keyHash != null
+  const ssoId = normalizeAuthSessionSsoId(session)
+  const matchedUser = ssoId
+    ? await userRepository.findBySsoId(ssoId, queryClient)
+    : null
 
   if (record.authorId == null) {
     return {
       actor: 'anonymous',
+      actorUserId: matchedUser?.id ?? null,
       editAccess: hasEditKeyProtection ? 'key-required' : 'anonymous-editable',
       hasEditKeyProtection
     }
   }
 
-  const ssoId = normalizeAuthSessionSsoId(session)
-
-  if (!ssoId) {
-    return {
-      actor: 'anonymous',
-      editAccess: hasEditKeyProtection ? 'key-required' : 'forbidden',
-      hasEditKeyProtection
-    }
-  }
-
-  const matchedUser = await userRepository.findBySsoId(ssoId, queryClient)
-
   if (!matchedUser) {
     return {
       actor: 'anonymous',
+      actorUserId: null,
       editAccess: hasEditKeyProtection ? 'key-required' : 'forbidden',
       hasEditKeyProtection
     }
@@ -57,6 +52,7 @@ export async function resolveNoteAuthorizationContext(
   if (toBigInt(matchedUser.id) === toBigInt(record.authorId)) {
     return {
       actor: 'owner',
+      actorUserId: matchedUser.id,
       editAccess: 'owner-editable',
       hasEditKeyProtection
     }
@@ -64,6 +60,7 @@ export async function resolveNoteAuthorizationContext(
 
   return {
     actor: 'session-non-owner',
+    actorUserId: matchedUser.id,
     editAccess: hasEditKeyProtection ? 'key-required' : 'forbidden',
     hasEditKeyProtection
   }

@@ -133,4 +133,62 @@ describe('note read service', () => {
       }
     })
   })
+
+  it('reuses the resolved user mapping for favorite state instead of querying from session id twice', async () => {
+    const repository: NoteReadRepository = {
+      async findBySid() {
+        return [
+          {
+            id: 42,
+            sid: 'shared123',
+            content: '共享正文。',
+            authorId: 7,
+            keyHash: 'hashed-key',
+            deletedAt: null
+          }
+        ]
+      }
+    }
+    let lookupCount = 0
+    const service = createNoteReadService(
+      repository,
+      {
+        async ensureBySsoId() {
+          throw new Error('read service should not call ensureBySsoId')
+        },
+        async findBySsoId() {
+          lookupCount += 1
+
+          if (lookupCount > 1) {
+            throw new Error('findBySsoId should not be called twice for a single read')
+          }
+
+          return {
+            id: 9,
+            ssoId: 2002
+          }
+        }
+      },
+      undefined,
+      {
+        async isFavoritedByUser(noteId, userId) {
+          expect(noteId).toBe(42)
+          expect(userId).toBe(9)
+          return true
+        }
+      }
+    )
+
+    await expect(service.getBySid('shared123', createSession('2002'))).resolves.toEqual({
+      status: 'available',
+      note: {
+        sid: 'shared123',
+        content: '共享正文。',
+        status: 'available',
+        editAccess: 'key-required',
+        favoriteState: 'favorited'
+      }
+    })
+    expect(lookupCount).toBe(1)
+  })
 })

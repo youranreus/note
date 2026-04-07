@@ -55,11 +55,11 @@ development_status:
   2-1-sso-login-callback-recovery: done
   2-2-owner-default-edit-permission: done
   2-3-edit-key-shared-editing: done
-  2-4-unified-view-edit-authorization: review
+  2-4-unified-view-edit-authorization: done
   epic-2-retrospective: optional
 
   epic-3: in-progress
-  3-1-favorite-action-with-login-gate: review
+  3-1-favorite-action-with-login-gate: done
   3-2-user-center-my-created-notes: backlog
   3-3-my-favorites-context-return: backlog
   3-4-user-center-accessibility-consistency: backlog

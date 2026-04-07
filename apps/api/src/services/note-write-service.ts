@@ -3,6 +3,7 @@ import type {
   NoteEditAccess,
   NoteWriteErrorDto,
   OnlineNoteEditKeyAction,
+  OnlineNoteFavoriteState,
   OnlineNoteSaveRequestDto,
   OnlineNoteSaveResponseDto
 } from '@note/shared-types'
@@ -14,7 +15,11 @@ import {
   type PrismaTransactionalClientLike
 } from './prisma-client.js'
 import { resolveNoteAuthorizationContext } from './note-authorization-service.js'
-import { NoteSidConflictError } from './note-read-service.js'
+import {
+  createPrismaFavoriteSummaryRepository,
+  type FavoriteSummaryRepository,
+  NoteSidConflictError
+} from './note-read-service.js'
 import { createNoteEditKeyService, type NoteEditKeyService } from './note-edit-key-service.js'
 import {
   createPrismaUserRepository,
@@ -26,6 +31,7 @@ import {
 interface PrismaNoteWriteRepositoryOptions {
   getPrismaClient?: () => Promise<PrismaClientLike>
   editKeyService?: NoteEditKeyService
+  favoriteSummaryRepository?: FavoriteSummaryRepository
 }
 
 interface LockRow {
@@ -130,11 +136,11 @@ function createSuccessNote(
   sid: string,
   content: string,
   saveResult: OnlineNoteSaveResponseDto['saveResult'],
-  editAccess: NoteEditAccess
+  editAccess: NoteEditAccess,
+  favoriteState: OnlineNoteFavoriteState = editAccess === 'owner-editable'
+    ? 'self-owned'
+    : 'not-favorited'
 ): OnlineNoteSaveResponseDto {
-  const favoriteState =
-    editAccess === 'owner-editable' ? 'self-owned' : 'not-favorited'
-
   return {
     sid,
     content,
@@ -277,6 +283,8 @@ export function createPrismaNoteWriteRepository(
   const resolvePrismaClient = options.getPrismaClient ?? getPrismaClient
   const userRepository = createPrismaUserRepository(options)
   const editKeyService = options.editKeyService ?? createNoteEditKeyService()
+  const favoriteSummaryRepository =
+    options.favoriteSummaryRepository ?? createPrismaFavoriteSummaryRepository(options)
 
   return {
     async saveBySid(sid, input, session) {
@@ -402,6 +410,20 @@ export function createPrismaNoteWriteRepository(
             userRepository,
             isQueryClient(transactionClient) ? transactionClient : undefined
           )
+          const responseFavoriteState =
+            authorizationContext.actor === 'owner'
+              ? 'self-owned'
+              : authorizationContext.actorUserId != null
+                ? (
+                    await favoriteSummaryRepository.isFavoritedByUser(
+                      matchedNote.id,
+                      authorizationContext.actorUserId,
+                      isQueryClient(transactionClient) ? transactionClient : undefined
+                    )
+                  )
+                  ? 'favorited'
+                  : 'not-favorited'
+                : 'not-favorited'
 
           if (matchedNote.authorId != null) {
             if (authorizationContext.actor !== 'owner') {
@@ -435,7 +457,13 @@ export function createPrismaNoteWriteRepository(
 
                 return {
                   status: 'updated',
-                  note: createSuccessNote(sid, input.content, 'updated', 'key-editable')
+                  note: createSuccessNote(
+                    sid,
+                    input.content,
+                    'updated',
+                    'key-editable',
+                    responseFavoriteState
+                  )
                 }
               }
 
@@ -472,7 +500,13 @@ export function createPrismaNoteWriteRepository(
 
               return {
                 status: 'updated',
-                note: createSuccessNote(sid, input.content, 'updated', 'owner-editable')
+                note: createSuccessNote(
+                  sid,
+                  input.content,
+                  'updated',
+                  'owner-editable',
+                  responseFavoriteState
+                )
               }
             }
 
@@ -491,7 +525,13 @@ export function createPrismaNoteWriteRepository(
 
             return {
               status: 'updated',
-              note: createSuccessNote(sid, input.content, 'updated', 'owner-editable')
+              note: createSuccessNote(
+                sid,
+                input.content,
+                'updated',
+                'owner-editable',
+                responseFavoriteState
+              )
             }
           }
 
@@ -525,7 +565,13 @@ export function createPrismaNoteWriteRepository(
 
             return {
               status: 'updated',
-              note: createSuccessNote(sid, input.content, 'updated', 'key-editable')
+              note: createSuccessNote(
+                sid,
+                input.content,
+                'updated',
+                'key-editable',
+                responseFavoriteState
+              )
             }
           }
 
@@ -551,7 +597,13 @@ export function createPrismaNoteWriteRepository(
 
             return {
               status: 'updated',
-              note: createSuccessNote(sid, input.content, 'updated', 'key-editable')
+              note: createSuccessNote(
+                sid,
+                input.content,
+                'updated',
+                'key-editable',
+                responseFavoriteState
+              )
             }
           }
 
@@ -559,7 +611,13 @@ export function createPrismaNoteWriteRepository(
 
           return {
             status: 'updated',
-            note: createSuccessNote(sid, input.content, 'updated', 'anonymous-editable')
+            note: createSuccessNote(
+              sid,
+              input.content,
+              'updated',
+              'anonymous-editable',
+              responseFavoriteState
+            )
           }
         } finally {
           await transactionClient

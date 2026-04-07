@@ -31,7 +31,10 @@ interface FakeTransactionalClient {
   $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>
 }
 
-function createFakePrismaHarness(lookupRows: Array<Record<string, unknown>>): FakePrismaHarness {
+function createFakePrismaHarness(
+  lookupRows: Array<Record<string, unknown>>,
+  favoriteLookupRows: Array<Record<string, unknown>> = []
+): FakePrismaHarness {
   const queryCalls: QueryCall[] = []
   const executeCalls: QueryCall[] = []
   const insertedValues: unknown[][] = []
@@ -56,6 +59,10 @@ function createFakePrismaHarness(lookupRows: Array<Record<string, unknown>>): Fa
 
       if (sql.includes('FROM users WHERE sso_id = ?')) {
         return [{ id: 7, ssoId: values[0] }] as T
+      }
+
+      if (sql.includes('FROM note_favorites WHERE note_id = ? AND user_id = ?')) {
+        return favoriteLookupRows as T
       }
 
       if (sql.startsWith('SELECT RELEASE_LOCK')) {
@@ -189,6 +196,48 @@ describe('note write service', () => {
     expect(harness.insertedValues).toEqual([])
     expect(harness.updatedValues).toEqual([['更新后的内容。', 42]])
     expect(harness.releasedLocks).toEqual(['notes:write:existing123'])
+  })
+
+  it('preserves favoriteState when an authenticated user saves an already favorited anonymous note', async () => {
+    const harness = createFakePrismaHarness(
+      [
+        {
+          id: 42,
+          sid: 'shared123',
+          content: '旧内容。',
+          authorId: null,
+          keyHash: null,
+          deletedAt: null
+        }
+      ],
+      [{ matched: 1 }]
+    )
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.saveBySid(
+      'shared123',
+      {
+        content: '登录后再次编辑。'
+      },
+      createAuthenticatedSession()
+    )
+
+    expect(result).toEqual({
+      status: 'updated',
+      note: {
+        sid: 'shared123',
+        content: '登录后再次编辑。',
+        status: 'available',
+        editAccess: 'anonymous-editable',
+        favoriteState: 'favorited',
+        saveResult: 'updated'
+      }
+    })
+    expect(harness.updatedValues).toEqual([['登录后再次编辑。', 42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
   })
 
   it('releases the sid lock even when duplicate sid rows trigger a conflict', async () => {

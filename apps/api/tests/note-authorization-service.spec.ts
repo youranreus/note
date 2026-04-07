@@ -31,6 +31,7 @@ describe('note authorization service', () => {
 
     expect(context).toEqual({
       actor: 'anonymous',
+      actorUserId: null,
       editAccess: 'anonymous-editable',
       hasEditKeyProtection: false
     })
@@ -55,6 +56,7 @@ describe('note authorization service', () => {
 
     expect(context).toEqual({
       actor: 'session-non-owner',
+      actorUserId: 9,
       editAccess: 'key-required',
       hasEditKeyProtection: true
     })
@@ -79,6 +81,7 @@ describe('note authorization service', () => {
 
     expect(context).toEqual({
       actor: 'owner',
+      actorUserId: 7,
       editAccess: 'owner-editable',
       hasEditKeyProtection: true
     })
@@ -100,6 +103,7 @@ describe('note authorization service', () => {
 
     expect(context).toEqual({
       actor: 'anonymous',
+      actorUserId: null,
       editAccess: 'forbidden',
       hasEditKeyProtection: false
     })
