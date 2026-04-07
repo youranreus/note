@@ -1,8 +1,22 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import { createModuleScopeMessage } from '../services/module-shell-service.js'
+import type { MyNotesQueryDto } from '@note/shared-types'
 
-export const meRoutes: FastifyPluginAsync = async (app) => {
+import { createModuleScopeMessage } from '../services/module-shell-service.js'
+import {
+  meErrorSchema,
+  myNotesQuerySchema,
+  myNotesResponseSchema
+} from '../schemas/me.js'
+import { createMeService, type MeService } from '../services/me-service.js'
+
+interface MeRoutesOptions {
+  meService?: MeService
+}
+
+export const meRoutes: FastifyPluginAsync<MeRoutesOptions> = async (app, options) => {
+  const meService = options.meService ?? createMeService()
+
   app.get('/session', async (request) => {
     const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
 
@@ -14,6 +28,29 @@ export const meRoutes: FastifyPluginAsync = async (app) => {
 
     return session
   })
+
+  app.get<{ Querystring: MyNotesQueryDto }>(
+    '/notes',
+    {
+      schema: {
+        querystring: myNotesQuerySchema,
+        response: {
+          200: myNotesResponseSchema,
+          401: meErrorSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
+      const result = await meService.getMyNotes(request.query, session)
+
+      if (result.status === 'unauthorized') {
+        return reply.status(401).send(result.error)
+      }
+
+      return result.response
+    }
+  )
 
   app.get('/shell-status', async () => ({
     module: 'me',

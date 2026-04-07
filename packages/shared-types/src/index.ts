@@ -54,6 +54,9 @@ export type FavoriteErrorStatus =
   | 'deleted'
   | 'forbidden'
   | 'error'
+export type MeErrorCode = 'ME_AUTH_REQUIRED'
+export type MeErrorStatus = 'unauthorized'
+export type UserPanelTab = 'created' | 'favorites'
 
 export interface ShellRouteDefinition {
   mode: NoteMode
@@ -156,6 +159,31 @@ export interface FavoriteErrorDto {
   sid: string
   code: FavoriteErrorCode
   status: FavoriteErrorStatus
+  message: string
+}
+
+export interface MyNotesQueryDto {
+  page?: number
+  limit?: number
+}
+
+export interface MyNoteSummaryDto {
+  sid: string
+  preview: string
+  updatedAt: string
+}
+
+export interface MyNotesResponseDto {
+  items: MyNoteSummaryDto[]
+  page: number
+  limit: number
+  total: number
+  hasMore: boolean
+}
+
+export interface MeErrorDto {
+  code: MeErrorCode
+  status: MeErrorStatus
   message: string
 }
 

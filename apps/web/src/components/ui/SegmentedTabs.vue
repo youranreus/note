@@ -10,9 +10,11 @@ const props = withDefaults(
   defineProps<{
     options: Array<{ label: string; value: string }>
     state?: InteractionState
+    testIdPrefix?: string
   }>(),
   {
-    state: 'default'
+    state: 'default',
+    testIdPrefix: ''
   }
 )
 
@@ -97,6 +99,7 @@ async function handleKeydown(event: KeyboardEvent) {
       :key="option.value"
       :ref="(element) => setTabRef(element, index)"
       :aria-selected="activeValue === option.value"
+      :data-testid="props.testIdPrefix ? `${props.testIdPrefix}-${option.value}` : undefined"
       :tabindex="activeValue === option.value ? 0 : -1"
       :class="[
         'rounded-[calc(var(--radius-control)-0.35rem)] px-4 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
