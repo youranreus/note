@@ -19,6 +19,13 @@ function mountUserCenterModal(
       createdLoading: false,
       createdLoadingMore: false,
       createdErrorMessage: '',
+      favoriteNotes: [],
+      favoritePage: 1,
+      favoriteTotal: 0,
+      favoriteHasMore: false,
+      favoriteLoading: false,
+      favoriteLoadingMore: false,
+      favoriteErrorMessage: '',
       ...overrides
     }
   })
@@ -86,5 +93,41 @@ describe('user center modal', () => {
     await wrapper.get('[data-testid="user-center-load-more"]').trigger('click')
 
     expect(wrapper.emitted('loadMoreCreated')).toHaveLength(1)
+  })
+
+  it('renders favorite notes with favorite semantics and enter actions', async () => {
+    const wrapper = mountUserCenterModal({
+      activeTab: 'favorites',
+      favoriteNotes: [
+        {
+          sid: 'shared123',
+          preview: '收藏的便签摘要',
+          updatedAt: '2026-04-08T10:00:00.000Z',
+          favoritedAt: '2026-04-09T08:30:00.000Z'
+        }
+      ]
+    })
+
+    expect(wrapper.text()).toContain('我的收藏')
+    expect(wrapper.text()).toContain('shared123')
+    expect(wrapper.text()).toContain('收藏的便签摘要')
+    expect(wrapper.text()).toContain('收藏于')
+
+    await wrapper.get('[data-testid="user-center-open-favorite-shared123"]').trigger('click')
+
+    expect(wrapper.emitted('openNote')).toEqual([['shared123']])
+  })
+
+  it('renders an empty favorites state with a clear browse-and-favorite suggestion', async () => {
+    const wrapper = mountUserCenterModal({
+      activeTab: 'favorites'
+    })
+
+    expect(wrapper.text()).toContain('当前没有收藏内容')
+    expect(wrapper.text()).toContain('去阅读并收藏')
+
+    await wrapper.get('[data-testid="user-center-browse-notes"]').trigger('click')
+
+    expect(wrapper.emitted('browseNotes')).toHaveLength(1)
   })
 })

@@ -16,13 +16,43 @@ const fetchSessionMock = vi.hoisted(() =>
   vi.fn<() => Promise<SessionResponseDto>>(async () => ({ status: 'anonymous' }))
 )
 const meNotesRequestHarness = vi.hoisted(() => {
-  let data: { value: unknown }
-  let error: { value: unknown }
-  let loading: { value: boolean }
-  let lastArg: unknown
-  let defaultState: { data: unknown; error: unknown; loading: boolean }
-  let scopeStates: Map<string, { data: unknown; error: unknown; loading: boolean }>
-  let requestStates: Map<string, { data: unknown; error: unknown; loading: boolean }>
+  type RequestKind = 'created' | 'favorites'
+  type RequestState = {
+    data: unknown
+    error: unknown
+    loading: boolean
+  }
+  type RequestStore = {
+    controller:
+      | {
+          data: { value: unknown }
+          error: { value: unknown }
+          loading: { value: boolean }
+        }
+      | null
+    defaultState: RequestState
+    lastArg: unknown
+    requestStates: Map<string, RequestState>
+    scopeStates: Map<string, RequestState>
+  }
+
+  let invocation = 0
+  let createdStore: RequestStore
+  let favoritesStore: RequestStore
+
+  function createRequestStore(): RequestStore {
+    return {
+      controller: null,
+      defaultState: {
+        data: undefined,
+        error: undefined,
+        loading: false
+      },
+      lastArg: undefined,
+      requestStates: new Map(),
+      scopeStates: new Map()
+    }
+  }
 
   function resolveRequestKey(arg: unknown) {
     const scope =
@@ -59,37 +89,98 @@ const meNotesRequestHarness = vi.hoisted(() => {
     }
   }
 
+  function resolveStore(kind: RequestKind) {
+    return kind === 'created' ? createdStore : favoritesStore
+  }
+
+  function applyStateToController(store: RequestStore, state: RequestState) {
+    if (!store.controller) {
+      return
+    }
+
+    store.controller.data.value = state.data
+    store.controller.error.value = state.error
+    store.controller.loading.value = state.loading
+  }
+
+  function updateStore(
+    store: RequestStore,
+    target: 'default' | 'scope' | 'request',
+    next: { data?: unknown; error?: unknown; loading?: boolean },
+    options?: { limit?: number; page?: number; scope?: string }
+  ) {
+    if (target === 'default') {
+      store.defaultState = {
+        data: 'data' in next ? next.data : store.defaultState.data,
+        error: 'error' in next ? next.error : store.defaultState.error,
+        loading: 'loading' in next ? next.loading ?? false : store.defaultState.loading
+      }
+      applyStateToController(store, store.defaultState)
+      return
+    }
+
+    if (target === 'scope' && options?.scope) {
+      const previous = store.scopeStates.get(options.scope) ?? store.defaultState
+      store.scopeStates.set(options.scope, {
+        data: 'data' in next ? next.data : previous.data,
+        error: 'error' in next ? next.error : previous.error,
+        loading: 'loading' in next ? next.loading ?? false : previous.loading
+      })
+      return
+    }
+
+    if (
+      target === 'request' &&
+      options?.scope &&
+      typeof options.page === 'number' &&
+      typeof options.limit === 'number'
+    ) {
+      const key = `${options.scope}:${options.page}:${options.limit}`
+      const previous =
+        store.requestStates.get(key) ??
+        store.scopeStates.get(options.scope) ??
+        store.defaultState
+
+      store.requestStates.set(key, {
+        data: 'data' in next ? next.data : previous.data,
+        error: 'error' in next ? next.error : previous.error,
+        loading: 'loading' in next ? next.loading ?? false : previous.loading
+      })
+    }
+  }
+
   return {
     reset() {
-      data = { value: undefined }
-      error = { value: undefined }
-      loading = { value: false }
-      lastArg = undefined
-      defaultState = {
-        data: undefined,
-        error: undefined,
-        loading: false
-      }
-      scopeStates = new Map()
-      requestStates = new Map()
+      invocation = 0
+      createdStore = createRequestStore()
+      favoritesStore = createRequestStore()
     },
     useRequestFactory(refFactory: typeof import('vue').ref) {
       return () => {
-        data = refFactory()
-        error = refFactory()
-        loading = refFactory(false)
+        const kind: RequestKind = invocation === 0 ? 'created' : 'favorites'
+        invocation += 1
+        const store = resolveStore(kind)
+        const data = refFactory()
+        const error = refFactory()
+        const loading = refFactory(false)
+
+        store.controller = {
+          data,
+          error,
+          loading
+        }
 
         return {
           data,
           error,
           loading,
           send(arg: unknown) {
-            lastArg = arg
+            store.lastArg = arg
             const { key, scope } = resolveRequestKey(arg)
             const scopedState =
-              requestStates.get(key) ??
-              scopeStates.get(scope) ??
-              defaultState
+              store.requestStates.get(key) ??
+              store.scopeStates.get(scope) ??
+              store.defaultState
 
             data.value = scopedState.data
             error.value = scopedState.error
@@ -106,25 +197,10 @@ const meNotesRequestHarness = vi.hoisted(() => {
       }
     },
     update(next: { data?: unknown; error?: unknown; loading?: boolean }) {
-      defaultState = {
-        data: 'data' in next ? next.data : defaultState.data,
-        error: 'error' in next ? next.error : defaultState.error,
-        loading: 'loading' in next ? next.loading ?? false : defaultState.loading
-      }
-
-      data.value = defaultState.data
-      error.value = defaultState.error
-      loading.value = defaultState.loading
+      updateStore(createdStore, 'default', next)
     },
     updateForScope(scope: string, next: { data?: unknown; error?: unknown; loading?: boolean }) {
-      const previous = scopeStates.get(scope) ?? defaultState
-      const nextState = {
-        data: 'data' in next ? next.data : previous.data,
-        error: 'error' in next ? next.error : previous.error,
-        loading: 'loading' in next ? next.loading ?? false : previous.loading
-      }
-
-      scopeStates.set(scope, nextState)
+      updateStore(createdStore, 'scope', next, { scope })
     },
     updateForRequest(
       scope: string,
@@ -132,21 +208,27 @@ const meNotesRequestHarness = vi.hoisted(() => {
       limit: number,
       next: { data?: unknown; error?: unknown; loading?: boolean }
     ) {
-      const key = `${scope}:${page}:${limit}`
-      const previous =
-        requestStates.get(key) ??
-        scopeStates.get(scope) ??
-        defaultState
-      const nextState = {
-        data: 'data' in next ? next.data : previous.data,
-        error: 'error' in next ? next.error : previous.error,
-        loading: 'loading' in next ? next.loading ?? false : previous.loading
-      }
-
-      requestStates.set(key, nextState)
+      updateStore(createdStore, 'request', next, { scope, page, limit })
+    },
+    updateFavoritesForScope(
+      scope: string,
+      next: { data?: unknown; error?: unknown; loading?: boolean }
+    ) {
+      updateStore(favoritesStore, 'scope', next, { scope })
+    },
+    updateFavoritesForRequest(
+      scope: string,
+      page: number,
+      limit: number,
+      next: { data?: unknown; error?: unknown; loading?: boolean }
+    ) {
+      updateStore(favoritesStore, 'request', next, { scope, page, limit })
     },
     getLastArg() {
-      return lastArg
+      return createdStore.lastArg
+    },
+    getFavoritesLastArg() {
+      return favoritesStore.lastArg
     }
   }
 })
@@ -339,6 +421,23 @@ describe('auth status pill', () => {
       },
       loading: false
     })
+    meNotesRequestHarness.updateFavoritesForScope('user:1001', {
+      data: {
+        items: [
+          {
+            sid: 'shared123',
+            preview: '我收藏的一条便签',
+            updatedAt: '2026-04-08T10:00:00.000Z',
+            favoritedAt: '2026-04-09T09:00:00.000Z'
+          }
+        ],
+        page: 1,
+        limit: 20,
+        total: 1,
+        hasMore: false
+      },
+      loading: false
+    })
 
     const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
     await trigger.trigger('click')
@@ -346,7 +445,15 @@ describe('auth status pill', () => {
 
     await wrapper.get('[data-testid="user-center-tab-favorites"]').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('我的收藏稍后接入')
+    expect(meNotesRequestHarness.getFavoritesLastArg()).toEqual({
+      query: {
+        page: 1,
+        limit: 20
+      },
+      cacheScope: 'user:1001'
+    })
+    expect(wrapper.text()).toContain('shared123')
+    expect(wrapper.text()).toContain('我收藏的一条便签')
 
     const closeButton = wrapper
       .findAll('button')
@@ -359,7 +466,60 @@ describe('auth status pill', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('owned123')
-    expect(wrapper.text()).not.toContain('我的收藏稍后接入')
+    expect(wrapper.text()).not.toContain('shared123')
+  })
+
+  it('navigates to a favorite note from the modal and keeps object-level return semantics', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+    meNotesRequestHarness.updateFavoritesForScope('user:1001', {
+      data: {
+        items: [
+          {
+            sid: 'shared123',
+            preview: '我收藏的一条便签',
+            updatedAt: '2026-04-08T10:00:00.000Z',
+            favoritedAt: '2026-04-09T09:00:00.000Z'
+          }
+        ],
+        page: 1,
+        limit: 20,
+        total: 1,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="user-center-tab-favorites"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="user-center-open-favorite-shared123"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/note/o/shared123')
+    expect(document.activeElement).not.toBe(trigger.element)
   })
 
   it('returns focus to the trigger when the user center closes without navigation', async () => {

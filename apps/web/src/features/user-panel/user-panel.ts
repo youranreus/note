@@ -1,4 +1,7 @@
-import type { MyNotesResponseDto } from '@note/shared-types'
+import type {
+  MyFavoritesResponseDto,
+  MyNotesResponseDto
+} from '@note/shared-types'
 
 export function isMyNotesResponseDto(value: unknown): value is MyNotesResponseDto {
   if (!value || typeof value !== 'object') {
@@ -16,7 +19,26 @@ export function isMyNotesResponseDto(value: unknown): value is MyNotesResponseDt
   )
 }
 
-export function resolveUserPanelErrorMessage(error: unknown) {
+export function isMyFavoritesResponseDto(value: unknown): value is MyFavoritesResponseDto {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as Partial<MyFavoritesResponseDto>
+
+  return (
+    Array.isArray(candidate.items) &&
+    typeof candidate.page === 'number' &&
+    typeof candidate.limit === 'number' &&
+    typeof candidate.total === 'number' &&
+    typeof candidate.hasMore === 'boolean'
+  )
+}
+
+export function resolveUserPanelErrorMessage(
+  error: unknown,
+  fallback = '读取我的创建失败，请稍后重试。'
+) {
   if (
     error &&
     typeof error === 'object' &&
@@ -32,7 +54,7 @@ export function resolveUserPanelErrorMessage(error: unknown) {
     return error.response.data.message
   }
 
-  return '读取我的创建失败，请稍后重试。'
+  return fallback
 }
 
 export function isUnauthorizedUserPanelError(error: unknown) {
@@ -61,4 +83,14 @@ export function formatUserPanelUpdatedAt(updatedAt: string) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(parsedDate)
+}
+
+export function formatUserPanelFavoritedAt(favoritedAt: string) {
+  const formattedValue = formatUserPanelUpdatedAt(favoritedAt)
+
+  if (formattedValue === '更新时间未知') {
+    return '收藏时间未知'
+  }
+
+  return `收藏于 ${formattedValue}`
 }

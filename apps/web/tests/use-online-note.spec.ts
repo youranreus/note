@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invalidateMyNotesCacheForUserMock = vi.hoisted(() => vi.fn())
+const invalidateMyFavoritesCacheForUserMock = vi.hoisted(() => vi.fn())
 
 const requestHarness = vi.hoisted(() => {
   type Deferred<T> = {
@@ -195,6 +196,7 @@ vi.mock('../src/services/favorite-methods', () => {
 
 vi.mock('../src/services/me-methods', () => {
   return {
+    invalidateMyFavoritesCacheForUser: invalidateMyFavoritesCacheForUserMock,
     invalidateMyNotesCacheForUser: invalidateMyNotesCacheForUserMock
   }
 })
@@ -213,6 +215,7 @@ describe('useOnlineNote', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     requestHarness.reset()
+    invalidateMyFavoritesCacheForUserMock.mockReset()
     invalidateMyNotesCacheForUserMock.mockReset()
     vi.restoreAllMocks()
   })
@@ -945,5 +948,6 @@ describe('useOnlineNote', () => {
       favoriteState: 'favorited'
     })
     expect(note.primaryFeedback.value?.title).toBe('已收藏当前在线便签')
+    expect(invalidateMyFavoritesCacheForUserMock).toHaveBeenCalledWith('1001')
   })
 })

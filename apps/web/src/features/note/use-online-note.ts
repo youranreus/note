@@ -5,7 +5,10 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { NoteWriteErrorCode, OnlineNoteSaveRequestDto } from '@note/shared-types'
 
 import { createFavoriteNoteMethod } from '@/services/favorite-methods'
-import { invalidateMyNotesCacheForUser } from '@/services/me-methods'
+import {
+  invalidateMyFavoritesCacheForUser,
+  invalidateMyNotesCacheForUser
+} from '@/services/me-methods'
 import {
   createGetOnlineNoteDetailMethod,
   createSaveOnlineNoteMethod
@@ -388,6 +391,11 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       }
 
       favoriteFeedback.value = createOnlineNoteFavoriteSuccessFeedback()
+
+      if (authStore.status === 'authenticated') {
+        invalidateMyFavoritesCacheForUser(authStore.user?.id)
+      }
+
       const latestNote = resolveCurrentReadableNote(currentSid)
 
       if (latestNote) {

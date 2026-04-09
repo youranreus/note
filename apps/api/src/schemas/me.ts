@@ -42,6 +42,30 @@ export const myNotesResponseSchema = {
   }
 } as const
 
+export const myFavoritesResponseSchema = {
+  type: 'object',
+  required: ['items', 'page', 'limit', 'total', 'hasMore'],
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['sid', 'preview', 'updatedAt', 'favoritedAt'],
+        properties: {
+          sid: { type: 'string' },
+          preview: { type: 'string' },
+          updatedAt: { type: 'string' },
+          favoritedAt: { type: 'string' }
+        }
+      }
+    },
+    page: { type: 'integer' },
+    limit: { type: 'integer' },
+    total: { type: 'integer' },
+    hasMore: { type: 'boolean' }
+  }
+} as const
+
 export const meErrorSchema = {
   type: 'object',
   required: ['code', 'status', 'message'],

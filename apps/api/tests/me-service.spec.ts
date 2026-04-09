@@ -36,6 +36,12 @@ describe('me service', () => {
           total: 0
         }
       },
+      async getFavoriteNotesPage() {
+        return {
+          rows: [],
+          total: 0
+        }
+      },
       async transaction(callback) {
         return callback({
           async $queryRawUnsafe<T = unknown>(_query: string, ..._values: unknown[]) {
@@ -150,6 +156,12 @@ describe('me service', () => {
           total: 0
         }
       },
+      async getFavoriteNotesPage() {
+        return {
+          rows: [],
+          total: 0
+        }
+      },
       async transaction(callback) {
         return callback(transactionClient)
       }
@@ -219,5 +231,119 @@ describe('me service', () => {
 
     expect(lookupQuery).toContain('WHERE author_id = ? AND deleted_at IS NULL')
     expect(lookupQuery).toContain('ORDER BY updated_at DESC, id DESC')
+  })
+
+  it('maps favorite relation timestamps separately from note update timestamps', async () => {
+    let ensuredUserId: bigint | null = null
+    let receivedUserId = 0
+    const transactionClient: PrismaTransactionalClientLike = {
+      async $queryRawUnsafe<T = unknown>(_query: string, ..._values: unknown[]) {
+        return [] as T
+      },
+      async $executeRawUnsafe(_query: string, ..._values: unknown[]) {
+        return 0
+      }
+    }
+    const repository: MeRepository = {
+      async getCreatedNotesPage() {
+        return {
+          rows: [],
+          total: 0
+        }
+      },
+      async getFavoriteNotesPage(userId) {
+        receivedUserId = Number(userId)
+
+        return {
+          rows: [
+            {
+              noteId: 41,
+              sid: 'shared123',
+              content: '收藏正文',
+              updatedAt: '2026-04-09T09:00:00.000Z',
+              favoritedAt: '2026-04-08T08:30:00.000Z'
+            }
+          ],
+          total: 1
+        }
+      },
+      async transaction(callback) {
+        return callback(transactionClient)
+      }
+    }
+    const service = createMeService(repository, {
+      async ensureBySsoId(ssoId) {
+        ensuredUserId = ssoId
+
+        return {
+          id: 88,
+          ssoId
+        }
+      },
+      async findBySsoId() {
+        throw new Error('me service should not call findBySsoId')
+      }
+    })
+
+    await expect(service.getMyFavorites(undefined, createSession())).resolves.toEqual({
+      status: 'success',
+      response: {
+        items: [
+          {
+            sid: 'shared123',
+            preview: '收藏正文',
+            updatedAt: '2026-04-09T09:00:00.000Z',
+            favoritedAt: '2026-04-08T08:30:00.000Z'
+          }
+        ],
+        page: 1,
+        limit: 20,
+        total: 1,
+        hasMore: false
+      }
+    })
+    expect(ensuredUserId).toBe(1001n)
+    expect(receivedUserId).toBe(88)
+  })
+
+  it('keeps deleted filtering and favorite-recency sort in the favorites lookup query', async () => {
+    let lookupQuery = ''
+    const transactionClient: FakeTransactionClient = {
+      async $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]) {
+        if (sql.includes('favorite.created_at AS favoritedAt')) {
+          lookupQuery = sql
+          expect(values).toEqual(['7', 20, 0])
+          return [] as T
+        }
+
+        return [{ total: 0 }] as T
+      },
+      async $executeRawUnsafe() {
+        throw new Error('me repository should not execute raw writes')
+      }
+    }
+    const prismaClient = {
+      async $queryRawUnsafe<T = unknown>(_query: string, ..._values: unknown[]) {
+        return [] as T
+      },
+      async $executeRawUnsafe(_query: string, ..._values: unknown[]) {
+        throw new Error('me repository should not execute raw writes')
+      },
+      async $transaction<T>(
+        callback: (nextTransactionClient: FakeTransactionClient) => Promise<T>
+      ) {
+        return callback(transactionClient)
+      }
+    }
+    const repository = createPrismaMeRepository({
+      getPrismaClient: async () => prismaClient
+    })
+
+    await repository.getFavoriteNotesPage(7, 1, 20)
+
+    expect(lookupQuery).toContain('FROM note_favorites AS favorite')
+    expect(lookupQuery).toContain('INNER JOIN notes ON notes.id = favorite.note_id')
+    expect(lookupQuery).toContain('notes.deleted_at IS NULL')
+    expect(lookupQuery).toContain('ORDER BY favorite.created_at DESC, favorite.note_id DESC')
   })
 })

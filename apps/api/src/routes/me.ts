@@ -5,6 +5,7 @@ import type { MyNotesQueryDto } from '@note/shared-types'
 import { createModuleScopeMessage } from '../services/module-shell-service.js'
 import {
   meErrorSchema,
+  myFavoritesResponseSchema,
   myNotesQuerySchema,
   myNotesResponseSchema
 } from '../schemas/me.js'
@@ -43,6 +44,29 @@ export const meRoutes: FastifyPluginAsync<MeRoutesOptions> = async (app, options
     async (request, reply) => {
       const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
       const result = await meService.getMyNotes(request.query, session)
+
+      if (result.status === 'unauthorized') {
+        return reply.status(401).send(result.error)
+      }
+
+      return result.response
+    }
+  )
+
+  app.get<{ Querystring: MyNotesQueryDto }>(
+    '/favorites',
+    {
+      schema: {
+        querystring: myNotesQuerySchema,
+        response: {
+          200: myFavoritesResponseSchema,
+          401: meErrorSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
+      const result = await meService.getMyFavorites(request.query, session)
 
       if (result.status === 'unauthorized') {
         return reply.status(401).send(result.error)

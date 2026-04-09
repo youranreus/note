@@ -181,6 +181,21 @@ export interface MyNotesResponseDto {
   hasMore: boolean
 }
 
+export interface MyFavoriteSummaryDto {
+  sid: string
+  preview: string
+  updatedAt: string
+  favoritedAt: string
+}
+
+export interface MyFavoritesResponseDto {
+  items: MyFavoriteSummaryDto[]
+  page: number
+  limit: number
+  total: number
+  hasMore: boolean
+}
+
 export interface MeErrorDto {
   code: MeErrorCode
   status: MeErrorStatus

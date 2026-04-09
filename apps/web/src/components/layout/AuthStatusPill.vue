@@ -23,10 +23,19 @@ const {
   createdNotes,
   createdPage,
   createdTotal,
+  browseNotes,
   closeUserCenter,
+  favoriteErrorMessage,
+  favoriteHasMore,
+  favoriteLoading,
+  favoriteLoadingMore,
+  favoriteNotes,
+  favoritePage,
+  favoriteTotal,
   goCreateFirstNote,
   loadMoreCreatedNotes,
-  openCreatedNote,
+  loadMoreFavoriteNotes,
+  openNote,
   openUserCenter,
   selectTab,
   userCenterOpen
@@ -43,7 +52,7 @@ const triggerLabel = computed(() => {
 
 const triggerDescription = computed(() => {
   if (status.value === 'authenticated') {
-    return userCenterOpen.value ? '个人中心已打开' : '打开个人中心查看我的创建'
+    return userCenterOpen.value ? '个人中心已打开' : '打开个人中心查看我的创建与收藏'
   }
 
   return description.value
@@ -95,9 +104,9 @@ async function handleUserCenterClose() {
   triggerRef.value?.focus()
 }
 
-async function handleOpenCreatedNote(sid: string) {
+async function handleOpenNote(sid: string) {
   const previousPath = router.currentRoute.value.fullPath
-  await openCreatedNote(sid)
+  await openNote(sid)
   await nextTick()
 
   if (router.currentRoute.value.fullPath === previousPath) {
@@ -108,6 +117,16 @@ async function handleOpenCreatedNote(sid: string) {
 async function handleCreateFirstNote() {
   const previousPath = router.currentRoute.value.fullPath
   await goCreateFirstNote()
+  await nextTick()
+
+  if (router.currentRoute.value.fullPath === previousPath) {
+    triggerRef.value?.focus()
+  }
+}
+
+async function handleBrowseNotes() {
+  const previousPath = router.currentRoute.value.fullPath
+  await browseNotes()
   await nextTick()
 
   if (router.currentRoute.value.fullPath === previousPath) {
@@ -151,11 +170,20 @@ async function handleCreateFirstNote() {
       :created-notes="createdNotes"
       :created-page="createdPage"
       :created-total="createdTotal"
+      :favorite-error-message="favoriteErrorMessage"
+      :favorite-has-more="favoriteHasMore"
+      :favorite-loading="favoriteLoading"
+      :favorite-loading-more="favoriteLoadingMore"
+      :favorite-notes="favoriteNotes"
+      :favorite-page="favoritePage"
+      :favorite-total="favoriteTotal"
       :open="userCenterOpen"
+      @browse-notes="handleBrowseNotes"
       @close="handleUserCenterClose"
       @create-first-note="handleCreateFirstNote"
       @load-more-created="loadMoreCreatedNotes"
-      @open-note="handleOpenCreatedNote"
+      @load-more-favorites="loadMoreFavoriteNotes"
+      @open-note="handleOpenNote"
       @select-tab="selectTab"
     />
   </div>

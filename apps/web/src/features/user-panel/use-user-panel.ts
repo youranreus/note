@@ -4,15 +4,20 @@ import { computed, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type {
+  MyFavoriteSummaryDto,
   MyNoteSummaryDto,
   MyNotesQueryDto,
   UserPanelTab
 } from '@note/shared-types'
 
-import { createGetMyNotesMethod } from '@/services/me-methods'
+import {
+  createGetMyFavoritesMethod,
+  createGetMyNotesMethod
+} from '@/services/me-methods'
 import { useAuthStore } from '@/stores/auth-store'
 
 import {
+  isMyFavoritesResponseDto,
   isMyNotesResponseDto,
   isUnauthorizedUserPanelError,
   resolveUserPanelErrorMessage
@@ -29,6 +34,7 @@ interface LoadCreatedNotesPayload {
 }
 
 type CreatedFetchMode = 'replace' | 'append'
+type FavoriteFetchMode = 'replace' | 'append'
 
 export function useUserPanel() {
   const router = useRouter()
@@ -55,6 +61,25 @@ export function useUserPanel() {
       immediate: false
     }
   )
+  const favoriteItems = shallowRef<MyFavoriteSummaryDto[]>([])
+  const favoritePage = shallowRef(defaultMyNotesQuery.page)
+  const favoriteTotal = shallowRef(0)
+  const favoriteHasMore = shallowRef(false)
+  const favoriteLoadingMode = shallowRef<FavoriteFetchMode | null>(null)
+  const favoriteErrorMessage = shallowRef('')
+  const favoriteRequestToken = shallowRef(0)
+  const favoriteCacheScope = computed(() =>
+    status.value === 'authenticated' && user.value?.id
+      ? `user:${user.value.id}`
+      : status.value
+  )
+  const favoriteRequest = useRequest(
+    ({ query = defaultMyNotesQuery, cacheScope }: LoadCreatedNotesPayload) =>
+      createGetMyFavoritesMethod(query, cacheScope),
+    {
+      immediate: false
+    }
+  )
 
   const createdNotes = computed(() => createdItems.value)
   const createdLoading = computed(() =>
@@ -67,6 +92,17 @@ export function useUserPanel() {
     createdLoadingMode.value === 'append' &&
     createdNotes.value.length > 0
   )
+  const favoriteNotes = computed(() => favoriteItems.value)
+  const favoriteLoading = computed(() =>
+    favoriteRequest.loading.value &&
+    favoriteLoadingMode.value === 'replace' &&
+    favoriteNotes.value.length === 0
+  )
+  const favoriteLoadingMore = computed(() =>
+    favoriteRequest.loading.value &&
+    favoriteLoadingMode.value === 'append' &&
+    favoriteNotes.value.length > 0
+  )
 
   function invalidateCreatedRequests() {
     createdRequestToken.value += 1
@@ -78,6 +114,16 @@ export function useUserPanel() {
     void Promise.resolve(createdRequest.abort()).catch(() => undefined)
   }
 
+  function invalidateFavoriteRequests() {
+    favoriteRequestToken.value += 1
+    favoriteLoadingMode.value = null
+  }
+
+  function closeFavoriteRequest() {
+    invalidateFavoriteRequests()
+    void Promise.resolve(favoriteRequest.abort()).catch(() => undefined)
+  }
+
   function resetCreatedState() {
     createdItems.value = []
     createdPage.value = defaultMyNotesQuery.page
@@ -87,12 +133,30 @@ export function useUserPanel() {
     createdLoadingMode.value = null
   }
 
+  function resetFavoriteState() {
+    favoriteItems.value = []
+    favoritePage.value = defaultMyNotesQuery.page
+    favoriteTotal.value = 0
+    favoriteHasMore.value = false
+    favoriteErrorMessage.value = ''
+    favoriteLoadingMode.value = null
+  }
+
   function shouldApplyCreatedResponse(requestToken: number, requestScope: string) {
     return (
       requestToken === createdRequestToken.value &&
       requestScope === createdCacheScope.value &&
       userCenterOpen.value &&
       activeTab.value === 'created'
+    )
+  }
+
+  function shouldApplyFavoriteResponse(requestToken: number, requestScope: string) {
+    return (
+      requestToken === favoriteRequestToken.value &&
+      requestScope === favoriteCacheScope.value &&
+      userCenterOpen.value &&
+      activeTab.value === 'favorites'
     )
   }
 
@@ -182,11 +246,102 @@ export function useUserPanel() {
     createdLoadingMode.value = null
   }
 
+  async function loadFavoriteNotes(
+    page = defaultMyNotesQuery.page,
+    mode: FavoriteFetchMode = 'replace'
+  ) {
+    closeFavoriteRequest()
+
+    const requestScope = favoriteCacheScope.value
+    const requestToken = favoriteRequestToken.value
+    const previousItems = favoriteItems.value
+    const previousPage = favoritePage.value
+    const previousTotal = favoriteTotal.value
+    const previousHasMore = favoriteHasMore.value
+
+    favoriteErrorMessage.value = ''
+    favoriteLoadingMode.value = mode
+
+    if (mode === 'replace') {
+      favoritePage.value = page
+      favoriteHasMore.value = false
+    }
+
+    const response = await favoriteRequest.send({
+      query: {
+        ...defaultMyNotesQuery,
+        page
+      },
+      cacheScope: requestScope
+    }).catch((error: unknown) => {
+      if (!shouldApplyFavoriteResponse(requestToken, requestScope)) {
+        return null
+      }
+
+      if (isUnauthorizedUserPanelError(error)) {
+        authStore.setAnonymous()
+        return null
+      }
+
+      if (mode === 'replace') {
+        favoriteItems.value = []
+        favoritePage.value = defaultMyNotesQuery.page
+        favoriteTotal.value = 0
+        favoriteHasMore.value = false
+      } else {
+        favoriteItems.value = previousItems
+        favoritePage.value = previousPage
+        favoriteTotal.value = previousTotal
+        favoriteHasMore.value = previousHasMore
+      }
+
+      favoriteErrorMessage.value = resolveUserPanelErrorMessage(
+        error,
+        '读取我的收藏失败，请稍后重试。'
+      )
+      favoriteLoadingMode.value = null
+      return null
+    })
+
+    if (!shouldApplyFavoriteResponse(requestToken, requestScope)) {
+      return
+    }
+
+    if (!isMyFavoritesResponseDto(response)) {
+      if (mode === 'replace') {
+        favoriteItems.value = []
+        favoritePage.value = defaultMyNotesQuery.page
+        favoriteTotal.value = 0
+        favoriteHasMore.value = false
+      } else {
+        favoriteItems.value = previousItems
+        favoritePage.value = previousPage
+        favoriteTotal.value = previousTotal
+        favoriteHasMore.value = previousHasMore
+      }
+
+      favoriteErrorMessage.value = '读取我的收藏失败，请稍后重试。'
+      favoriteLoadingMode.value = null
+      return
+    }
+
+    favoriteItems.value =
+      mode === 'append'
+        ? [...previousItems, ...response.items]
+        : response.items
+    favoritePage.value = response.page
+    favoriteTotal.value = response.total
+    favoriteHasMore.value = response.hasMore
+    favoriteLoadingMode.value = null
+  }
+
   function resetUserPanelState() {
     userCenterOpen.value = false
     activeTab.value = 'created'
     closeCreatedRequest()
+    closeFavoriteRequest()
     resetCreatedState()
+    resetFavoriteState()
   }
 
   function openUserCenter() {
@@ -196,8 +351,7 @@ export function useUserPanel() {
   }
 
   function closeUserCenter() {
-    userCenterOpen.value = false
-    closeCreatedRequest()
+    resetUserPanelState()
   }
 
   function selectTab(tab: UserPanelTab) {
@@ -209,6 +363,13 @@ export function useUserPanel() {
     }
 
     closeCreatedRequest()
+
+    if (tab === 'favorites' && userCenterOpen.value) {
+      void loadFavoriteNotes()
+      return
+    }
+
+    closeFavoriteRequest()
   }
 
   function loadMoreCreatedNotes() {
@@ -225,7 +386,21 @@ export function useUserPanel() {
     void loadCreatedNotes(createdPage.value + 1, 'append')
   }
 
-  async function openCreatedNote(sid: string) {
+  function loadMoreFavoriteNotes() {
+    if (
+      !userCenterOpen.value ||
+      activeTab.value !== 'favorites' ||
+      favoriteLoading.value ||
+      favoriteLoadingMore.value ||
+      !favoriteHasMore.value
+    ) {
+      return
+    }
+
+    void loadFavoriteNotes(favoritePage.value + 1, 'append')
+  }
+
+  async function openNote(sid: string) {
     closeUserCenter()
     await router.push(`/note/o/${encodeURIComponent(sid)}`)
   }
@@ -235,7 +410,18 @@ export function useUserPanel() {
     await router.push('/')
   }
 
+  async function browseNotes() {
+    closeUserCenter()
+    await router.push('/')
+  }
+
   watch(createdCacheScope, (nextScope, previousScope) => {
+    if (nextScope !== previousScope) {
+      resetUserPanelState()
+    }
+  })
+
+  watch(favoriteCacheScope, (nextScope, previousScope) => {
     if (nextScope !== previousScope) {
       resetUserPanelState()
     }
@@ -250,10 +436,19 @@ export function useUserPanel() {
     createdNotes,
     createdPage,
     createdTotal,
+    browseNotes,
     closeUserCenter,
+    favoriteErrorMessage,
+    favoriteHasMore,
+    favoriteLoading,
+    favoriteLoadingMore,
+    favoriteNotes,
+    favoritePage,
+    favoriteTotal,
     goCreateFirstNote,
     loadMoreCreatedNotes,
-    openCreatedNote,
+    loadMoreFavoriteNotes,
+    openNote,
     openUserCenter,
     selectTab,
     userCenterOpen
