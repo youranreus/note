@@ -4,6 +4,8 @@ import { nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const invalidateMyNotesCacheForUserMock = vi.hoisted(() => vi.fn())
+
 const requestHarness = vi.hoisted(() => {
   type Deferred<T> = {
     promise: Promise<T>
@@ -191,6 +193,12 @@ vi.mock('../src/services/favorite-methods', () => {
   }
 })
 
+vi.mock('../src/services/me-methods', () => {
+  return {
+    invalidateMyNotesCacheForUser: invalidateMyNotesCacheForUserMock
+  }
+})
+
 import { useOnlineNote } from '../src/features/note/use-online-note'
 import { useAuthStore } from '../src/stores/auth-store'
 
@@ -205,6 +213,7 @@ describe('useOnlineNote', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     requestHarness.reset()
+    invalidateMyNotesCacheForUserMock.mockReset()
     vi.restoreAllMocks()
   })
 
@@ -403,6 +412,46 @@ describe('useOnlineNote', () => {
       sid: 'beta123'
     })
     expect(note.draftContent.value).toBe('')
+  })
+
+  it('invalidates the created-notes cache after an authenticated save succeeds', async () => {
+    const sid = ref('owned123')
+    const note = useOnlineNote(sid)
+    const authStore = useAuthStore()
+
+    authStore.setAuthenticated({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Owner'
+      }
+    })
+
+    requestHarness.resolveRead({
+      sid: 'owned123',
+      content: '旧正文。',
+      status: 'available',
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned'
+    })
+    await flushState()
+
+    note.draftContent.value = '更新后的正文。'
+    const savePromise = note.saveNote()
+
+    requestHarness.resolveSave({
+      sid: 'owned123',
+      content: '更新后的正文。',
+      status: 'available',
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned',
+      saveResult: 'updated'
+    })
+
+    await savePromise
+    await flushState()
+
+    expect(invalidateMyNotesCacheForUserMock).toHaveBeenCalledWith('1001')
   })
 
   it('copies the stable online note link and exposes a success feedback message', async () => {

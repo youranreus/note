@@ -13,7 +13,11 @@ function mountUserCenterModal(
       open: true,
       activeTab: 'created',
       createdNotes: [],
+      createdPage: 1,
+      createdTotal: 0,
+      createdHasMore: false,
       createdLoading: false,
+      createdLoadingMore: false,
       createdErrorMessage: '',
       ...overrides
     }
@@ -60,5 +64,27 @@ describe('user center modal', () => {
     await createdTab.trigger('keydown', { key: 'ArrowRight' })
 
     expect(wrapper.emitted('selectTab')).toEqual([['favorites']])
+  })
+
+  it('renders pagination progress and emits load-more for additional created notes', async () => {
+    const wrapper = mountUserCenterModal({
+      createdNotes: [
+        {
+          sid: 'alpha123',
+          preview: '第一页便签摘要',
+          updatedAt: '2026-04-07T10:00:00.000Z'
+        }
+      ],
+      createdPage: 1,
+      createdTotal: 21,
+      createdHasMore: true
+    })
+
+    expect(wrapper.text()).toContain('当前已显示 1 / 21 条创建记录')
+    expect(wrapper.text()).toContain('当前页为第 1 页')
+
+    await wrapper.get('[data-testid="user-center-load-more"]').trigger('click')
+
+    expect(wrapper.emitted('loadMoreCreated')).toHaveLength(1)
   })
 })

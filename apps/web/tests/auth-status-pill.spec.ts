@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
+import { nextTick } from 'vue'
 
 import type { SessionResponseDto } from '@note/shared-types'
 
@@ -21,6 +22,42 @@ const meNotesRequestHarness = vi.hoisted(() => {
   let lastArg: unknown
   let defaultState: { data: unknown; error: unknown; loading: boolean }
   let scopeStates: Map<string, { data: unknown; error: unknown; loading: boolean }>
+  let requestStates: Map<string, { data: unknown; error: unknown; loading: boolean }>
+
+  function resolveRequestKey(arg: unknown) {
+    const scope =
+      arg &&
+      typeof arg === 'object' &&
+      'cacheScope' in arg &&
+      typeof arg.cacheScope === 'string'
+        ? arg.cacheScope
+        : 'default'
+    const page =
+      arg &&
+      typeof arg === 'object' &&
+      'query' in arg &&
+      arg.query &&
+      typeof arg.query === 'object' &&
+      'page' in arg.query &&
+      typeof arg.query.page === 'number'
+        ? arg.query.page
+        : 1
+    const limit =
+      arg &&
+      typeof arg === 'object' &&
+      'query' in arg &&
+      arg.query &&
+      typeof arg.query === 'object' &&
+      'limit' in arg.query &&
+      typeof arg.query.limit === 'number'
+        ? arg.query.limit
+        : 20
+
+    return {
+      scope,
+      key: `${scope}:${page}:${limit}`
+    }
+  }
 
   return {
     reset() {
@@ -34,6 +71,7 @@ const meNotesRequestHarness = vi.hoisted(() => {
         loading: false
       }
       scopeStates = new Map()
+      requestStates = new Map()
     },
     useRequestFactory(refFactory: typeof import('vue').ref) {
       return () => {
@@ -47,14 +85,11 @@ const meNotesRequestHarness = vi.hoisted(() => {
           loading,
           send(arg: unknown) {
             lastArg = arg
-            const scope =
-              arg &&
-              typeof arg === 'object' &&
-              'cacheScope' in arg &&
-              typeof arg.cacheScope === 'string'
-                ? arg.cacheScope
-                : 'default'
-            const scopedState = scopeStates.get(scope) ?? defaultState
+            const { key, scope } = resolveRequestKey(arg)
+            const scopedState =
+              requestStates.get(key) ??
+              scopeStates.get(scope) ??
+              defaultState
 
             data.value = scopedState.data
             error.value = scopedState.error
@@ -90,6 +125,25 @@ const meNotesRequestHarness = vi.hoisted(() => {
       }
 
       scopeStates.set(scope, nextState)
+    },
+    updateForRequest(
+      scope: string,
+      page: number,
+      limit: number,
+      next: { data?: unknown; error?: unknown; loading?: boolean }
+    ) {
+      const key = `${scope}:${page}:${limit}`
+      const previous =
+        requestStates.get(key) ??
+        scopeStates.get(scope) ??
+        defaultState
+      const nextState = {
+        data: 'data' in next ? next.data : previous.data,
+        error: 'error' in next ? next.error : previous.error,
+        loading: 'loading' in next ? next.loading ?? false : previous.loading
+      }
+
+      requestStates.set(key, nextState)
     },
     getLastArg() {
       return lastArg
@@ -255,7 +309,7 @@ describe('auth status pill', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/note/o/owned123')
-    expect(document.activeElement).toBe(trigger.element)
+    expect(document.activeElement).not.toBe(trigger.element)
   })
 
   it('reopens the user center on 我的创建 after visiting favorites', async () => {
@@ -306,6 +360,46 @@ describe('auth status pill', () => {
 
     expect(wrapper.text()).toContain('owned123')
     expect(wrapper.text()).not.toContain('我的收藏稍后接入')
+  })
+
+  it('returns focus to the trigger when the user center closes without navigation', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const closeButton = wrapper
+      .findAll('button')
+      .find((candidate) => candidate.text() === '关闭个人中心')
+    expect(closeButton).toBeDefined()
+
+    ;(closeButton!.element as HTMLButtonElement).focus()
+    await closeButton!.trigger('click')
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
+
+    expect(document.activeElement).toBe(trigger.element)
   })
 
   it('clears created notes when the authenticated user changes', async () => {
@@ -369,5 +463,158 @@ describe('auth status pill', () => {
       },
       cacheScope: 'user:2002'
     })
+  })
+
+  it('navigates to the home route from the empty-state CTA without forcing focus back to the trigger', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="user-center-create-first-note"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/')
+    expect(document.activeElement).not.toBe(trigger.element)
+  })
+
+  it('shows an inline error instead of an empty state for malformed my-notes payloads', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        invalid: true
+      },
+      loading: false
+    })
+
+    await wrapper.get('[data-testid="auth-status-pill-trigger"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('暂时无法读取我的创建')
+    expect(wrapper.text()).toContain('读取我的创建失败，请稍后重试。')
+    expect(wrapper.text()).not.toContain('你还没有创建过在线便签')
+  })
+
+  it('downgrades to anonymous when my-notes returns 401 for a stale authenticated session', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { pinia, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const authStore = useAuthStore(pinia)
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      error: {
+        response: {
+          status: 401,
+          data: {
+            message: '查看我的创建前请先完成登录。'
+          }
+        }
+      },
+      loading: false
+    })
+
+    await wrapper.get('[data-testid="auth-status-pill-trigger"]').trigger('click')
+    await flushPromises()
+
+    expect(authStore.status).toBe('anonymous')
+    expect(wrapper.find('[data-testid="user-center-modal"]').exists()).toBe(false)
+  })
+
+  it('loads the next page of created notes when the user requests more', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForRequest('user:1001', 1, 20, {
+      data: {
+        items: [
+          {
+            sid: 'owned123',
+            preview: '第一页便签',
+            updatedAt: '2026-04-07T10:00:00.000Z'
+          }
+        ],
+        page: 1,
+        limit: 20,
+        total: 21,
+        hasMore: true
+      },
+      loading: false
+    })
+    meNotesRequestHarness.updateForRequest('user:1001', 2, 20, {
+      data: {
+        items: [
+          {
+            sid: 'older456',
+            preview: '第二页便签',
+            updatedAt: '2025-12-31T23:45:00.000Z'
+          }
+        ],
+        page: 2,
+        limit: 20,
+        total: 21,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    await wrapper.get('[data-testid="auth-status-pill-trigger"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('当前已显示 1 / 21 条创建记录')
+
+    await wrapper.get('[data-testid="user-center-load-more"]').trigger('click')
+    await flushPromises()
+
+    expect(meNotesRequestHarness.getLastArg()).toEqual({
+      query: {
+        page: 2,
+        limit: 20
+      },
+      cacheScope: 'user:1001'
+    })
+    expect(wrapper.text()).toContain('older456')
+    expect(wrapper.text()).toContain('当前页为第 2 页')
   })
 })

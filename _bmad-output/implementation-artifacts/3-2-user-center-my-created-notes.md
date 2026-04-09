@@ -1,6 +1,6 @@
 # Story 3.2: 用户中心弹窗与我的创建
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -228,6 +228,14 @@ GPT-5 Codex
 - 已实现 `/api/me/notes` 受保护分页接口，返回当前用户创建的在线便签摘要、ISO 时间戳和稳定分页信息。
 - 已实现 `UserCenterModal`、`useUserPanel` 与 `AuthStatusPill` 的已登录入口联动，保持 modal 语义、焦点回归与“我的创建 / 我的收藏”tab 结构。
 - 已补齐 `apps/api/tests/me.spec.ts`、`apps/web/tests/user-center-modal.spec.ts` 与 `apps/web/tests/auth-status-pill.spec.ts`，并完成 API/Web 全量测试、typecheck 与 build 验证。
+
+### Review Findings
+
+- [x] [Review][Patch] `我的创建` 列表缓存不会在便签创建或更新后失效 [apps/web/src/services/me-methods.ts:17]
+- [x] [Review][Patch] 用户映射缺失被静默降级为空列表 [apps/api/src/services/me-service.ts:176]
+- [x] [Review][Patch] 并发的 `loadCreatedNotes` 请求可能回写过期结果 [apps/web/src/features/user-panel/use-user-panel.ts:58]
+- [x] [Review][Patch] API 测试没有覆盖真实服务的过滤与排序约束 [apps/api/tests/me.spec.ts:7]
+- [x] [Review][Patch] Web 测试没有覆盖用户中心关闭回焦与空态 CTA 跳转闭环 [apps/web/tests/user-center-modal.spec.ts:45]
 
 ### File List
 

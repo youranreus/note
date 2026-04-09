@@ -35,6 +35,18 @@ export function resolveUserPanelErrorMessage(error: unknown) {
   return '读取我的创建失败，请稍后重试。'
 }
 
+export function isUnauthorizedUserPanelError(error: unknown) {
+  return (
+    !!error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    !!error.response &&
+    typeof error.response === 'object' &&
+    'status' in error.response &&
+    error.response.status === 401
+  )
+}
+
 export function formatUserPanelUpdatedAt(updatedAt: string) {
   const parsedDate = new Date(updatedAt)
 
@@ -43,6 +55,7 @@ export function formatUserPanelUpdatedAt(updatedAt: string) {
   }
 
   return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

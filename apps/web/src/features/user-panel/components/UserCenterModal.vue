@@ -18,7 +18,11 @@ const props = withDefaults(defineProps<{
   open: boolean
   activeTab: UserPanelTab
   createdNotes: MyNoteSummaryDto[]
+  createdPage: number
+  createdTotal: number
+  createdHasMore: boolean
   createdLoading: boolean
+  createdLoadingMore: boolean
   createdErrorMessage?: string
 }>(), {
   createdErrorMessage: ''
@@ -27,6 +31,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   close: []
   createFirstNote: []
+  loadMoreCreated: []
   openNote: [sid: string]
   selectTab: [tab: UserPanelTab]
 }>()
@@ -103,6 +108,23 @@ const tabModel = computed({
                   进入便签
                 </Button>
               </div>
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard state="default">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p class="m-0 text-sm leading-6 text-[color:var(--text-secondary)]">
+                当前已显示 {{ createdNotes.length }} / {{ createdTotal }} 条创建记录，当前页为第 {{ createdPage }} 页。
+              </p>
+              <Button
+                v-if="createdHasMore"
+                data-testid="user-center-load-more"
+                :state="createdLoadingMore ? 'disabled' : 'default'"
+                variant="secondary"
+                @click="emit('loadMoreCreated')"
+              >
+                {{ createdLoadingMore ? '正在加载更多' : '加载更多' }}
+              </Button>
             </div>
           </SurfaceCard>
         </div>

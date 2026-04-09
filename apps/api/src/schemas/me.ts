@@ -7,6 +7,7 @@ export const myNotesQuerySchema = {
     page: {
       type: 'integer',
       minimum: 1,
+      maximum: 10000,
       default: 1
     },
     limit: {

@@ -8,7 +8,8 @@ import type {
 import {
   getPrismaClient,
   type PrismaClientLike,
-  type PrismaQueryClientLike
+  type PrismaQueryClientLike,
+  type PrismaTransactionalClientLike
 } from './prisma-client.js'
 import {
   createPrismaUserRepository,
@@ -20,6 +21,7 @@ import {
 const DEFAULT_PAGE = 1
 const DEFAULT_LIMIT = 20
 const MAX_LIMIT = 100
+const MAX_PAGE = 10_000
 
 const createdNotesLookupSql = `
   SELECT id, sid, content, updated_at AS updatedAt
@@ -50,13 +52,18 @@ interface CountRow {
 }
 
 export interface MeRepository {
-  countCreatedNotes(userId: number | bigint, queryClient?: PrismaQueryClientLike): Promise<number>
-  listCreatedNotes(
+  getCreatedNotesPage(
     userId: number | bigint,
     page: number,
     limit: number,
     queryClient?: PrismaQueryClientLike
-  ): Promise<MyNoteRow[]>
+  ): Promise<{
+    rows: MyNoteRow[]
+    total: number
+  }>
+  transaction<T>(
+    callback: (transactionClient: PrismaTransactionalClientLike) => Promise<T>
+  ): Promise<T>
 }
 
 export type MyNotesServiceResult =
@@ -100,7 +107,7 @@ function normalizePositiveInteger(value: unknown, fallback: number) {
 }
 
 function normalizeMyNotesQuery(query: MyNotesQueryDto | undefined) {
-  const page = normalizePositiveInteger(query?.page, DEFAULT_PAGE)
+  const page = Math.min(normalizePositiveInteger(query?.page, DEFAULT_PAGE), MAX_PAGE)
   const limit = Math.min(normalizePositiveInteger(query?.limit, DEFAULT_LIMIT), MAX_LIMIT)
 
   return {
@@ -131,26 +138,49 @@ export function createPrismaMeRepository(
 ): MeRepository {
   const resolvePrismaClient = options.getPrismaClient ?? getPrismaClient
 
-  return {
-    async countCreatedNotes(userId, queryClient) {
-      const prisma = queryClient ?? (await resolvePrismaClient())
-      const matchedRows = await prisma.$queryRawUnsafe<CountRow[]>(
-        createdNotesCountSql,
-        toBigInt(userId).toString()
-      )
-
-      return Number(matchedRows[0]?.total ?? 0)
-    },
-    async listCreatedNotes(userId, page, limit, queryClient) {
-      const prisma = queryClient ?? (await resolvePrismaClient())
-      const offset = (page - 1) * limit
-
-      return prisma.$queryRawUnsafe<MyNoteRow[]>(
+  async function resolveCreatedNotesPage(
+    prisma: PrismaQueryClientLike | PrismaTransactionalClientLike,
+    userId: number | bigint,
+    page: number,
+    limit: number
+  ) {
+    const offset = (page - 1) * limit
+    const normalizedUserId = toBigInt(userId).toString()
+    const [rows, matchedRows] = await Promise.all([
+      prisma.$queryRawUnsafe<MyNoteRow[]>(
         createdNotesLookupSql,
-        toBigInt(userId).toString(),
+        normalizedUserId,
         limit,
         offset
+      ),
+      prisma.$queryRawUnsafe<CountRow[]>(
+        createdNotesCountSql,
+        normalizedUserId
       )
+    ])
+
+    return {
+      rows,
+      total: Number(matchedRows[0]?.total ?? 0)
+    }
+  }
+
+  return {
+    async getCreatedNotesPage(userId, page, limit, queryClient) {
+      if (queryClient) {
+        return resolveCreatedNotesPage(queryClient, userId, page, limit)
+      }
+
+      const prisma = await resolvePrismaClient()
+
+      return prisma.$transaction((transactionClient) =>
+        resolveCreatedNotesPage(transactionClient, userId, page, limit)
+      )
+    },
+    async transaction(callback) {
+      const prisma = await resolvePrismaClient()
+
+      return prisma.$transaction(callback)
     }
   }
 }
@@ -162,6 +192,7 @@ export function createMeService(
   return {
     async getMyNotes(query, session) {
       const ssoId = normalizeAuthSessionSsoId(session)
+      const normalizedQuery = normalizeMyNotesQuery(query)
 
       if (!ssoId) {
         return {
@@ -170,26 +201,16 @@ export function createMeService(
         }
       }
 
-      const actor = await userRepository.findBySsoId(ssoId)
-      const normalizedQuery = normalizeMyNotesQuery(query)
+      const { rows, total } = await repository.transaction(async (transactionClient) => {
+        const actor = await userRepository.ensureBySsoId(ssoId, transactionClient)
 
-      if (!actor) {
-        return {
-          status: 'success',
-          response: {
-            items: [],
-            page: normalizedQuery.page,
-            limit: normalizedQuery.limit,
-            total: 0,
-            hasMore: false
-          }
-        }
-      }
-
-      const [rows, total] = await Promise.all([
-        repository.listCreatedNotes(actor.id, normalizedQuery.page, normalizedQuery.limit),
-        repository.countCreatedNotes(actor.id)
-      ])
+        return repository.getCreatedNotesPage(
+          actor.id,
+          normalizedQuery.page,
+          normalizedQuery.limit,
+          transactionClient
+        )
+      })
 
       return {
         status: 'success',

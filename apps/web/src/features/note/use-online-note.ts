@@ -5,6 +5,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { NoteWriteErrorCode, OnlineNoteSaveRequestDto } from '@note/shared-types'
 
 import { createFavoriteNoteMethod } from '@/services/favorite-methods'
+import { invalidateMyNotesCacheForUser } from '@/services/me-methods'
 import {
   createGetOnlineNoteDetailMethod,
   createSaveOnlineNoteMethod
@@ -298,6 +299,11 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       initializedSid.value = currentSid
       saveState.value = 'saved'
       saveErrorCode.value = null
+
+      if (authStore.status === 'authenticated') {
+        invalidateMyNotesCacheForUser(authStore.user?.id)
+      }
+
       readRequest.update({
         data: {
           sid: response.sid,

@@ -13,7 +13,10 @@ vi.mock('../src/services/http-client', () => ({
   }
 }))
 
-import { createGetMyNotesMethod } from '../src/services/me-methods'
+import {
+  createGetMyNotesMethod,
+  invalidateMyNotesCacheForUser
+} from '../src/services/me-methods'
 
 describe('me methods', () => {
   it('scopes the my-notes cache key by authenticated user identity', () => {
@@ -24,7 +27,21 @@ describe('me methods', () => {
         page: 2,
         limit: 10
       },
-      name: 'me-notes:user:1001:2:10',
+      name: 'me-notes:user:1001:r0:2:10',
+      cacheFor: 30 * 1000
+    })
+  })
+
+  it('bumps the cache revision after invalidating a user created-notes cache', () => {
+    invalidateMyNotesCacheForUser('1001')
+    createGetMyNotesMethod({ page: 1, limit: 20 }, 'user:1001')
+
+    expect(getMock).toHaveBeenLastCalledWith('/api/me/notes', {
+      params: {
+        page: 1,
+        limit: 20
+      },
+      name: 'me-notes:user:1001:r1:1:20',
       cacheFor: 30 * 1000
     })
   })
