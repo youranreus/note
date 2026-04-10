@@ -18,6 +18,11 @@ import type {
   OnlineNoteSaveResponseDto
 } from '@note/shared-types'
 
+import {
+  createPoliteInlineFeedback,
+  type InlineFeedbackModel
+} from '@/components/ui/inline-feedback'
+
 export type OnlineNoteSaveState = 'unsaved' | 'saving' | 'saved' | 'save-error'
 export type OnlineNoteObjectHeaderTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 
@@ -38,11 +43,8 @@ export interface OnlineNoteStateSnapshot {
   error?: unknown
 }
 
-export interface OnlineNoteSaveFeedback {
-  tone: 'info' | 'success' | 'warning' | 'danger'
-  state: InteractionState
-  title: string
-  description: string
+export interface OnlineNoteSaveFeedback extends InlineFeedbackModel {
+  describedField?: 'editKey'
 }
 
 export interface OnlineNoteObjectHeaderModel {
@@ -107,6 +109,32 @@ interface OnlineNoteAuthorizationUiInput {
   hasEditKeyValue: boolean
 }
 
+function appendNextStep(message: string, nextStep: string) {
+  const trimmedMessage = message.trim()
+  const trimmedNextStep = nextStep.trim()
+
+  if (!trimmedMessage) {
+    return trimmedNextStep
+  }
+
+  if (trimmedMessage.includes(trimmedNextStep)) {
+    return trimmedMessage
+  }
+
+  return `${trimmedMessage} ${trimmedNextStep}`
+}
+
+function createOnlineNoteFeedback(
+  input: Omit<OnlineNoteSaveFeedback, 'role' | 'ariaLive' | 'ariaAtomic'>
+): OnlineNoteSaveFeedback {
+  const { describedField, ...feedback } = input
+
+  return {
+    ...createPoliteInlineFeedback(feedback),
+    describedField
+  }
+}
+
 function resolveSaveStatusLabel(
   viewStatus: NoteReadViewStatus,
   saveState: OnlineNoteSaveState
@@ -169,7 +197,15 @@ export function createDeletedOnlineNoteViewModel(
   sid: string,
   description: string
 ): OnlineNoteViewModel {
-  return createViewModel('deleted', sid, '该在线便签已删除', description)
+  return createViewModel(
+    'deleted',
+    sid,
+    '该在线便签已删除',
+    appendNextStep(
+      description,
+      '如需继续记录，请向分享者确认是否有新链接，或返回首页重新开始。'
+    )
+  )
 }
 
 function createAvailableDescription(editAccess: NoteEditAccess) {
@@ -493,7 +529,7 @@ export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): O
       'invalid-sid',
       null,
       '当前链接缺少有效 sid',
-      '路由参数必须是单个非空字符串，页面不会把空值或异常参数默默转成伪造对象。'
+      '路由参数必须是单个非空字符串。请检查链接是否完整，或返回首页重新打开目标便签。'
     )
   }
 
@@ -547,7 +583,7 @@ export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): O
       'error',
       snapshot.sid,
       '读取在线便签失败',
-      '读取当前在线对象时发生异常，请稍后刷新重试。'
+      '读取当前在线对象时发生异常。请刷新页面后重试；如果问题持续，请返回首页重新打开目标便签。'
     )
   }
 
@@ -563,102 +599,113 @@ export function resolveOnlineNoteSaveFeedback(
   input: OnlineNoteSaveFeedbackInput
 ): OnlineNoteSaveFeedback | null {
   if (input.saveState === 'saving') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'info',
       state: 'focus',
       title: '保存中',
-      description: '正在将当前正文写入该 sid 对应的在线便签。'
-    }
+      description: '正在将当前正文写入该 sid 对应的在线便签，请稍候。'
+    })
   }
 
   if (input.saveState === 'save-error') {
     if (input.errorCode === 'NOTE_EDIT_KEY_ACTION_INVALID') {
-      return {
+      return createOnlineNoteFeedback({
         tone: 'warning',
         state: 'default',
         title: '编辑密钥操作无效',
-        description: input.errorMessage ?? '请确认这次保存是在设置密钥还是使用现有密钥后再试。'
-      }
+        description:
+          input.errorMessage ??
+          '请确认这次保存是在设置新密钥还是使用现有密钥，然后重新保存。'
+      })
     }
 
     if (input.errorCode === 'NOTE_EDIT_KEY_REQUIRED') {
-      return {
+      return createOnlineNoteFeedback({
         tone: 'warning',
         state: 'default',
         title: '需要编辑密钥',
-        description: input.errorMessage ?? '当前对象需要输入编辑密钥后才能保存更新。'
-      }
+        description:
+          input.errorMessage ??
+          '当前对象需要输入正确的编辑密钥后才能保存更新。请在下方输入密钥后再试。',
+        describedField: 'editKey'
+      })
     }
 
     if (input.errorCode === 'NOTE_EDIT_KEY_INVALID') {
-      return {
+      return createOnlineNoteFeedback({
         tone: 'danger',
         state: 'error',
         title: '编辑密钥不正确',
-        description: input.errorMessage ?? '当前编辑密钥不正确，请确认后重试。'
-      }
+        description:
+          input.errorMessage ?? '当前编辑密钥不正确。请检查输入是否有误，然后重新保存。',
+        describedField: 'editKey'
+      })
     }
 
     if (input.errorCode === 'NOTE_FORBIDDEN') {
-      return {
+      return createOnlineNoteFeedback({
         tone: 'warning',
         state: 'default',
         title: '当前账户只能查看',
-        description: input.errorMessage ?? '该对象已绑定创建者，如需编辑请先使用创建者身份恢复登录。'
-      }
+        description:
+          input.errorMessage ??
+          '该对象已绑定创建者。请切换到创建者身份重新登录后，再继续保存更新。'
+      })
     }
 
-    return {
+    return createOnlineNoteFeedback({
       tone: 'danger',
       state: 'error',
       title: '保存失败',
-      description: input.errorMessage ?? '保存当前在线对象时发生异常，请稍后重试。'
-    }
+      description:
+        input.errorMessage ?? '保存当前在线对象时发生异常。请稍后重试；如有需要可先复制正文避免丢失。'
+    })
   }
 
   if (input.viewStatus === 'available' && input.editAccess === 'forbidden') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '当前账户只能查看',
-      description: '该对象已绑定创建者，如需编辑请先使用创建者身份恢复登录。'
-    }
+      description: '该对象已绑定创建者。请切换到创建者身份重新登录后，再继续保存更新。'
+    })
   }
 
   if (input.viewStatus === 'available' && input.editAccess === 'key-required') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '需要编辑密钥',
-      description: '当前对象可以正常查看，输入正确密钥后才能保存更新。'
-    }
+      description: '当前对象可以正常查看，输入正确密钥后才能保存更新。请在下方输入密钥后再试。',
+      describedField: 'editKey'
+    })
   }
 
   if (input.saveState === 'saved') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'success',
       state: 'default',
       title: '已保存',
       description: '最新修改已经写回当前 sid。'
-    }
+    })
   }
 
   if (input.viewStatus === 'not-found') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '尚未保存',
       description: '当前 sid 还没有远端对象，点击保存后会创建第一版内容。'
-    }
+    })
   }
 
   if (input.hasUnsavedChanges) {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '未保存变更',
       description: '你已经修改当前正文，点击“保存更新”后会写回同一 sid。'
-    }
+    })
   }
 
   return null
@@ -816,32 +863,72 @@ export function resolveOnlineNoteObjectHeader(
 }
 
 export function createOnlineNoteCopySuccessFeedback(): OnlineNoteSaveFeedback {
-  return {
+  return createOnlineNoteFeedback({
     tone: 'success',
     state: 'default',
     title: '已复制当前在线便签链接',
     description: '你可以把这个稳定链接直接发给别人。'
-  }
+  })
 }
 
 export function createOnlineNoteCopyFailureFeedback(
   description = '当前浏览器无法复制链接，请手动复制地址栏中的链接后重试。'
 ): OnlineNoteSaveFeedback {
-  return {
+  return createOnlineNoteFeedback({
     tone: 'danger',
     state: 'error',
     title: '复制当前在线便签链接失败',
     description
-  }
+  })
 }
 
 export function createOnlineNoteFavoriteSuccessFeedback(): OnlineNoteSaveFeedback {
-  return {
+  return createOnlineNoteFeedback({
     tone: 'success',
     state: 'default',
     title: '已收藏当前在线便签',
     description: '这条内容已经进入你的收藏资产，后续可从“我的收藏”继续回访。'
+  })
+}
+
+export function resolveOnlineNoteFavoriteFeedback(error: unknown): OnlineNoteSaveFeedback {
+  const favoriteError = resolveFavoriteErrorDto(error)
+
+  if (favoriteError?.code === 'FAVORITE_SELF_OWNED_NOT_ALLOWED') {
+    return createOnlineNoteFeedback({
+      tone: 'warning',
+      state: 'default',
+      title: '自己的便签无需收藏',
+      description: favoriteError.message ?? '这条便签已经属于你的创建资产，无需重复收藏。你可以在“我的创建”继续回访。'
+    })
   }
+
+  if (favoriteError?.code === 'FAVORITE_NOTE_NOT_FOUND') {
+    return createOnlineNoteFeedback({
+      tone: 'warning',
+      state: 'default',
+      title: '未找到可收藏的便签',
+      description:
+        favoriteError.message ?? '未找到可收藏的在线便签。请检查 sid 是否正确，或刷新页面后重试。'
+    })
+  }
+
+  if (favoriteError?.code === 'FAVORITE_NOTE_DELETED') {
+    return createOnlineNoteFeedback({
+      tone: 'warning',
+      state: 'default',
+      title: '这条便签已删除',
+      description:
+        favoriteError.message ?? '这条在线便签已删除，当前无法加入收藏。请向分享者确认是否有新的可访问链接。'
+    })
+  }
+
+  return createOnlineNoteFeedback({
+    tone: favoriteError?.status === 'forbidden' ? 'warning' : 'danger',
+    state: favoriteError?.status === 'forbidden' ? 'default' : 'error',
+    title: '收藏失败',
+    description: favoriteError?.message ?? '当前在线便签暂时无法加入收藏。请稍后重试。'
+  })
 }
 
 export function resolveOnlineNoteDeleteFeedback(
@@ -849,72 +936,79 @@ export function resolveOnlineNoteDeleteFeedback(
   errorMessage?: string | null
 ): OnlineNoteSaveFeedback {
   if (errorCode === 'INVALID_SID') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '当前链接缺少有效 sid',
-      description: errorMessage ?? '当前链接中的 sid 无效，系统无法删除这条在线便签。'
-    }
+      description:
+        errorMessage ?? '当前链接中的 sid 无效。请检查链接是否完整，确认当前页面对应的是有效在线便签。'
+    })
   }
 
   if (errorCode === 'NOTE_EDIT_KEY_REQUIRED') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '删除前需要编辑密钥',
-      description: errorMessage ?? '当前对象需要输入编辑密钥后才能删除。'
-    }
+      description: errorMessage ?? '删除前需要输入编辑密钥。请先在当前页面输入正确密钥后再试。',
+      describedField: 'editKey'
+    })
   }
 
   if (errorCode === 'NOTE_EDIT_KEY_INVALID') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'danger',
       state: 'error',
       title: '编辑密钥不正确',
-      description: errorMessage ?? '当前编辑密钥不正确，请确认后重试。'
-    }
+      description: errorMessage ?? '当前编辑密钥不正确。请检查输入后重新尝试删除。',
+      describedField: 'editKey'
+    })
   }
 
   if (errorCode === 'NOTE_FORBIDDEN') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '当前账户不能删除',
-      description: errorMessage ?? '当前账户没有删除该在线便签的权限。'
-    }
+      description:
+        errorMessage ?? '当前账户没有删除该在线便签的权限。请切换到创建者身份重新登录后再试。'
+    })
   }
 
   if (errorCode === 'NOTE_NOT_FOUND') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '这条在线便签不存在',
-      description: errorMessage ?? '未找到与当前 sid 对应的在线便签。'
-    }
+      description:
+        errorMessage ?? '未找到与当前 sid 对应的在线便签。请检查链接是否正确，或向分享者确认是否已变更。'
+    })
   }
 
   if (errorCode === 'NOTE_DELETED') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'warning',
       state: 'default',
       title: '该在线便签已删除',
-      description: errorMessage ?? '该在线便签已删除，当前链接不可继续删除。'
-    }
+      description:
+        errorMessage ?? '这条在线便签已经被删除，当前链接无法再次删除。请返回首页重新开始，或向分享者确认是否有新链接。'
+    })
   }
 
   if (errorCode === 'NOTE_SID_CONFLICT') {
-    return {
+    return createOnlineNoteFeedback({
       tone: 'danger',
       state: 'error',
       title: '当前在线便签出现 sid 冲突',
-      description: errorMessage ?? '当前 sid 命中了多条记录，系统无法确认要删除的唯一对象。'
-    }
+      description:
+        errorMessage ?? '当前 sid 命中了多条记录，系统无法确认要删除的唯一对象。请稍后重试；如果持续出现，请联系管理员。'
+    })
   }
 
-  return {
+  return createOnlineNoteFeedback({
     tone: 'danger',
     state: 'error',
     title: '删除当前在线便签失败',
-    description: errorMessage ?? '删除当前在线便签时发生异常，请稍后重试。'
-  }
+    description: errorMessage ?? '删除当前在线便签时发生异常。请稍后重试。'
+  })
 }

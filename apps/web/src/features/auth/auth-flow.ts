@@ -6,12 +6,15 @@ import type {
 
 import { normalizeAuthReturnToPath } from '@note/shared-types'
 
+import {
+  createPoliteInlineFeedback,
+  type InlineFeedbackModel
+} from '@/components/ui/inline-feedback'
+
 export interface AuthCallbackCardModel {
   title: string
   description: string
-  feedbackTone: 'info' | 'success' | 'danger'
-  feedbackTitle: string
-  feedbackDescription: string
+  feedback: InlineFeedbackModel
   loading: boolean
 }
 
@@ -63,36 +66,74 @@ export function resolveAuthCallbackError(error: unknown): AuthCallbackErrorDto {
 
 export function resolveAuthCallbackCardModel(input: {
   phase: 'loading' | 'success' | 'error'
+  code?: AuthCallbackErrorDto['code'] | null
   message?: string
 }) {
-  const stateMap: Record<typeof input.phase, AuthCallbackCardModel> = {
-    loading: {
+  if (input.phase === 'loading') {
+    return {
       title: '正在完成登录',
       description: '我们正在校验回跳参数、建立安全会话，并准备恢复你刚才所在的页面。',
-      feedbackTone: 'info',
-      feedbackTitle: '请稍候',
-      feedbackDescription: '状态提示不会只依赖视觉装饰，完成后会自动返回原上下文。',
+      feedback: createPoliteInlineFeedback({
+        tone: 'info',
+        state: 'focus',
+        title: '请稍候',
+        description: '正在核验回跳参数并恢复上下文，完成后会自动返回原页面。'
+      }),
       loading: true
-    },
-    success: {
+    } satisfies AuthCallbackCardModel
+  }
+
+  if (input.phase === 'success') {
+    return {
       title: '登录已完成',
       description: input.message ?? '会话已经建立完成，正在返回刚才的页面。',
-      feedbackTone: 'success',
-      feedbackTitle: '正在恢复上下文',
-      feedbackDescription: '如果来源页合法，我们会优先回到你刚才所在的站内页面。',
+      feedback: createPoliteInlineFeedback({
+        tone: 'success',
+        state: 'default',
+        title: '正在恢复上下文',
+        description: '如果来源页合法，我们会优先返回你刚才所在的站内页面。'
+      }),
+      loading: false
+    } satisfies AuthCallbackCardModel
+  }
+
+  const errorCardMap: Record<AuthCallbackErrorDto['code'], AuthCallbackCardModel> = {
+    AUTH_CODE_MISSING: {
+      title: '登录链接不完整',
+      description: input.message ?? '当前回跳缺少必要参数，请返回首页后重新发起登录。',
+      feedback: createPoliteInlineFeedback({
+        tone: 'warning',
+        state: 'default',
+        title: '返回首页重新登录',
+        description: '当前不会跳去未知页面。请先返回首页，再从需要登录的入口重新发起登录。'
+      }),
       loading: false
     },
-    error: {
+    AUTH_STATE_INVALID: {
+      title: '登录回跳已失效',
+      description: input.message ?? '当前登录回跳已经失效，请返回首页后重新发起登录。',
+      feedback: createPoliteInlineFeedback({
+        tone: 'warning',
+        state: 'default',
+        title: '返回首页重新登录',
+        description: '当前不会跳去未知页面。请先回到首页，再从需要升级能力的入口重新发起登录。'
+      }),
+      loading: false
+    },
+    AUTH_CALLBACK_FAILED: {
       title: '登录暂时没有完成',
-      description: input.message ?? '回跳恢复失败，请返回首页后重新发起登录。',
-      feedbackTone: 'danger',
-      feedbackTitle: '需要重新发起登录',
-      feedbackDescription: '当前不会跳去未知页面。你可以先回到首页，再从需要升级能力的入口继续。',
+      description: input.message ?? '登录回跳处理失败，请返回首页后重新发起登录。',
+      feedback: createPoliteInlineFeedback({
+        tone: 'danger',
+        state: 'error',
+        title: '稍后重试或返回首页',
+        description: '当前不会跳去未知页面。你可以先回到首页重新发起登录，或稍后再试。'
+      }),
       loading: false
     }
   }
 
-  return stateMap[input.phase]
+  return errorCardMap[input.code ?? 'AUTH_CALLBACK_FAILED'] ?? errorCardMap.AUTH_CALLBACK_FAILED
 }
 
 export function resolveSafeReturnTo(path: string | null | undefined) {

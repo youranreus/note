@@ -544,9 +544,10 @@ describe('useOnlineNote', () => {
     expect(note.viewModel.value).toMatchObject({
       status: 'deleted',
       sid: 'owned123',
-      title: '该在线便签已删除',
-      description: '该在线便签已删除，当前链接不可恢复。'
+      title: '该在线便签已删除'
     })
+    expect(note.viewModel.value.description).toContain('该在线便签已删除，当前链接不可恢复。')
+    expect(note.viewModel.value.description).toContain('返回首页重新开始')
     expect(note.editKey.value).toBe('')
     expect(note.draftContent.value).toBe('')
     expect(invalidateMyNotesCacheForUserMock).toHaveBeenCalledWith('1001')
@@ -1002,9 +1003,10 @@ describe('useOnlineNote', () => {
     expect(note.viewModel.value).toMatchObject({
       status: 'deleted',
       sid: 'shared123',
-      title: '该在线便签已删除',
-      description: '该在线便签已删除，当前链接不可恢复。'
+      title: '该在线便签已删除'
     })
+    expect(note.viewModel.value.description).toContain('该在线便签已删除，当前链接不可恢复。')
+    expect(note.viewModel.value.description).toContain('返回首页重新开始')
     expect(note.draftContent.value).toBe('')
     expect(note.editKey.value).toBe('')
     expect(note.hasUnsavedChanges.value).toBe(false)
@@ -1033,9 +1035,10 @@ describe('useOnlineNote', () => {
     expect(note.viewModel.value).toMatchObject({
       status: 'deleted',
       sid: 'deleted123',
-      title: '该在线便签已删除',
-      description: '该在线便签已删除，当前链接不可继续读取。'
+      title: '该在线便签已删除'
     })
+    expect(note.viewModel.value.description).toContain('该在线便签已删除，当前链接不可继续读取。')
+    expect(note.viewModel.value.description).toContain('返回首页重新开始')
     expect(note.draftContent.value).toBe('')
     expect(note.objectHeader.value).toBeNull()
     expect(note.primaryFeedback.value).toBeNull()

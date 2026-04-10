@@ -3,16 +3,29 @@ import { computed } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
 
+import type {
+  InlineFeedbackAriaLive,
+  InlineFeedbackRole
+} from './inline-feedback'
+
 const props = withDefaults(
   defineProps<{
+    id?: string
     title: string
     description: string
     tone?: 'info' | 'success' | 'warning' | 'danger'
     state?: InteractionState
+    role?: InlineFeedbackRole
+    ariaLive?: InlineFeedbackAriaLive
+    ariaAtomic?: boolean
   }>(),
   {
     tone: 'info',
-    state: 'default'
+    state: 'default',
+    id: undefined,
+    role: undefined,
+    ariaLive: undefined,
+    ariaAtomic: undefined
   }
 )
 
@@ -36,7 +49,13 @@ const stateClassName = computed(() => {
 </script>
 
 <template>
-  <div :class="['rounded-[var(--radius-control)] border px-4 py-3 text-sm', toneClassMap[props.tone], stateClassName]">
+  <div
+    :id="props.id"
+    :role="props.role"
+    :aria-live="props.ariaLive"
+    :aria-atomic="props.ariaAtomic ?? undefined"
+    :class="['rounded-[var(--radius-control)] border px-4 py-3 text-sm', toneClassMap[props.tone], stateClassName]"
+  >
     <p class="m-0 font-semibold">{{ title }}</p>
     <p class="mt-1 text-sm opacity-80">{{ description }}</p>
   </div>

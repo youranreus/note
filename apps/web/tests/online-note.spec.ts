@@ -639,6 +639,53 @@ describe('online note shell', () => {
     expect(wrapper.text()).toContain('保存更新')
   })
 
+  it('announces edit-key feedback politely and associates it with the password field', () => {
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象可以正常查看，但需要输入编辑密钥后才能继续保存更新。',
+      content: '共享正文。',
+      editAccess: 'key-required'
+    })
+    mockedDraftContent.value = '共享正文。'
+    mockedEditKey.value = 'wrong-secret'
+    mockedSaveState.value = 'save-error'
+    mockedSaveFeedback.value = {
+      tone: 'danger',
+      state: 'error',
+      title: '编辑密钥不正确',
+      description: '当前编辑密钥不正确，请确认后重试。',
+      describedField: 'editKey'
+    }
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '保存失败',
+      saveStatusTone: 'danger',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '输入密钥后可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '当前对象开启了共享编辑保护，输入正确密钥后才能保存更新。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default'
+    }
+
+    const wrapper = mountShell()
+    const feedback = wrapper.get('[role="status"]')
+    const editKeyInput = wrapper.get('input[type="password"]')
+    const describedBy = editKeyInput.attributes('aria-describedby')
+
+    expect(feedback.attributes('aria-live')).toBe('polite')
+    expect(feedback.attributes('aria-atomic')).toBe('true')
+    expect(describedBy).toBeTruthy()
+
+    for (const id of describedBy!.split(/\s+/)) {
+      expect(wrapper.find(`#${id}`).exists()).toBe(true)
+    }
+  })
+
   it('shows the irreversible-risk warning only for anonymous first saves with an edit key', () => {
     mockedViewModel.value = createViewModel({
       status: 'not-found',
@@ -658,8 +705,14 @@ describe('online note shell', () => {
 
     const anonymousWrapper = mountShell('anonymous')
     const authenticatedWrapper = mountShell('authenticated')
+    const riskFeedback = anonymousWrapper
+      .findAll('[role="status"]')
+      .find((wrapper) => wrapper.text().includes('遗失编辑密钥后将无法恢复编辑权'))
 
     expect(anonymousWrapper.text()).toContain('遗失编辑密钥后将无法恢复编辑权')
+    expect(riskFeedback).toBeTruthy()
+    expect(riskFeedback?.attributes('aria-live')).toBe('polite')
+    expect(riskFeedback?.attributes('aria-atomic')).toBe('true')
     expect(authenticatedWrapper.text()).not.toContain('遗失编辑密钥后将无法恢复编辑权')
   })
 
@@ -746,6 +799,20 @@ describe('online note shell', () => {
 })
 
 describe('resolveOnlineNoteViewModel', () => {
+  it('gives invalid sid states a clear next step instead of only technical explanation', () => {
+    const viewModel = resolveOnlineNoteViewModel({
+      sid: null,
+      loading: false
+    })
+
+    expect(viewModel).toMatchObject({
+      status: 'invalid-sid',
+      sid: null,
+      title: '当前链接缺少有效 sid'
+    })
+    expect(viewModel.description).toContain('检查链接')
+  })
+
   it('falls back to an error state when a 200 payload is not a valid note detail dto', () => {
     const viewModel = resolveOnlineNoteViewModel({
       sid: 'shell-status',

@@ -1,6 +1,7 @@
 import { computed, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
+import type { AuthCallbackErrorDto } from '@note/shared-types'
 import type { AuthCallbackCardModel } from './auth-flow'
 
 import { useAuthStore } from '@/stores/auth-store'
@@ -26,6 +27,7 @@ export function useAuthFlow() {
   const router = useRouter()
   const { loginIntent, loginModalOpen, sessionHydrated, status } = storeToRefs(authStore)
   const callbackPhase = shallowRef<'loading' | 'success' | 'error'>('loading')
+  const callbackErrorCode = shallowRef<AuthCallbackErrorDto['code'] | null>(null)
   const callbackMessage = shallowRef<string | null>(null)
   let sessionRequest: Promise<void> | null = null
 
@@ -79,6 +81,7 @@ export function useAuthFlow() {
   async function processCallback() {
     authStore.setRecovering()
     callbackPhase.value = 'loading'
+    callbackErrorCode.value = null
     callbackMessage.value = null
 
     const { code, state } = resolveAuthCallbackQuery(route.query)
@@ -95,6 +98,7 @@ export function useAuthFlow() {
       })
 
       callbackPhase.value = 'error'
+      callbackErrorCode.value = error.code
       callbackMessage.value = error.message
       authStore.setAnonymous()
       return
@@ -112,6 +116,7 @@ export function useAuthFlow() {
       })
 
       callbackPhase.value = 'error'
+      callbackErrorCode.value = error.code
       callbackMessage.value = error.message
       authStore.setAnonymous()
       return
@@ -125,6 +130,7 @@ export function useAuthFlow() {
 
       if (!isAuthCallbackSuccess(response)) {
         callbackPhase.value = 'error'
+        callbackErrorCode.value = response.code
         callbackMessage.value = response.message
         authStore.setAnonymous()
         return
@@ -135,12 +141,14 @@ export function useAuthFlow() {
         user: response.user
       }, response.postLoginAction ?? null)
       callbackPhase.value = 'success'
+      callbackErrorCode.value = null
       callbackMessage.value = response.message
       await router.replace(resolveSafeReturnTo(response.returnTo))
     } catch (error) {
       const callbackError = resolveAuthCallbackError(error)
 
       callbackPhase.value = 'error'
+      callbackErrorCode.value = callbackError.code
       callbackMessage.value = callbackError.message
       authStore.setAnonymous()
     }
@@ -153,6 +161,7 @@ export function useAuthFlow() {
   const callbackCard = computed<AuthCallbackCardModel>(() =>
     resolveAuthCallbackCardModel({
       phase: callbackPhase.value,
+      code: callbackErrorCode.value,
       message: callbackMessage.value ?? undefined
     })
   )

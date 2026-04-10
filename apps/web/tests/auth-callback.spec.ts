@@ -119,11 +119,67 @@ describe('auth callback card', () => {
     expect(authStore.status).toBe('anonymous')
     expect(wrapper.text()).toContain('登录回跳已失效')
     expect(wrapper.text()).toContain('返回首页')
+    expect(wrapper.get('[role="status"]').attributes('aria-live')).toBe('polite')
+    expect(wrapper.get('[role="status"]').attributes('aria-atomic')).toBe('true')
 
     await wrapper.get('[data-testid="auth-callback-home"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/')
+  })
+
+  it('surfaces callback exchange failures with a stable retry-oriented message', async () => {
+    completeAuthCallbackMock.mockRejectedValue({
+      response: {
+        data: {
+          status: 'error',
+          code: 'AUTH_CALLBACK_FAILED',
+          message: 'SSO 回调处理失败，请稍后重试或联系管理员。'
+        }
+      }
+    })
+
+    const { authStore, wrapper } = await mountAuthCallbackCard()
+    await flushPromises()
+
+    expect(authStore.status).toBe('anonymous')
+    expect(wrapper.text()).toContain('登录暂时没有完成')
+    expect(wrapper.text()).toContain('SSO 回调处理失败')
+    expect(wrapper.text()).toContain('稍后重试或返回首页')
+    expect(wrapper.text()).toContain('返回首页')
+    expect(wrapper.get('[role="status"]').attributes('aria-live')).toBe('polite')
+  })
+
+  it('falls back to the generic callback failure card when an upstream error code is unexpected', async () => {
+    completeAuthCallbackMock.mockRejectedValue({
+      response: {
+        data: {
+          status: 'error',
+          code: 'AUTH_UPSTREAM_UNKNOWN',
+          message: '上游身份服务返回了未收录的错误码。'
+        }
+      }
+    })
+
+    const { authStore, wrapper } = await mountAuthCallbackCard()
+    await flushPromises()
+
+    expect(authStore.status).toBe('anonymous')
+    expect(wrapper.text()).toContain('登录暂时没有完成')
+    expect(wrapper.text()).toContain('上游身份服务返回了未收录的错误码。')
+    expect(wrapper.text()).toContain('稍后重试或返回首页')
+    expect(wrapper.text()).toContain('返回首页')
+  })
+
+  it('explains missing callback code with a clear recovery action', async () => {
+    const { authStore, wrapper } = await mountAuthCallbackCard('/auth/callback?state=missing-code')
+    await flushPromises()
+
+    expect(authStore.status).toBe('anonymous')
+    expect(completeAuthCallbackMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('登录回跳缺少必要 code')
+    expect(wrapper.text()).toContain('返回首页')
+    expect(wrapper.get('[role="status"]').attributes('aria-live')).toBe('polite')
   })
 
   it('treats a callback without state as an invalid recovery instead of a missing code', async () => {

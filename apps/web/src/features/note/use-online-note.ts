@@ -37,9 +37,11 @@ import {
   resolveNoteWriteErrorDto,
   resolveInteractiveEditAccess,
   resolveOnlineNoteDeleteFeedback,
+  resolveOnlineNoteFavoriteFeedback,
   resolveOnlineNoteObjectHeader,
   resolveOnlineNoteSaveFeedback,
   resolveOnlineNoteViewModel,
+  type OnlineNoteSaveFeedback,
   type OnlineNoteViewModel,
   type OnlineNoteSaveState
 } from './online-note'
@@ -102,8 +104,8 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const deleteErrorCode = shallowRef<NoteDeleteErrorCode | null>(null)
   const deleteErrorMessage = shallowRef<string | null>(null)
   const terminalViewModel = shallowRef<OnlineNoteViewModel | null>(null)
-  const copyFeedback = shallowRef<ReturnType<typeof createOnlineNoteCopySuccessFeedback> | null>(null)
-  const favoriteFeedback = shallowRef<ReturnType<typeof createOnlineNoteFavoriteSuccessFeedback> | null>(null)
+  const copyFeedback = shallowRef<OnlineNoteSaveFeedback | null>(null)
+  const favoriteFeedback = shallowRef<OnlineNoteSaveFeedback | null>(null)
   const hasEditKeyValue = computed(() => editKey.value.trim() !== '')
   const favoriteActionState = computed(() =>
     favoriteRequest.loading.value ? 'disabled' : 'default'
@@ -605,15 +607,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         return
       }
 
-      favoriteFeedback.value = {
-        tone: favoriteError?.status === 'forbidden' ? 'warning' : 'danger',
-        state: favoriteError?.status === 'forbidden' ? 'default' : 'error',
-        title:
-          favoriteError?.code === 'FAVORITE_SELF_OWNED_NOT_ALLOWED'
-            ? '自己的便签无需收藏'
-            : '收藏失败',
-        description: favoriteError?.message ?? '当前在线便签暂时无法加入收藏，请稍后重试。'
-      }
+      favoriteFeedback.value = resolveOnlineNoteFavoriteFeedback(error)
     }
   }
 

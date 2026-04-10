@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
 
@@ -8,6 +8,7 @@ import InlineFeedback from '@/components/ui/InlineFeedback.vue'
 import LoadingCard from '@/components/ui/LoadingCard.vue'
 import SurfaceCard from '@/components/ui/SurfaceCard.vue'
 import TextInput from '@/components/ui/TextInput.vue'
+import { politeInlineFeedbackA11y } from '@/components/ui/inline-feedback'
 import { useAuthStore } from '@/stores/auth-store'
 
 import NoteObjectHeader from './NoteObjectHeader.vue'
@@ -20,6 +21,8 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
+const feedbackBaseId = useId()
+const primaryFeedbackId = `${feedbackBaseId}-primary-feedback`
 const {
   viewModel,
   draftContent,
@@ -87,6 +90,10 @@ const editKeyInputState = computed<InteractionState>(() => {
   return 'focus'
 })
 
+const editKeyDescribedBy = computed(() =>
+  primaryFeedback.value?.describedField === 'editKey' ? primaryFeedbackId : undefined
+)
+
 function handleSave() {
   void saveNote()
 }
@@ -135,6 +142,7 @@ function handleConfirmDelete() {
         description="我们正在根据当前 sid 拉取该在线便签的最新已保存内容。"
         tone="info"
         state="focus"
+        v-bind="politeInlineFeedbackA11y"
       />
       <LoadingCard state="focus" />
     </div>
@@ -174,10 +182,14 @@ function handleConfirmDelete() {
       <InlineFeedback
         v-if="primaryFeedback"
         class="mt-5"
+        :id="primaryFeedbackId"
         :title="primaryFeedback.title"
         :description="primaryFeedback.description"
         :tone="primaryFeedback.tone"
         :state="primaryFeedback.state"
+        :role="primaryFeedback.role ?? politeInlineFeedbackA11y.role"
+        :aria-live="primaryFeedback.ariaLive ?? politeInlineFeedbackA11y.ariaLive"
+        :aria-atomic="primaryFeedback.ariaAtomic ?? politeInlineFeedbackA11y.ariaAtomic"
       />
 
       <InlineFeedback
@@ -187,6 +199,7 @@ function handleConfirmDelete() {
         description="当前这次首次保存会把对象创建成共享编辑模式；如果你之后忘记这枚密钥，系统不会帮你找回匿名编辑权限。"
         tone="warning"
         state="default"
+        v-bind="politeInlineFeedbackA11y"
       />
 
       <div class="mt-5 rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-ink-50/60 p-4">
@@ -209,6 +222,7 @@ function handleConfirmDelete() {
             :state="editKeyInputState"
             placeholder="输入编辑密钥…"
             :hint="authorizationUi.editKeyHint"
+            :described-by="editKeyDescribedBy"
           />
         </div>
       </div>
@@ -229,6 +243,7 @@ function handleConfirmDelete() {
       :description="viewModel.description"
       :tone="feedbackTone"
       :state="feedbackState"
+      v-bind="politeInlineFeedbackA11y"
     />
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
 
@@ -7,10 +7,12 @@ import { textInputStateClasses } from './state-presets'
 
 const props = withDefaults(
   defineProps<{
+    id?: string
     label: string
     placeholder?: string
     state?: InteractionState
     hint?: string
+    describedBy?: string
     type?: string
     autoComplete?: string
     autoCapitalize?: string
@@ -21,9 +23,11 @@ const props = withDefaults(
     enterKeyHint?: 'enter' | 'done' | 'go' | 'next' | 'previous' | 'search' | 'send'
   }>(),
   {
+    id: undefined,
     placeholder: '',
     state: 'default',
     hint: '',
+    describedBy: '',
     type: 'text',
     autoComplete: 'off',
     autoCapitalize: 'none',
@@ -36,6 +40,17 @@ const props = withDefaults(
 )
 
 const model = defineModel<string>({ default: '' })
+const baseId = useId()
+
+const inputId = computed(() => props.id ?? `text-input-${baseId}`)
+const hintId = computed(() => (props.hint ? `${inputId.value}-hint` : null))
+const describedByValue = computed(() => {
+  const ids = [hintId.value, props.describedBy.trim() || null].filter(
+    (value): value is string => Boolean(value)
+  )
+
+  return ids.length > 0 ? ids.join(' ') : undefined
+})
 
 const fieldClassName = computed(() => [
   'w-full rounded-[var(--radius-control)] border px-4 py-3 text-sm outline-none transition duration-[var(--duration-fast)]',
@@ -53,6 +68,9 @@ const fieldClassName = computed(() => [
     <textarea
       v-if="props.multiline"
       v-model="model"
+      :id="inputId"
+      :aria-describedby="describedByValue"
+      :aria-invalid="props.state === 'error' ? 'true' : undefined"
       :autocapitalize="props.autoCapitalize"
       :autocomplete="props.autoComplete"
       :class="fieldClassName"
@@ -66,6 +84,9 @@ const fieldClassName = computed(() => [
     <input
       v-else
       v-model="model"
+      :id="inputId"
+      :aria-describedby="describedByValue"
+      :aria-invalid="props.state === 'error' ? 'true' : undefined"
       :autocapitalize="props.autoCapitalize"
       :autocomplete="props.autoComplete"
       :class="fieldClassName"
@@ -77,7 +98,7 @@ const fieldClassName = computed(() => [
       :type="props.type"
     />
 
-    <span v-if="hint" class="text-xs text-[color:var(--text-muted)]">
+    <span v-if="hint" :id="hintId ?? undefined" class="text-xs text-[color:var(--text-muted)]">
       {{ hint }}
     </span>
   </label>
