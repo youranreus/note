@@ -187,6 +187,9 @@ const tabModel = computed({
                 :title="note.sid"
                 state="default"
               />
+              <p class="m-0 text-sm leading-6 text-[color:var(--text-secondary)]">
+                最近更新：{{ formatUserPanelUpdatedAt(note.updatedAt) }}
+              </p>
               <div class="flex justify-end">
                 <Button
                   :data-testid="`user-center-open-favorite-${note.sid}`"

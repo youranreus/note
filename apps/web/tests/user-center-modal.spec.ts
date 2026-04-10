@@ -112,6 +112,7 @@ describe('user center modal', () => {
     expect(wrapper.text()).toContain('shared123')
     expect(wrapper.text()).toContain('收藏的便签摘要')
     expect(wrapper.text()).toContain('收藏于')
+    expect(wrapper.text()).toContain('最近更新')
 
     await wrapper.get('[data-testid="user-center-open-favorite-shared123"]').trigger('click')
 

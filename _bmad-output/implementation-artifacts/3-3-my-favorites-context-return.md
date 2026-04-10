@@ -1,6 +1,6 @@
 # Story 3.3: 我的收藏列表与上下文返回
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -275,3 +275,8 @@ GPT-5 Codex
 - apps/web/tests/use-online-note.spec.ts
 - apps/web/tests/user-center-modal.spec.ts
 - packages/shared-types/src/index.ts
+
+### Review Findings
+
+- [x] [Review][Patch] 收藏列表未展示对象更新时间 [apps/web/src/features/user-panel/components/UserCenterModal.vue:184]
+- [x] [Review][Patch] 收藏空状态 CTA 无条件跳回首页，破坏当前对象上下文 [apps/web/src/features/user-panel/use-user-panel.ts:413]

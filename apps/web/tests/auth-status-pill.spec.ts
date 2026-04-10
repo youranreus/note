@@ -515,11 +515,57 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="user-center-tab-favorites"]').trigger('click')
     await flushPromises()
 
+    expect(wrapper.text()).toContain('最近更新')
     await wrapper.get('[data-testid="user-center-open-favorite-shared123"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/note/o/shared123')
     expect(document.activeElement).not.toBe(trigger.element)
+  })
+
+  it('keeps the current online-note route when using the empty favorites CTA', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+    meNotesRequestHarness.updateFavoritesForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="user-center-tab-favorites"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="user-center-browse-notes"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/note/o/demo123')
+    expect(document.activeElement).toBe(trigger.element)
   })
 
   it('returns focus to the trigger when the user center closes without navigation', async () => {

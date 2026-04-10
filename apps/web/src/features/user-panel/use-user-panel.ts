@@ -28,6 +28,10 @@ const defaultMyNotesQuery = {
   limit: 20
 } satisfies Required<MyNotesQueryDto>
 
+function isBrowseAndFavoriteRoute(path: string) {
+  return path === '/' || path.startsWith('/note/o/')
+}
+
 interface LoadCreatedNotesPayload {
   query?: MyNotesQueryDto
   cacheScope: string
@@ -411,7 +415,13 @@ export function useUserPanel() {
   }
 
   async function browseNotes() {
+    const currentPath = router.currentRoute.value.path
     closeUserCenter()
+
+    if (isBrowseAndFavoriteRoute(currentPath)) {
+      return
+    }
+
     await router.push('/')
   }
 
