@@ -190,6 +190,91 @@ function createFakeNoteServices(seedNotes: StoredNote[] = []) {
         }
       }
     }
+    ,
+    async deleteBySid(sid: string, editKey, session) {
+      if (sid === 'conflict123') {
+        throw new NoteSidConflictError(sid)
+      }
+
+      const existing = store.get(sid)
+
+      if (!existing) {
+        return {
+          status: 'not-found',
+          error: {
+            sid,
+            code: 'NOTE_NOT_FOUND',
+            status: 'not-found',
+            message: '未找到与当前 sid 对应的在线便签。'
+          }
+        }
+      }
+
+      if (existing.deleted) {
+        return {
+          status: 'already-deleted',
+          error: {
+            sid,
+            code: 'NOTE_DELETED',
+            status: 'deleted',
+            message: '该在线便签已删除，当前链接不可继续删除。'
+          }
+        }
+      }
+
+      const isOwner = existing.authorSessionId
+        ? existing.authorSessionId === session?.user.id
+        : false
+
+      if (existing.authorSessionId && !isOwner && !existing.editKey) {
+        return {
+          status: 'forbidden',
+          error: {
+            sid,
+            code: 'NOTE_FORBIDDEN',
+            status: 'forbidden',
+            message: '当前账户不能删除这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
+          }
+        }
+      }
+
+      if (existing.editKey) {
+        if (!editKey?.trim()) {
+          return {
+            status: 'forbidden',
+            error: {
+              sid,
+              code: 'NOTE_EDIT_KEY_REQUIRED',
+              status: 'forbidden',
+              message: '当前对象需要输入编辑密钥后才能删除。'
+            }
+          }
+        }
+
+        if (editKey.trim() !== existing.editKey) {
+          return {
+            status: 'forbidden',
+            error: {
+              sid,
+              code: 'NOTE_EDIT_KEY_INVALID',
+              status: 'forbidden',
+              message: '当前编辑密钥不正确，请确认后重试。'
+            }
+          }
+        }
+      }
+
+      existing.deleted = true
+
+      return {
+        status: 'deleted',
+        note: {
+          sid,
+          status: 'deleted',
+          message: '该在线便签已删除，当前链接不可恢复。'
+        }
+      }
+    }
   }
 
   return {
@@ -604,6 +689,263 @@ describe('notes write endpoint', () => {
         sid: 'owner123',
         code: 'NOTE_FORBIDDEN',
         status: 'forbidden'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('deletes an owner-bound note after confirmation and returns a deleted terminal payload', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'owner123',
+          content: '创建者原始正文。',
+          authorSessionId: '1001'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/owner123',
+        headers: {
+          cookie: ownerCookie
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toEqual({
+        sid: 'owner123',
+        status: 'deleted',
+        message: '该在线便签已删除，当前链接不可恢复。'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('lets a non-owner collaborator delete an owner-bound keyed note with the correct edit key', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'keyed123',
+          content: '带密钥的正文。',
+          authorSessionId: '1001',
+          editKey: 'shared-secret'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/keyed123',
+        headers: {
+          cookie: otherCookie,
+          'x-note-edit-key': 'shared-secret'
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toEqual({
+        sid: 'keyed123',
+        status: 'deleted',
+        message: '该在线便签已删除，当前链接不可恢复。'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_FORBIDDEN instead of a generic error when another session tries to delete an owner-bound note', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'owner123',
+          content: '创建者原始正文。',
+          authorSessionId: '1001'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/owner123',
+        headers: {
+          cookie: otherCookie
+        }
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.json()).toMatchObject({
+        sid: 'owner123',
+        code: 'NOTE_FORBIDDEN',
+        status: 'forbidden',
+        message: '当前账户不能删除这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_EDIT_KEY_REQUIRED when a keyed note is deleted without providing the current edit key', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'keyed123',
+          content: '带密钥的正文。',
+          editKey: 'shared-secret'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/keyed123'
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.json()).toMatchObject({
+        sid: 'keyed123',
+        code: 'NOTE_EDIT_KEY_REQUIRED',
+        status: 'forbidden'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_EDIT_KEY_INVALID when a keyed note is deleted with the wrong edit key', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'keyed123',
+          content: '带密钥的正文。',
+          editKey: 'shared-secret'
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/keyed123',
+        headers: {
+          'x-note-edit-key': 'wrong-secret'
+        }
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.json()).toMatchObject({
+        sid: 'keyed123',
+        code: 'NOTE_EDIT_KEY_INVALID',
+        status: 'forbidden'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_NOT_FOUND when delete targets a sid that does not exist', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/missing123'
+      })
+
+      expect(response.statusCode).toBe(404)
+      expect(response.json()).toMatchObject({
+        sid: 'missing123',
+        code: 'NOTE_NOT_FOUND',
+        status: 'not-found'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns NOTE_DELETED when delete targets a note that is already deleted', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'deleted123',
+          content: '已删除的正文。',
+          deleted: true
+        }
+      ]),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/deleted123'
+      })
+
+      expect(response.statusCode).toBe(409)
+      expect(response.json()).toMatchObject({
+        sid: 'deleted123',
+        code: 'NOTE_DELETED',
+        status: 'deleted'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('rejects blank sid params for DELETE just like the read and save endpoints', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/%20%20'
+      })
+
+      expect(response.statusCode).toBe(400)
+      expect(response.json()).toMatchObject({
+        code: 'INVALID_SID',
+        status: 'invalid-sid'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns a stable conflict payload when delete detects duplicate sid risk', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/conflict123'
+      })
+
+      expect(response.statusCode).toBe(409)
+      expect(response.json()).toMatchObject({
+        sid: 'conflict123',
+        code: 'NOTE_SID_CONFLICT',
+        status: 'error'
       })
     } finally {
       await app.close()

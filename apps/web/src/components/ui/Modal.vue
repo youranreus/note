@@ -11,11 +11,13 @@ const props = withDefaults(
     title: string
     description: string
     closeLabel?: string
+    dialogTestId?: string
     initialFocus?: 'dialog' | 'first-focusable' | 'active-tab'
     state?: InteractionState
   }>(),
   {
     closeLabel: '关闭',
+    dialogTestId: '',
     initialFocus: 'dialog',
     state: 'default'
   }
@@ -153,6 +155,7 @@ watch(
       ref="panel"
       :aria-describedby="descriptionId"
       :aria-labelledby="titleId"
+      :data-testid="dialogTestId || undefined"
       :class="[
         'w-full max-w-lg rounded-[var(--radius-panel)] border bg-white p-6 shadow-[var(--panel-shadow)]',
         state === 'focus' ? 'border-accent-300 ring-4 ring-accent-100' : '',

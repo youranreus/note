@@ -11,6 +11,7 @@ import TextInput from '@/components/ui/TextInput.vue'
 import { useAuthStore } from '@/stores/auth-store'
 
 import NoteObjectHeader from './NoteObjectHeader.vue'
+import DeleteNoteConfirmModal from './DeleteNoteConfirmModal.vue'
 import { resolveOnlineNoteAuthorizationUiModel } from '../online-note'
 import { useOnlineNote } from '../use-online-note'
 
@@ -19,10 +20,21 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const { viewModel, draftContent, editKey, saveState, primaryFeedback, objectHeader, saveNote, copyShareLink, favoriteNote } =
-  useOnlineNote(
-  computed(() => props.sid)
-)
+const {
+  viewModel,
+  draftContent,
+  editKey,
+  saveState,
+  primaryFeedback,
+  objectHeader,
+  isDeleteConfirmOpen,
+  saveNote,
+  copyShareLink,
+  favoriteNote,
+  openDeleteConfirm,
+  closeDeleteConfirm,
+  confirmDelete
+} = useOnlineNote(computed(() => props.sid))
 
 const authorizationUi = computed(() =>
   resolveOnlineNoteAuthorizationUiModel({
@@ -86,6 +98,18 @@ function handleCopyShareLink() {
 function handleFavoriteNote() {
   void favoriteNote()
 }
+
+function handleOpenDeleteConfirm() {
+  openDeleteConfirm()
+}
+
+function handleCloseDeleteConfirm() {
+  closeDeleteConfirm()
+}
+
+function handleConfirmDelete() {
+  void confirmDelete()
+}
 </script>
 
 <template>
@@ -137,6 +161,14 @@ function handleFavoriteNote() {
         :model="objectHeader"
         @copy="handleCopyShareLink"
         @favorite="handleFavoriteNote"
+        @delete="handleOpenDeleteConfirm"
+      />
+
+      <DeleteNoteConfirmModal
+        :open="isDeleteConfirmOpen"
+        :busy="objectHeader?.deleteButtonState === 'disabled'"
+        @close="handleCloseDeleteConfirm"
+        @confirm="handleConfirmDelete"
       />
 
       <InlineFeedback

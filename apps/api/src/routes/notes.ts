@@ -3,6 +3,8 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { OnlineNoteSaveRequestDto } from '@note/shared-types'
 
 import {
+  noteDeleteErrorSchema,
+  noteDeleteResponseSchema,
   noteDetailResponseSchema,
   noteReadErrorSchema,
   noteReadHeadersSchema,
@@ -30,6 +32,10 @@ interface NoteReadHeaders {
 interface NoteRoutesOptions {
   noteReadService?: NoteReadService
   noteWriteService?: NoteWriteService
+}
+
+function resolveEditKey(rawEditKey: string | string[] | undefined) {
+  return (Array.isArray(rawEditKey) ? rawEditKey[0] : rawEditKey)?.trim() || null
 }
 
 function createInvalidSidError(sid: string) {
@@ -84,11 +90,10 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
 
       try {
         const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
-        const rawEditKey = request.headers['x-note-edit-key']
         const result = await noteReadService.getBySid(
           normalizedSid,
           session,
-          (Array.isArray(rawEditKey) ? rawEditKey[0] : rawEditKey)?.trim() || null
+          resolveEditKey(request.headers['x-note-edit-key'])
         )
 
         if (result.status === 'available') {
@@ -144,6 +149,63 @@ export const noteRoutes: FastifyPluginAsync<NoteRoutesOptions> = async (app, opt
         }
 
         throw new Error('Unhandled note write result.')
+      } catch (error) {
+        if (error instanceof NoteSidConflictError) {
+          return reply.status(409).send(createConflictError(error.sid))
+        }
+
+        throw error
+      }
+    }
+  )
+
+  app.delete<{ Params: NoteRouteParams; Headers: NoteReadHeaders }>(
+    '/:sid',
+    {
+      schema: {
+        params: noteReadParamsSchema,
+        headers: noteReadHeadersSchema,
+        response: {
+          200: noteDeleteResponseSchema,
+          400: noteDeleteErrorSchema,
+          403: noteDeleteErrorSchema,
+          404: noteDeleteErrorSchema,
+          409: noteDeleteErrorSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const normalizedSid = request.params.sid.trim()
+
+      if (normalizedSid === '') {
+        return reply.status(400).send(createInvalidSidError(request.params.sid))
+      }
+
+      try {
+        const session = app.authSessionService.getSession(request.cookies[app.authConfig.cookieName])
+        const result = await noteWriteService.deleteBySid(
+          normalizedSid,
+          resolveEditKey(request.headers['x-note-edit-key']),
+          session
+        )
+
+        if (result.status === 'deleted') {
+          return result.note
+        }
+
+        if (result.status === 'forbidden') {
+          return reply.status(403).send(result.error)
+        }
+
+        if (result.status === 'not-found') {
+          return reply.status(404).send(result.error)
+        }
+
+        if (result.status === 'already-deleted' || result.status === 'conflict') {
+          return reply.status(409).send(result.error)
+        }
+
+        throw new Error('Unhandled note delete result.')
       } catch (error) {
         if (error instanceof NoteSidConflictError) {
           return reply.status(409).send(createConflictError(error.sid))

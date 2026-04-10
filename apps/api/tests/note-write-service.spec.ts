@@ -22,6 +22,7 @@ interface FakePrismaHarness {
   executeCalls: QueryCall[]
   insertedValues: unknown[][]
   updatedValues: unknown[][]
+  deletedValues: unknown[][]
   releasedLocks: string[]
   insertedUsers: unknown[][]
 }
@@ -39,6 +40,7 @@ function createFakePrismaHarness(
   const executeCalls: QueryCall[] = []
   const insertedValues: unknown[][] = []
   const updatedValues: unknown[][] = []
+  const deletedValues: unknown[][] = []
   const releasedLocks: string[] = []
   const insertedUsers: unknown[][] = []
 
@@ -93,6 +95,11 @@ function createFakePrismaHarness(
         return 1
       }
 
+      if (sql.startsWith('UPDATE notes SET deleted_at = CURRENT_TIMESTAMP(3)')) {
+        deletedValues.push(values)
+        return 1
+      }
+
       throw new Error(`Unexpected execute: ${sql}`)
     }
   }
@@ -109,6 +116,7 @@ function createFakePrismaHarness(
     executeCalls,
     insertedValues,
     updatedValues,
+    deletedValues,
     releasedLocks
     ,
     insertedUsers
@@ -747,5 +755,259 @@ describe('note write service', () => {
     expect(harness.insertedValues).toEqual([])
     expect(harness.updatedValues).toEqual([])
     expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('lets the owner delete an existing owned note and still releases the sid lock', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'owned123',
+        content: '旧内容。',
+        authorId: 7,
+        keyHash: null,
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('owned123', null, createAuthenticatedSession('1001'))
+
+    expect(result).toEqual({
+      status: 'deleted',
+      note: {
+        sid: 'owned123',
+        status: 'deleted',
+        message: '该在线便签已删除，当前链接不可恢复。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([[42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:owned123'])
+  })
+
+  it('allows a collaborator with the correct edit key to delete an owner-bound keyed note', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'owner-keyed123',
+        content: '旧内容。',
+        authorId: 9,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid(
+      'owner-keyed123',
+      'shared-secret',
+      createAuthenticatedSession('2002')
+    )
+
+    expect(result).toEqual({
+      status: 'deleted',
+      note: {
+        sid: 'owner-keyed123',
+        status: 'deleted',
+        message: '该在线便签已删除，当前链接不可恢复。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([[42]])
+    expect(harness.releasedLocks).toEqual(['notes:write:owner-keyed123'])
+  })
+
+  it('rejects delete requests from other sessions when an owned note has no edit key protection', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'owned123',
+        content: '旧内容。',
+        authorId: 9,
+        keyHash: null,
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('owned123', null, createAuthenticatedSession('1001'))
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'owned123',
+        code: 'NOTE_FORBIDDEN',
+        status: 'forbidden',
+        message: '当前账户不能删除这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:owned123'])
+  })
+
+  it('returns a deleted terminal error when the note was already deleted before deleteBySid runs', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'gone123',
+        content: '旧内容。',
+        authorId: null,
+        keyHash: null,
+        deletedAt: new Date('2026-04-10T00:00:00.000Z')
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('gone123', null, null)
+
+    expect(result).toEqual({
+      status: 'already-deleted',
+      error: {
+        sid: 'gone123',
+        code: 'NOTE_DELETED',
+        status: 'deleted',
+        message: '该在线便签已删除，当前链接不可继续删除。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:gone123'])
+  })
+
+  it('returns not-found when deleteBySid cannot find the requested sid', async () => {
+    const harness = createFakePrismaHarness([])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('missing123', null, null)
+
+    expect(result).toEqual({
+      status: 'not-found',
+      error: {
+        sid: 'missing123',
+        code: 'NOTE_NOT_FOUND',
+        status: 'not-found',
+        message: '未找到与当前 sid 对应的在线便签。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:missing123'])
+  })
+
+  it('requires the current edit key before deleting a keyed anonymous note', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'shared123',
+        content: '旧内容。',
+        authorId: null,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('shared123', null, null)
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_REQUIRED',
+        status: 'forbidden',
+        message: '当前对象需要输入编辑密钥后才能删除。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('rejects deleteBySid when the provided edit key is wrong', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 42,
+        sid: 'shared123',
+        content: '旧内容。',
+        authorId: null,
+        keyHash: 'hashed:shared-secret',
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient,
+      editKeyService: createFakeEditKeyService()
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('shared123', 'wrong-secret', null)
+
+    expect(result).toEqual({
+      status: 'forbidden',
+      error: {
+        sid: 'shared123',
+        code: 'NOTE_EDIT_KEY_INVALID',
+        status: 'forbidden',
+        message: '当前编辑密钥不正确，请确认后重试。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:shared123'])
+  })
+
+  it('returns a stable conflict result when deleteBySid matches duplicate sid rows', async () => {
+    const harness = createFakePrismaHarness([
+      {
+        id: 41,
+        sid: 'conflict123',
+        content: '旧内容 A。',
+        authorId: null,
+        keyHash: null,
+        deletedAt: null
+      },
+      {
+        id: 42,
+        sid: 'conflict123',
+        content: '旧内容 B。',
+        authorId: null,
+        keyHash: null,
+        deletedAt: null
+      }
+    ])
+    const repository = createPrismaNoteWriteRepository({
+      getPrismaClient: async () => harness.prismaClient
+    })
+    const service = createNoteWriteService(repository)
+
+    const result = await service.deleteBySid('conflict123', null, null)
+
+    expect(result).toEqual({
+      status: 'conflict',
+      error: {
+        sid: 'conflict123',
+        code: 'NOTE_SID_CONFLICT',
+        status: 'error',
+        message: '当前 sid 命中了多条记录，无法按唯一对象语义删除结果。'
+      }
+    })
+    expect(harness.deletedValues).toEqual([])
+    expect(harness.releasedLocks).toEqual(['notes:write:conflict123'])
   })
 })

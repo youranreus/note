@@ -30,6 +30,7 @@ export type NoteReadErrorCode =
 export type NoteReadErrorStatus = Exclude<NoteReadViewStatus, 'loading' | 'available'>
 
 export type OnlineNoteSaveResult = 'created' | 'updated'
+export type OnlineNoteDeleteResult = 'deleted'
 
 export type NoteWriteErrorCode =
   | 'INVALID_SID'
@@ -40,7 +41,17 @@ export type NoteWriteErrorCode =
   | 'NOTE_FORBIDDEN'
   | 'NOTE_SID_CONFLICT'
 
+export type NoteDeleteErrorCode =
+  | 'INVALID_SID'
+  | 'NOTE_NOT_FOUND'
+  | 'NOTE_DELETED'
+  | 'NOTE_EDIT_KEY_REQUIRED'
+  | 'NOTE_EDIT_KEY_INVALID'
+  | 'NOTE_FORBIDDEN'
+  | 'NOTE_SID_CONFLICT'
+
 export type NoteWriteErrorStatus = 'invalid-sid' | 'deleted' | 'forbidden' | 'error'
+export type NoteDeleteErrorStatus = 'invalid-sid' | 'not-found' | 'deleted' | 'forbidden' | 'error'
 export type FavoriteErrorCode =
   | 'FAVORITE_AUTH_REQUIRED'
   | 'FAVORITE_NOTE_NOT_FOUND'
@@ -132,6 +143,12 @@ export interface OnlineNoteSaveResponseDto extends OnlineNoteDetailDto {
   saveResult: OnlineNoteSaveResult
 }
 
+export interface OnlineNoteDeleteResponseDto {
+  sid: string
+  status: OnlineNoteDeleteResult
+  message: string
+}
+
 export interface NoteReadErrorDto {
   sid: string
   code: NoteReadErrorCode
@@ -143,6 +160,13 @@ export interface NoteWriteErrorDto {
   sid: string
   code: NoteWriteErrorCode
   status: NoteWriteErrorStatus
+  message: string
+}
+
+export interface NoteDeleteErrorDto {
+  sid: string
+  code: NoteDeleteErrorCode
+  status: NoteDeleteErrorStatus
   message: string
 }
 

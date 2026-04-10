@@ -24,6 +24,16 @@ const noteWriteErrorCodes = [
   'NOTE_SID_CONFLICT'
 ] as const
 const noteWriteErrorStatuses = ['invalid-sid', 'deleted', 'forbidden', 'error'] as const
+const noteDeleteErrorCodes = [
+  'INVALID_SID',
+  'NOTE_NOT_FOUND',
+  'NOTE_DELETED',
+  'NOTE_EDIT_KEY_REQUIRED',
+  'NOTE_EDIT_KEY_INVALID',
+  'NOTE_FORBIDDEN',
+  'NOTE_SID_CONFLICT'
+] as const
+const noteDeleteErrorStatuses = ['invalid-sid', 'not-found', 'deleted', 'forbidden', 'error'] as const
 
 export const noteReadParamsSchema = {
   type: 'object',
@@ -110,6 +120,19 @@ export const noteWriteResponseSchema = {
   }
 } as const
 
+export const noteDeleteResponseSchema = {
+  type: 'object',
+  required: ['sid', 'status', 'message'],
+  properties: {
+    sid: { type: 'string' },
+    status: {
+      type: 'string',
+      enum: ['deleted']
+    },
+    message: { type: 'string' }
+  }
+} as const
+
 export const noteReadErrorSchema = {
   type: 'object',
   required: ['sid', 'code', 'status', 'message'],
@@ -139,6 +162,23 @@ export const noteWriteErrorSchema = {
     status: {
       type: 'string',
       enum: noteWriteErrorStatuses
+    },
+    message: { type: 'string' }
+  }
+} as const
+
+export const noteDeleteErrorSchema = {
+  type: 'object',
+  required: ['sid', 'code', 'status', 'message'],
+  properties: {
+    sid: { type: 'string' },
+    code: {
+      type: 'string',
+      enum: noteDeleteErrorCodes
+    },
+    status: {
+      type: 'string',
+      enum: noteDeleteErrorStatuses
     },
     message: { type: 'string' }
   }

@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review in a fresh context
 
 generated: "2026-04-02 11:55:32 +0800"
-last_updated: "2026-04-10 11:54:09 +0800"
+last_updated: "2026-04-10 15:06:04 +0800"
 project: "note"
 project_key: "NOKEY"
 tracking_system: "file-system"
@@ -65,8 +65,8 @@ development_status:
   3-4-user-center-accessibility-consistency: done
   epic-3-retrospective: optional
 
-  epic-4: backlog
-  4-1-delete-confirmation-authorized-delete: backlog
+  epic-4: in-progress
+  4-1-delete-confirmation-authorized-delete: done
   4-2-deleted-link-irreversible-semantics: backlog
   4-3-unified-edge-case-feedback: backlog
   epic-4-retrospective: optional

@@ -5,11 +5,14 @@ import type {
   FavoriteErrorDto,
   FavoriteResponseDto,
   InteractionState,
+  NoteDeleteErrorCode,
+  NoteDeleteErrorDto,
   NoteEditAccess,
   NoteReadErrorDto,
   NoteReadViewStatus,
   NoteWriteErrorCode,
   NoteWriteErrorDto,
+  OnlineNoteDeleteResponseDto,
   OnlineNoteDetailDto,
   OnlineNoteFavoriteState,
   OnlineNoteSaveResponseDto
@@ -58,6 +61,9 @@ export interface OnlineNoteObjectHeaderModel {
   showFavoriteButton?: boolean
   favoriteButtonLabel?: string
   favoriteButtonState?: InteractionState
+  showDeleteButton?: boolean
+  deleteButtonLabel?: string
+  deleteButtonState?: InteractionState
 }
 
 export interface OnlineNoteAuthorizationUiModel {
@@ -91,6 +97,7 @@ interface OnlineNoteObjectHeaderInput {
   authStatus?: AuthStatus
   saveState: OnlineNoteSaveState
   favoriteActionState?: InteractionState
+  deleteActionState?: InteractionState
 }
 
 interface OnlineNoteAuthorizationUiInput {
@@ -180,6 +187,14 @@ function createAvailableDescription(editAccess: NoteEditAccess) {
 
 export function canEditOnlineNote(editAccess: NoteEditAccess | null) {
   return editAccess !== 'forbidden'
+}
+
+export function canDeleteOnlineNote(editAccess: NoteEditAccess | null) {
+  return (
+    editAccess === 'anonymous-editable' ||
+    editAccess === 'owner-editable' ||
+    editAccess === 'key-editable'
+  )
 }
 
 export function resolveInteractiveEditAccess(
@@ -404,6 +419,20 @@ export function isFavoriteResponseDto(value: unknown): value is FavoriteResponse
   return typeof candidate.sid === 'string' && candidate.favoriteState === 'favorited'
 }
 
+export function isOnlineNoteDeleteResponseDto(value: unknown): value is OnlineNoteDeleteResponseDto {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as Partial<OnlineNoteDeleteResponseDto>
+
+  return (
+    typeof candidate.sid === 'string' &&
+    candidate.status === 'deleted' &&
+    typeof candidate.message === 'string'
+  )
+}
+
 export function resolveNoteReadErrorDto(error: unknown) {
   const responseData = (error as AxiosError<unknown> | undefined)?.response?.data
 
@@ -427,6 +456,23 @@ export function resolveFavoriteErrorDto(error: unknown) {
     typeof responseData.message === 'string'
   ) {
     return responseData as FavoriteErrorDto
+  }
+
+  return null
+}
+
+export function resolveNoteDeleteErrorDto(error: unknown) {
+  const responseData = (error as AxiosError<unknown> | undefined)?.response?.data
+
+  if (
+    responseData &&
+    typeof responseData === 'object' &&
+    typeof (responseData as Partial<NoteDeleteErrorDto>).sid === 'string' &&
+    typeof (responseData as Partial<NoteDeleteErrorDto>).code === 'string' &&
+    typeof (responseData as Partial<NoteDeleteErrorDto>).status === 'string' &&
+    typeof (responseData as Partial<NoteDeleteErrorDto>).message === 'string'
+  ) {
+    return responseData as NoteDeleteErrorDto
   }
 
   return null
@@ -700,6 +746,22 @@ function resolveFavoriteAction(input: OnlineNoteObjectHeaderInput) {
   }
 }
 
+function resolveDeleteAction(input: OnlineNoteObjectHeaderInput) {
+  if (input.viewStatus !== 'available' || !canDeleteOnlineNote(input.editAccess)) {
+    return {
+      showDeleteButton: false,
+      deleteButtonLabel: '',
+      deleteButtonState: 'disabled' as InteractionState
+    }
+  }
+
+  return {
+    showDeleteButton: true,
+    deleteButtonLabel: '删除便签',
+    deleteButtonState: input.deleteActionState ?? 'default'
+  }
+}
+
 export function resolveOnlineNoteObjectHeader(
   input: OnlineNoteObjectHeaderInput
 ): OnlineNoteObjectHeaderModel | null {
@@ -716,6 +778,7 @@ export function resolveOnlineNoteObjectHeader(
   const isExistingSharedObject = input.viewStatus === 'available'
   const editStatus = resolveEditStatus(input)
   const favoriteAction = resolveFavoriteAction(input)
+  const deleteAction = resolveDeleteAction(input)
 
   return {
     sid: input.sid,
@@ -736,7 +799,10 @@ export function resolveOnlineNoteObjectHeader(
     copyButtonState: canCopyShareLink ? 'default' : 'disabled',
     showFavoriteButton: favoriteAction.showFavoriteButton,
     favoriteButtonLabel: favoriteAction.favoriteButtonLabel,
-    favoriteButtonState: favoriteAction.favoriteButtonState
+    favoriteButtonState: favoriteAction.favoriteButtonState,
+    showDeleteButton: deleteAction.showDeleteButton,
+    deleteButtonLabel: deleteAction.deleteButtonLabel,
+    deleteButtonState: deleteAction.deleteButtonState
   }
 }
 
@@ -766,5 +832,80 @@ export function createOnlineNoteFavoriteSuccessFeedback(): OnlineNoteSaveFeedbac
     state: 'default',
     title: '已收藏当前在线便签',
     description: '这条内容已经进入你的收藏资产，后续可从“我的收藏”继续回访。'
+  }
+}
+
+export function resolveOnlineNoteDeleteFeedback(
+  errorCode?: NoteDeleteErrorCode | null,
+  errorMessage?: string | null
+): OnlineNoteSaveFeedback {
+  if (errorCode === 'INVALID_SID') {
+    return {
+      tone: 'warning',
+      state: 'default',
+      title: '当前链接缺少有效 sid',
+      description: errorMessage ?? '当前链接中的 sid 无效，系统无法删除这条在线便签。'
+    }
+  }
+
+  if (errorCode === 'NOTE_EDIT_KEY_REQUIRED') {
+    return {
+      tone: 'warning',
+      state: 'default',
+      title: '删除前需要编辑密钥',
+      description: errorMessage ?? '当前对象需要输入编辑密钥后才能删除。'
+    }
+  }
+
+  if (errorCode === 'NOTE_EDIT_KEY_INVALID') {
+    return {
+      tone: 'danger',
+      state: 'error',
+      title: '编辑密钥不正确',
+      description: errorMessage ?? '当前编辑密钥不正确，请确认后重试。'
+    }
+  }
+
+  if (errorCode === 'NOTE_FORBIDDEN') {
+    return {
+      tone: 'warning',
+      state: 'default',
+      title: '当前账户不能删除',
+      description: errorMessage ?? '当前账户没有删除该在线便签的权限。'
+    }
+  }
+
+  if (errorCode === 'NOTE_NOT_FOUND') {
+    return {
+      tone: 'warning',
+      state: 'default',
+      title: '这条在线便签不存在',
+      description: errorMessage ?? '未找到与当前 sid 对应的在线便签。'
+    }
+  }
+
+  if (errorCode === 'NOTE_DELETED') {
+    return {
+      tone: 'warning',
+      state: 'default',
+      title: '该在线便签已删除',
+      description: errorMessage ?? '该在线便签已删除，当前链接不可继续删除。'
+    }
+  }
+
+  if (errorCode === 'NOTE_SID_CONFLICT') {
+    return {
+      tone: 'danger',
+      state: 'error',
+      title: '当前在线便签出现 sid 冲突',
+      description: errorMessage ?? '当前 sid 命中了多条记录，系统无法确认要删除的唯一对象。'
+    }
+  }
+
+  return {
+    tone: 'danger',
+    state: 'error',
+    title: '删除当前在线便签失败',
+    description: errorMessage ?? '删除当前在线便签时发生异常，请稍后重试。'
   }
 }

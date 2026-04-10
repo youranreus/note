@@ -2,7 +2,11 @@ import { useRequest } from 'alova/client'
 import { computed, shallowRef, toValue, watch } from 'vue'
 
 import type { MaybeRefOrGetter } from 'vue'
-import type { NoteWriteErrorCode, OnlineNoteSaveRequestDto } from '@note/shared-types'
+import type {
+  NoteDeleteErrorCode,
+  NoteWriteErrorCode,
+  OnlineNoteSaveRequestDto
+} from '@note/shared-types'
 
 import { createFavoriteNoteMethod } from '@/services/favorite-methods'
 import {
@@ -11,22 +15,27 @@ import {
 } from '@/services/me-methods'
 import {
   createGetOnlineNoteDetailMethod,
+  createDeleteOnlineNoteMethod,
   createSaveOnlineNoteMethod
 } from '@/services/note-methods'
 
 import {
+  canDeleteOnlineNote,
   canEditOnlineNote,
   createOnlineNoteCopyFailureFeedback,
   createOnlineNoteCopySuccessFeedback,
   createOnlineNoteFavoriteSuccessFeedback,
   downgradeOnlineNoteDetailToForbidden,
   isFavoriteResponseDto,
+  isOnlineNoteDeleteResponseDto,
   isOnlineNoteDetailDto,
   isOnlineNoteSaveResponseDto,
   resolveFavoriteErrorDto,
+  resolveNoteDeleteErrorDto,
   resolveNoteReadErrorDto,
   resolveNoteWriteErrorDto,
   resolveInteractiveEditAccess,
+  resolveOnlineNoteDeleteFeedback,
   resolveOnlineNoteObjectHeader,
   resolveOnlineNoteSaveFeedback,
   resolveOnlineNoteViewModel,
@@ -70,6 +79,15 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       immediate: false
     }
   )
+  const deleteRequest = useRequest(
+    (payload: { sid: string; editKey?: string }) =>
+      createDeleteOnlineNoteMethod(payload.sid, {
+        editKey: payload.editKey
+      }),
+    {
+      immediate: false
+    }
+  )
 
   const draftContent = shallowRef('')
   const baselineContent = shallowRef('')
@@ -79,12 +97,18 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const saveState = shallowRef<OnlineNoteSaveState>('unsaved')
   const saveErrorCode = shallowRef<NoteWriteErrorCode | null>(null)
   const saveErrorMessage = shallowRef<string | null>(null)
+  const isDeleteConfirmOpen = shallowRef(false)
+  const deleteErrorCode = shallowRef<NoteDeleteErrorCode | null>(null)
+  const deleteErrorMessage = shallowRef<string | null>(null)
   const terminalViewModel = shallowRef<OnlineNoteViewModel | null>(null)
   const copyFeedback = shallowRef<ReturnType<typeof createOnlineNoteCopySuccessFeedback> | null>(null)
   const favoriteFeedback = shallowRef<ReturnType<typeof createOnlineNoteFavoriteSuccessFeedback> | null>(null)
   const hasEditKeyValue = computed(() => editKey.value.trim() !== '')
   const favoriteActionState = computed(() =>
     favoriteRequest.loading.value ? 'disabled' : 'default'
+  )
+  const deleteActionState = computed(() =>
+    deleteRequest.loading.value ? 'disabled' : 'default'
   )
 
   const rawViewModel = computed(() => {
@@ -138,6 +162,13 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       errorMessage: saveErrorMessage.value
     })
   )
+  const deleteFeedback = computed(() => {
+    if (!deleteErrorCode.value && !deleteErrorMessage.value) {
+      return null
+    }
+
+    return resolveOnlineNoteDeleteFeedback(deleteErrorCode.value, deleteErrorMessage.value)
+  })
   const objectHeader = computed(() =>
     resolveOnlineNoteObjectHeader({
       sid: sidValue.value,
@@ -146,11 +177,12 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       favoriteState: viewModel.value.favoriteState,
       authStatus: authStore.status,
       saveState: saveState.value,
-      favoriteActionState: favoriteActionState.value
+      favoriteActionState: favoriteActionState.value,
+      deleteActionState: deleteActionState.value
     })
   )
   const primaryFeedback = computed(
-    () => favoriteFeedback.value ?? copyFeedback.value ?? saveFeedback.value
+    () => deleteFeedback.value ?? favoriteFeedback.value ?? copyFeedback.value ?? saveFeedback.value
   )
   const authSignature = computed(() => `${authStore.status}:${authStore.user?.id ?? ''}`)
 
@@ -164,6 +196,11 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     return null
   }
 
+  function clearDeleteFeedback() {
+    deleteErrorCode.value = null
+    deleteErrorMessage.value = null
+  }
+
   function resetEditorState(nextSid: string | null) {
     draftContent.value = ''
     baselineContent.value = ''
@@ -173,12 +210,19 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     saveState.value = 'unsaved'
     saveErrorCode.value = null
     saveErrorMessage.value = null
+    isDeleteConfirmOpen.value = false
+    clearDeleteFeedback()
     terminalViewModel.value = null
     copyFeedback.value = null
     favoriteFeedback.value = null
   }
 
-  function setTerminalViewModel(nextSid: string, errorMessage: string, status: 'deleted' | 'error') {
+  function setTerminalViewModel(
+    nextSid: string,
+    errorMessage: string,
+    status: 'deleted' | 'error',
+    titleOverride?: string
+  ) {
     editKey.value = ''
     terminalViewModel.value = {
       status,
@@ -186,7 +230,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       content: null,
       editAccess: null,
       favoriteState: null,
-      title: status === 'deleted' ? '该在线便签已删除' : '保存当前在线便签失败',
+      title: titleOverride ?? (status === 'deleted' ? '该在线便签已删除' : '保存当前在线便签失败'),
       description: errorMessage
     }
   }
@@ -257,6 +301,29 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     }
   }
 
+  function openDeleteConfirm() {
+    if (
+      viewModel.value.status !== 'available' ||
+      !canDeleteOnlineNote(viewModel.value.editAccess) ||
+      deleteRequest.loading.value
+    ) {
+      return
+    }
+
+    clearDeleteFeedback()
+    copyFeedback.value = null
+    favoriteFeedback.value = null
+    isDeleteConfirmOpen.value = true
+  }
+
+  function closeDeleteConfirm() {
+    if (deleteRequest.loading.value) {
+      return
+    }
+
+    isDeleteConfirmOpen.value = false
+  }
+
   async function saveNote() {
     const currentSid = sidValue.value
     const currentViewStatus = viewModel.value.status
@@ -273,6 +340,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       return
     }
 
+    clearDeleteFeedback()
     copyFeedback.value = null
     saveState.value = 'saving'
     saveErrorCode.value = null
@@ -359,6 +427,79 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     }
   }
 
+  async function confirmDelete() {
+    const currentSid = sidValue.value
+
+    if (
+      !currentSid ||
+      viewModel.value.status !== 'available' ||
+      !canDeleteOnlineNote(viewModel.value.editAccess) ||
+      deleteRequest.loading.value
+    ) {
+      return
+    }
+
+    clearDeleteFeedback()
+    copyFeedback.value = null
+    favoriteFeedback.value = null
+
+    try {
+      const response = await deleteRequest.send({
+        sid: currentSid,
+        editKey: editKey.value.trim() || undefined
+      })
+
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
+      if (!isOnlineNoteDeleteResponseDto(response) || response.sid !== currentSid) {
+        isDeleteConfirmOpen.value = false
+        deleteErrorMessage.value = '当前在线对象返回了无法识别的删除结果，请稍后重试。'
+        return
+      }
+
+      isDeleteConfirmOpen.value = false
+      editKey.value = ''
+      baselineContent.value = ''
+      draftContent.value = ''
+      saveState.value = 'unsaved'
+      saveErrorCode.value = null
+      saveErrorMessage.value = null
+      lastSubmittedContent.value = null
+      setTerminalViewModel(currentSid, response.message, 'deleted')
+
+      if (authStore.status === 'authenticated') {
+        invalidateMyNotesCacheForUser(authStore.user?.id)
+        invalidateMyFavoritesCacheForUser(authStore.user?.id)
+      }
+
+      deleteRequest.update({
+        data: response,
+        error: undefined
+      })
+    } catch (error) {
+      if (sidValue.value !== currentSid) {
+        return
+      }
+
+      const noteDeleteError = resolveNoteDeleteErrorDto(error)
+
+      isDeleteConfirmOpen.value = false
+      deleteErrorCode.value = noteDeleteError?.code ?? null
+      deleteErrorMessage.value = noteDeleteError?.message ?? '删除当前在线对象时发生异常，请稍后重试。'
+
+      if (noteDeleteError?.code === 'NOTE_DELETED') {
+        setTerminalViewModel(currentSid, noteDeleteError.message, 'deleted')
+        return
+      }
+
+      if (noteDeleteError?.code === 'NOTE_SID_CONFLICT') {
+        setTerminalViewModel(currentSid, noteDeleteError.message, 'error', '删除当前在线便签失败')
+      }
+    }
+  }
+
   async function favoriteNote() {
     const currentSid = sidValue.value
     const currentNote = currentSid ? resolveCurrentReadableNote(currentSid) : null
@@ -379,6 +520,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       return
     }
 
+    clearDeleteFeedback()
     copyFeedback.value = null
 
     try {
@@ -443,6 +585,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     }
 
     try {
+      clearDeleteFeedback()
       const clipboard = navigator.clipboard
 
       if (!clipboard?.writeText) {
@@ -466,11 +609,25 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   }
 
   watch(
+    () => editKey.value,
+    (nextEditKey, previousEditKey) => {
+      if (
+        nextEditKey !== previousEditKey &&
+        (deleteErrorCode.value === 'NOTE_EDIT_KEY_REQUIRED' ||
+          deleteErrorCode.value === 'NOTE_EDIT_KEY_INVALID')
+      ) {
+        clearDeleteFeedback()
+      }
+    }
+  )
+
+  watch(
     sidValue,
     (nextSid, _previousSid, onCleanup) => {
       void readRequest.abort()
       void saveRequest.abort()
       void favoriteRequest.abort()
+      void deleteRequest.abort()
       readRequest.update({
         data: undefined,
         error: undefined
@@ -480,6 +637,10 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         error: undefined
       })
       favoriteRequest.update({
+        data: undefined,
+        error: undefined
+      })
+      deleteRequest.update({
         data: undefined,
         error: undefined
       })
@@ -494,6 +655,7 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
         void readRequest.abort()
         void saveRequest.abort()
         void favoriteRequest.abort()
+        void deleteRequest.abort()
       })
     },
     {
@@ -624,8 +786,12 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     saveFeedback,
     primaryFeedback,
     objectHeader,
+    isDeleteConfirmOpen,
     saveNote,
     copyShareLink,
-    favoriteNote
+    favoriteNote,
+    openDeleteConfirm,
+    closeDeleteConfirm,
+    confirmDelete
   }
 }

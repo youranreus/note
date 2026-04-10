@@ -1,7 +1,9 @@
 import type {
   AuthenticatedSessionDto,
   NoteEditAccess,
+  NoteDeleteErrorDto,
   NoteWriteErrorDto,
+  OnlineNoteDeleteResponseDto,
   OnlineNoteEditKeyAction,
   OnlineNoteFavoriteState,
   OnlineNoteSaveRequestDto,
@@ -57,12 +59,27 @@ export type NoteWriteServiceResult =
       error: NoteWriteErrorDto
     }
 
+export type NoteDeleteServiceResult =
+  | {
+      status: 'deleted'
+      note: OnlineNoteDeleteResponseDto
+    }
+  | {
+      status: 'not-found' | 'already-deleted' | 'forbidden' | 'conflict'
+      error: NoteDeleteErrorDto
+    }
+
 export interface NoteWriteRepository {
   saveBySid(
     sid: string,
     input: OnlineNoteSaveRequestDto,
     session: AuthenticatedSessionDto | null
   ): Promise<NoteWriteServiceResult>
+  deleteBySid(
+    sid: string,
+    editKey: string | null,
+    session: AuthenticatedSessionDto | null
+  ): Promise<NoteDeleteServiceResult>
 }
 
 export interface NoteWriteService {
@@ -71,6 +88,11 @@ export interface NoteWriteService {
     input: OnlineNoteSaveRequestDto,
     session: AuthenticatedSessionDto | null
   ): Promise<NoteWriteServiceResult>
+  deleteBySid(
+    sid: string,
+    editKey: string | null,
+    session: AuthenticatedSessionDto | null
+  ): Promise<NoteDeleteServiceResult>
 }
 
 const noteWriteLookupSql =
@@ -87,6 +109,8 @@ const noteUpdateSql =
   'UPDATE notes SET content = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? LIMIT 1'
 const noteUpdateWithKeySql =
   'UPDATE notes SET content = ?, key_hash = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? LIMIT 1'
+const noteDeleteSql =
+  'UPDATE notes SET deleted_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? LIMIT 1'
 const acquireSidWriteLockSql = 'SELECT GET_LOCK(?, 5) AS acquired'
 const releaseSidWriteLockSql = 'SELECT RELEASE_LOCK(?)'
 
@@ -109,6 +133,73 @@ function createForbiddenError(
   message = '当前账户不能修改这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
 ): NoteWriteErrorDto {
   return createNoteWriteError(sid, 'NOTE_FORBIDDEN', 'forbidden', message)
+}
+
+function createNoteDeleteError(
+  sid: string,
+  code: NoteDeleteErrorDto['code'],
+  status: NoteDeleteErrorDto['status'],
+  message: string
+): NoteDeleteErrorDto {
+  return {
+    sid,
+    code,
+    status,
+    message
+  }
+}
+
+function createDeleteForbiddenError(
+  sid: string,
+  message = '当前账户不能删除这条已绑定创建者的在线便签，请使用创建者身份重新登录后再试。'
+): NoteDeleteErrorDto {
+  return createNoteDeleteError(sid, 'NOTE_FORBIDDEN', 'forbidden', message)
+}
+
+function createDeleteEditKeyRequiredError(
+  sid: string,
+  message = '当前对象需要输入编辑密钥后才能删除。'
+): NoteDeleteErrorDto {
+  return createNoteDeleteError(sid, 'NOTE_EDIT_KEY_REQUIRED', 'forbidden', message)
+}
+
+function createDeleteEditKeyInvalidError(
+  sid: string,
+  message = '当前编辑密钥不正确，请确认后重试。'
+): NoteDeleteErrorDto {
+  return createNoteDeleteError(sid, 'NOTE_EDIT_KEY_INVALID', 'forbidden', message)
+}
+
+function createDeleteNotFoundError(
+  sid: string,
+  message = '未找到与当前 sid 对应的在线便签。'
+): NoteDeleteErrorDto {
+  return createNoteDeleteError(sid, 'NOTE_NOT_FOUND', 'not-found', message)
+}
+
+function createAlreadyDeletedError(
+  sid: string,
+  message = '该在线便签已删除，当前链接不可继续删除。'
+): NoteDeleteErrorDto {
+  return createNoteDeleteError(sid, 'NOTE_DELETED', 'deleted', message)
+}
+
+function createDeleteConflictError(
+  sid: string,
+  message = '当前 sid 命中了多条记录，无法按唯一对象语义删除结果。'
+): NoteDeleteErrorDto {
+  return createNoteDeleteError(sid, 'NOTE_SID_CONFLICT', 'error', message)
+}
+
+function createDeleteSuccessNote(
+  sid: string,
+  message = '该在线便签已删除，当前链接不可恢复。'
+): OnlineNoteDeleteResponseDto {
+  return {
+    sid,
+    status: 'deleted',
+    message
+  }
 }
 
 function createEditKeyRequiredError(
@@ -625,6 +716,114 @@ export function createPrismaNoteWriteRepository(
             .catch(() => undefined)
         }
       })
+    },
+    async deleteBySid(sid, editKey, session) {
+      const prisma = await resolvePrismaClient()
+
+      return prisma.$transaction(async (transactionClient) => {
+        const lockName = await acquireWriteLock(transactionClient, sid)
+
+        try {
+          const matchedNotes = await transactionClient.$queryRawUnsafe<NoteWriteRecordRow[]>(
+            noteWriteLookupSql,
+            sid
+          )
+
+          if (matchedNotes.length > 1) {
+            return {
+              status: 'conflict',
+              error: createDeleteConflictError(sid)
+            }
+          }
+
+          const matchedNote = matchedNotes[0]
+
+          if (!matchedNote) {
+            return {
+              status: 'not-found',
+              error: createDeleteNotFoundError(sid)
+            }
+          }
+
+          if (matchedNote.deletedAt) {
+            return {
+              status: 'already-deleted',
+              error: createAlreadyDeletedError(sid)
+            }
+          }
+
+          const authorizationContext = await resolveNoteAuthorizationContext(
+            {
+              authorId: matchedNote.authorId,
+              keyHash: matchedNote.keyHash
+            },
+            session,
+            userRepository,
+            isQueryClient(transactionClient) ? transactionClient : undefined
+          )
+          const normalizedEditKey = editKey?.trim() ?? ''
+
+          if (matchedNote.authorId != null) {
+            if (authorizationContext.actor !== 'owner') {
+              if (!authorizationContext.hasEditKeyProtection) {
+                return {
+                  status: 'forbidden',
+                  error: createDeleteForbiddenError(sid)
+                }
+              }
+
+              if (!normalizedEditKey) {
+                return {
+                  status: 'forbidden',
+                  error: createDeleteEditKeyRequiredError(sid)
+                }
+              }
+
+              const isValidEditKey = await editKeyService.verifyKey(
+                normalizedEditKey,
+                requireStoredKeyHash(matchedNote.keyHash)
+              )
+
+              if (!isValidEditKey) {
+                return {
+                  status: 'forbidden',
+                  error: createDeleteEditKeyInvalidError(sid)
+                }
+              }
+            }
+          } else if (authorizationContext.hasEditKeyProtection) {
+            if (!normalizedEditKey) {
+              return {
+                status: 'forbidden',
+                error: createDeleteEditKeyRequiredError(sid)
+              }
+            }
+
+            const isValidEditKey = await editKeyService.verifyKey(
+              normalizedEditKey,
+              requireStoredKeyHash(matchedNote.keyHash)
+            )
+
+            if (!isValidEditKey) {
+              return {
+                status: 'forbidden',
+                error: createDeleteEditKeyInvalidError(sid)
+              }
+            }
+          }
+
+          await transactionClient.$executeRawUnsafe(noteDeleteSql, matchedNote.id)
+
+          return {
+            status: 'deleted',
+            note: createDeleteSuccessNote(sid)
+          }
+        } finally {
+          await transactionClient
+            .$queryRawUnsafe(releaseSidWriteLockSql, lockName)
+            .catch(() => undefined)
+        }
+      })
     }
   }
 }
@@ -635,6 +834,9 @@ export function createNoteWriteService(
   return {
     saveBySid(sid, input, session) {
       return repository.saveBySid(sid, input, session)
+    },
+    deleteBySid(sid, editKey, session) {
+      return repository.deleteBySid(sid, editKey, session)
     }
   }
 }

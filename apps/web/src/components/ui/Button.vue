@@ -10,7 +10,7 @@ const props = withDefaults(
     state?: InteractionState
     leadingLabel?: string
     type?: 'button' | 'submit' | 'reset'
-    variant?: 'primary' | 'secondary'
+    variant?: 'primary' | 'secondary' | 'danger'
   }>(),
   {
     state: 'default',

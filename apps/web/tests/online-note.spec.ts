@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
@@ -47,8 +47,39 @@ const mockedObjectHeader = vi.hoisted(
 const mockedSaveNote = vi.hoisted(() => vi.fn(async () => undefined))
 const mockedCopyShareLink = vi.hoisted(() => vi.fn(async () => undefined))
 const mockedFavoriteNote = vi.hoisted(() => vi.fn(async () => undefined))
+const mockedDeleteConfirmOpen = vi.hoisted(() => {
+  let boundState: { value: boolean } | null = null
+
+  return {
+    bind(state: { value: boolean }) {
+      boundState = state
+    },
+    set(value: boolean) {
+      if (boundState) {
+        boundState.value = value
+      }
+    }
+  }
+})
+const mockedOpenDeleteConfirm = vi.hoisted(
+  () =>
+    vi.fn(() => {
+      mockedDeleteConfirmOpen.set(true)
+    })
+)
+const mockedCloseDeleteConfirm = vi.hoisted(
+  () =>
+    vi.fn(() => {
+      mockedDeleteConfirmOpen.set(false)
+    })
+)
+const mockedConfirmDelete = vi.hoisted(() => vi.fn(async () => undefined))
 
 vi.mock('../src/features/note/use-online-note', async () => {
+  const { ref } = await import('vue')
+  const isDeleteConfirmOpen = ref(false)
+  mockedDeleteConfirmOpen.bind(isDeleteConfirmOpen)
+
   return {
     useOnlineNote: () => ({
       viewModel: computed(() => mockedViewModel.value),
@@ -70,7 +101,11 @@ vi.mock('../src/features/note/use-online-note', async () => {
       objectHeader: computed(() => mockedObjectHeader.value),
       saveNote: mockedSaveNote,
       copyShareLink: mockedCopyShareLink,
-      favoriteNote: mockedFavoriteNote
+      favoriteNote: mockedFavoriteNote,
+      isDeleteConfirmOpen,
+      openDeleteConfirm: mockedOpenDeleteConfirm,
+      closeDeleteConfirm: mockedCloseDeleteConfirm,
+      confirmDelete: mockedConfirmDelete
     })
   }
 })
@@ -88,7 +123,10 @@ function createViewModel(overrides: Partial<OnlineNoteViewModel>): OnlineNoteVie
   }
 }
 
-function mountShell(authStatus: 'anonymous' | 'authenticated' = 'anonymous') {
+function mountShell(
+  authStatus: 'anonymous' | 'authenticated' = 'anonymous',
+  options: { attachTo?: HTMLElement } = {}
+) {
   const pinia = createPinia()
   const authStore = useAuthStore(pinia)
 
@@ -108,6 +146,7 @@ function mountShell(authStatus: 'anonymous' | 'authenticated' = 'anonymous') {
     props: {
       sid: mockedViewModel.value.sid
     },
+    attachTo: options.attachTo,
     global: {
       plugins: [pinia]
     }
@@ -218,6 +257,168 @@ describe('online note shell', () => {
     expect(wrapper.text()).toContain('匿名可编辑')
     expect(wrapper.text()).toContain('复制链接')
     expect(wrapper.text()).toContain('登录后收藏')
+  })
+
+  it('opens the delete confirmation modal from the object header and moves focus into the dialog', async () => {
+    mockedDeleteConfirmOpen.set(false)
+    mockedOpenDeleteConfirm.mockClear()
+    mockedCloseDeleteConfirm.mockClear()
+    mockedConfirmDelete.mockClear()
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
+      content: '这是最新已保存内容。',
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned'
+    })
+    mockedDraftContent.value = '这是最新已保存内容。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '创建者可管理',
+      editStatusTone: 'success',
+      editStatusCaption: '当前对象已绑定创建者身份，可继续保存或删除。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default',
+      showDeleteButton: true,
+      deleteButtonLabel: '删除便签',
+      deleteButtonState: 'default'
+    }
+
+    const wrapper = mountShell('authenticated', {
+      attachTo: document.body
+    })
+    const deleteButton = wrapper.get('[data-testid="note-delete-trigger"]')
+
+    ;(deleteButton.element as HTMLButtonElement).focus()
+    await deleteButton.trigger('click')
+    await nextTick()
+    await nextTick()
+
+    const cancelButton = wrapper.get('[data-testid="delete-note-confirm-cancel"]')
+
+    expect(mockedOpenDeleteConfirm).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('删除后不可恢复')
+    expect(document.activeElement).toBe(cancelButton.element)
+  })
+
+  it('closes the delete confirmation modal on escape and restores focus to the trigger', async () => {
+    mockedDeleteConfirmOpen.set(false)
+    mockedOpenDeleteConfirm.mockClear()
+    mockedCloseDeleteConfirm.mockClear()
+    mockedConfirmDelete.mockClear()
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
+      content: '这是最新已保存内容。',
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned'
+    })
+    mockedDraftContent.value = '这是最新已保存内容。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '创建者可管理',
+      editStatusTone: 'success',
+      editStatusCaption: '当前对象已绑定创建者身份，可继续保存或删除。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default',
+      showDeleteButton: true,
+      deleteButtonLabel: '删除便签',
+      deleteButtonState: 'default'
+    }
+
+    const wrapper = mountShell('authenticated', {
+      attachTo: document.body
+    })
+    const deleteButton = wrapper.get('[data-testid="note-delete-trigger"]')
+
+    ;(deleteButton.element as HTMLButtonElement).focus()
+    await deleteButton.trigger('click')
+    await nextTick()
+    await nextTick()
+
+    await wrapper.get('[data-testid="delete-note-confirm-modal"]').trigger('keydown', {
+      key: 'Escape'
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(mockedCloseDeleteConfirm).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="delete-note-confirm-modal"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(deleteButton.element)
+  })
+
+  it('closes the delete confirmation modal when the overlay is clicked', async () => {
+    mockedDeleteConfirmOpen.set(false)
+    mockedOpenDeleteConfirm.mockClear()
+    mockedCloseDeleteConfirm.mockClear()
+    mockedConfirmDelete.mockClear()
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
+      content: '这是最新已保存内容。',
+      editAccess: 'owner-editable',
+      favoriteState: 'self-owned'
+    })
+    mockedDraftContent.value = '这是最新已保存内容。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '创建者可管理',
+      editStatusTone: 'success',
+      editStatusCaption: '当前对象已绑定创建者身份，可继续保存或删除。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default',
+      showDeleteButton: true,
+      deleteButtonLabel: '删除便签',
+      deleteButtonState: 'default'
+    }
+
+    const wrapper = mountShell('authenticated', {
+      attachTo: document.body
+    })
+    const deleteButton = wrapper.get('[data-testid="note-delete-trigger"]')
+
+    ;(deleteButton.element as HTMLButtonElement).focus()
+    await deleteButton.trigger('click')
+    await nextTick()
+    await nextTick()
+
+    await wrapper.get('[data-testid="modal-overlay"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    expect(mockedCloseDeleteConfirm).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="delete-note-confirm-modal"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(deleteButton.element)
   })
 
   it('shows an authenticated favorite action on readable shared notes', () => {
@@ -679,6 +880,34 @@ describe('resolveOnlineNoteObjectHeader', () => {
       editStatusTone: 'warning'
     })
     expect(header?.editStatusCaption).toContain('输入正确密钥')
+  })
+
+  it('shows a delete action for owner-editable notes in the object header', () => {
+    const header = resolveOnlineNoteObjectHeader({
+      sid: 'owned123',
+      viewStatus: 'available',
+      editAccess: 'owner-editable',
+      saveState: 'saved'
+    })
+
+    expect(header).toMatchObject({
+      showDeleteButton: true,
+      deleteButtonLabel: '删除便签',
+      deleteButtonState: 'default'
+    })
+  })
+
+  it('does not show a delete action when the current page still needs an edit key', () => {
+    const header = resolveOnlineNoteObjectHeader({
+      sid: 'shared123',
+      viewStatus: 'available',
+      editAccess: 'key-required',
+      saveState: 'saved'
+    })
+
+    expect(header).not.toMatchObject({
+      showDeleteButton: true
+    })
   })
 })
 

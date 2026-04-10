@@ -12,6 +12,7 @@ defineProps<{
 const emit = defineEmits<{
   copy: []
   favorite: []
+  delete: []
 }>()
 </script>
 
@@ -44,6 +45,17 @@ const emit = defineEmits<{
           @click="emit('copy')"
         >
           {{ model.copyButtonLabel }}
+        </Button>
+
+        <Button
+          v-if="model.showDeleteButton"
+          data-testid="note-delete-trigger"
+          :state="model.deleteButtonState"
+          leading-label="danger"
+          variant="danger"
+          @click="emit('delete')"
+        >
+          {{ model.deleteButtonLabel }}
         </Button>
       </div>
     </div>

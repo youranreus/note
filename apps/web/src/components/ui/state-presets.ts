@@ -16,7 +16,9 @@ export const foundationStateRegistry: Record<string, InteractionState[]> = {
 export const buttonVariantClasses = {
   primary: 'border-transparent bg-ink-900 text-white hover:-translate-y-0.5 hover:bg-ink-800',
   secondary:
-    'border-[color:var(--panel-border)] bg-white/88 text-[color:var(--text-primary)] hover:-translate-y-0.5 hover:bg-white'
+    'border-[color:var(--panel-border)] bg-white/88 text-[color:var(--text-primary)] hover:-translate-y-0.5 hover:bg-white',
+  danger:
+    'border-transparent bg-danger text-white hover:-translate-y-0.5 hover:bg-red-700'
 } as const
 
 export const buttonStateClasses: Record<InteractionState, string> = {
