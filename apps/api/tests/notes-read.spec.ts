@@ -146,6 +146,7 @@ describe('notes read endpoint', () => {
       code: 'NOTE_DELETED',
       status: 'deleted'
     })
+    expect(response.json()).not.toHaveProperty('content')
   })
 
   it('treats shell-status as a normal sid instead of routing it to the module shell', async () => {

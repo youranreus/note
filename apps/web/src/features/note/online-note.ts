@@ -165,6 +165,13 @@ function createViewModel(
   }
 }
 
+export function createDeletedOnlineNoteViewModel(
+  sid: string,
+  description: string
+): OnlineNoteViewModel {
+  return createViewModel('deleted', sid, '该在线便签已删除', description)
+}
+
 function createAvailableDescription(editAccess: NoteEditAccess) {
   if (editAccess === 'owner-editable') {
     return '当前对象已经绑定到你的创建者身份，可以继续编辑并保存更新。'
@@ -236,7 +243,7 @@ export function resolveOnlineNoteAuthorizationUiModel(
   } else if (input.viewStatus === 'not-found') {
     shellDescription = '当前链接已经成立，但还没有保存过正文。你可以直接开始输入并首次保存。'
   } else if (input.viewStatus === 'deleted') {
-    shellDescription = '当前链接曾关联在线便签，但该对象已经被删除。'
+    shellDescription = '当前链接曾关联在线便签，但该对象已经被删除且不可恢复。'
   } else if (input.viewStatus === 'invalid-sid') {
     shellDescription = '路由缺少有效 sid，页面不会把空值或异常参数默默转成伪造对象。'
   }
@@ -257,6 +264,8 @@ export function resolveOnlineNoteAuthorizationUiModel(
     }
   } else if (input.viewStatus === 'loading') {
     modeBadgeLabel = '读取中'
+  } else if (input.viewStatus === 'deleted') {
+    modeBadgeLabel = '已删除'
   }
 
   const actionLabel =
@@ -500,7 +509,7 @@ export function resolveOnlineNoteViewModel(snapshot: OnlineNoteStateSnapshot): O
   }
 
   if (noteReadError?.status === 'deleted') {
-    return createViewModel('deleted', snapshot.sid, '该在线便签已删除', noteReadError.message)
+    return createDeletedOnlineNoteViewModel(snapshot.sid, noteReadError.message)
   }
 
   if (isOnlineNoteDetailDto(snapshot.note) && snapshot.note.sid === snapshot.sid) {

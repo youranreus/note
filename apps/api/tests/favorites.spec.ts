@@ -43,6 +43,18 @@ function createFakeFavoriteService(): FavoriteService {
         }
       }
 
+      if (sid === 'deleted123') {
+        return {
+          status: 'deleted',
+          error: {
+            sid,
+            code: 'FAVORITE_NOTE_DELETED',
+            status: 'deleted',
+            message: '这条在线便签已删除，当前无法加入收藏。'
+          }
+        }
+      }
+
       return {
         status: 'favorited',
         favorite: {
@@ -127,6 +139,36 @@ describe('favorites endpoint', () => {
       expect(secondResponse.json()).toEqual({
         sid: 'shared123',
         favoriteState: 'favorited'
+      })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns a stable deleted response when the target favorite sid has already been deleted', async () => {
+    const app = buildApp({
+      authSessionService,
+      favoriteService: createFakeFavoriteService()
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/favorites',
+        headers: {
+          cookie: sessionCookie
+        },
+        payload: {
+          sid: 'deleted123'
+        }
+      })
+
+      expect(response.statusCode).toBe(404)
+      expect(response.json()).toEqual({
+        sid: 'deleted123',
+        code: 'FAVORITE_NOTE_DELETED',
+        status: 'deleted',
+        message: '这条在线便签已删除，当前无法加入收藏。'
       })
     } finally {
       await app.close()

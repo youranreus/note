@@ -931,6 +931,22 @@ describe('resolveOnlineNoteAuthorizationUiModel', () => {
     expect(uiModel.editorHint).toContain('共享编辑保护')
   })
 
+  it('gives deleted notes an explicit terminal badge instead of generic exception semantics', () => {
+    const uiModel = resolveOnlineNoteAuthorizationUiModel({
+      viewStatus: 'deleted',
+      editAccess: null,
+      authStatus: 'anonymous',
+      hasEditKeyValue: false
+    })
+
+    expect(uiModel).toMatchObject({
+      canShowEditor: false,
+      canSave: false,
+      modeBadgeLabel: '已删除'
+    })
+    expect(uiModel.shellDescription).toContain('不可恢复')
+  })
+
   it('describes forbidden notes as readable but not savable', () => {
     const uiModel = resolveOnlineNoteAuthorizationUiModel({
       viewStatus: 'available',

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { nextTick, ref } from 'vue'
+import { effectScope, nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -953,6 +953,204 @@ describe('useOnlineNote', () => {
     })
   })
 
+  it('clears stale local memory when a refetch reclassifies the current note as deleted', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+    const authStore = useAuthStore()
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '已保存正文。',
+      status: 'available',
+      editAccess: 'anonymous-editable',
+      favoriteState: 'not-favorited'
+    })
+    await flushState()
+
+    note.draftContent.value = '本地尚未保存的新草稿。'
+    note.editKey.value = 'shared-secret'
+    await flushState()
+
+    expect(note.hasUnsavedChanges.value).toBe(true)
+    expect(note.objectHeader.value).toMatchObject({
+      sid: 'shared123'
+    })
+
+    authStore.setAuthenticated({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Receiver'
+      }
+    })
+    await flushState()
+
+    expect(requestHarness.getReadArg()).toBe('shared123')
+
+    requestHarness.rejectRead({
+      response: {
+        data: {
+          sid: 'shared123',
+          code: 'NOTE_DELETED',
+          status: 'deleted',
+          message: '该在线便签已删除，当前链接不可恢复。'
+        }
+      }
+    })
+    await flushState()
+
+    expect(note.viewModel.value).toMatchObject({
+      status: 'deleted',
+      sid: 'shared123',
+      title: '该在线便签已删除',
+      description: '该在线便签已删除，当前链接不可恢复。'
+    })
+    expect(note.draftContent.value).toBe('')
+    expect(note.editKey.value).toBe('')
+    expect(note.hasUnsavedChanges.value).toBe(false)
+    expect(note.objectHeader.value).toBeNull()
+    expect(note.primaryFeedback.value).toBeNull()
+  })
+
+  it('goes straight to a deleted terminal state when the first read returns NOTE_DELETED', async () => {
+    const sid = ref('deleted123')
+    const note = useOnlineNote(sid)
+
+    expect(requestHarness.getReadArg()).toBe('deleted123')
+
+    requestHarness.rejectRead({
+      response: {
+        data: {
+          sid: 'deleted123',
+          code: 'NOTE_DELETED',
+          status: 'deleted',
+          message: '该在线便签已删除，当前链接不可继续读取。'
+        }
+      }
+    })
+    await flushState()
+
+    expect(note.viewModel.value).toMatchObject({
+      status: 'deleted',
+      sid: 'deleted123',
+      title: '该在线便签已删除',
+      description: '该在线便签已删除，当前链接不可继续读取。'
+    })
+    expect(note.draftContent.value).toBe('')
+    expect(note.objectHeader.value).toBeNull()
+    expect(note.primaryFeedback.value).toBeNull()
+  })
+
+  it('keeps the deleted terminal state after remounting the same sid', async () => {
+    const sid = ref('deleted123')
+    const firstScope = effectScope()
+    const firstNote = firstScope.run(() => useOnlineNote(sid))
+
+    expect(firstNote).toBeDefined()
+    expect(requestHarness.getReadArg()).toBe('deleted123')
+
+    requestHarness.rejectRead({
+      response: {
+        data: {
+          sid: 'deleted123',
+          code: 'NOTE_DELETED',
+          status: 'deleted',
+          message: '该在线便签已删除，当前链接不可继续读取。'
+        }
+      }
+    })
+    await flushState()
+
+    expect(firstNote!.viewModel.value).toMatchObject({
+      status: 'deleted',
+      sid: 'deleted123'
+    })
+
+    firstScope.stop()
+    requestHarness.reset()
+
+    const remountScope = effectScope()
+    const remountedNote = remountScope.run(() => useOnlineNote(sid))
+
+    expect(remountedNote).toBeDefined()
+    expect(requestHarness.getReadArg()).toBe('deleted123')
+
+    requestHarness.rejectRead({
+      response: {
+        data: {
+          sid: 'deleted123',
+          code: 'NOTE_DELETED',
+          status: 'deleted',
+          message: '该在线便签已删除，当前链接不可继续读取。'
+        }
+      }
+    })
+    await flushState()
+
+    expect(remountedNote!.viewModel.value).toMatchObject({
+      status: 'deleted',
+      sid: 'deleted123',
+      title: '该在线便签已删除'
+    })
+    expect(remountedNote!.draftContent.value).toBe('')
+    expect(remountedNote!.objectHeader.value).toBeNull()
+
+    remountScope.stop()
+  })
+
+  it('waits for the auth refresh before resuming a pending favorite intent and stops when the note is deleted', async () => {
+    const sid = ref('shared123')
+    const note = useOnlineNote(sid)
+    const authStore = useAuthStore()
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '可收藏的正文。',
+      status: 'available',
+      editAccess: 'forbidden',
+      favoriteState: 'not-favorited'
+    })
+    await flushState()
+
+    authStore.setAuthenticated(
+      {
+        status: 'authenticated',
+        user: {
+          id: '1001',
+          displayName: 'Receiver'
+        }
+      },
+      {
+        type: 'favorite-note',
+        sid: 'shared123'
+      }
+    )
+    await flushState()
+
+    expect(requestHarness.getReadArg()).toBe('shared123')
+    expect(requestHarness.getFavoriteArg()).toBeUndefined()
+
+    requestHarness.rejectRead({
+      response: {
+        data: {
+          sid: 'shared123',
+          code: 'NOTE_DELETED',
+          status: 'deleted',
+          message: '该在线便签已删除，当前链接不可恢复。'
+        }
+      }
+    })
+    await flushState()
+
+    expect(requestHarness.getFavoriteArg()).toBeUndefined()
+    expect(note.viewModel.value).toMatchObject({
+      status: 'deleted',
+      sid: 'shared123',
+      title: '该在线便签已删除'
+    })
+    expect(note.objectHeader.value).toBeNull()
+  })
+
   it('sends edit key payload when a new note is first saved in shared-edit mode', async () => {
     const sid = ref('shared123')
     const note = useOnlineNote(sid)
@@ -1232,6 +1430,18 @@ describe('useOnlineNote', () => {
         sid: 'shared123'
       }
     )
+    await flushState()
+
+    expect(requestHarness.getReadArg()).toBe('shared123')
+    expect(requestHarness.getFavoriteArg()).toBeUndefined()
+
+    requestHarness.resolveRead({
+      sid: 'shared123',
+      content: '可收藏的正文。',
+      status: 'available',
+      editAccess: 'forbidden',
+      favoriteState: 'not-favorited'
+    })
     await flushState()
 
     expect(requestHarness.getFavoriteArg()).toEqual({

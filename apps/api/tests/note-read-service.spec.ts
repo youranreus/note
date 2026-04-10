@@ -191,4 +191,32 @@ describe('note read service', () => {
     })
     expect(lookupCount).toBe(1)
   })
+
+  it('returns a deleted contract without leaking the stored content when the matched note is soft-deleted', async () => {
+    const repository: NoteReadRepository = {
+      async findBySid() {
+        return [
+          {
+            id: 1,
+            sid: 'deleted123',
+            content: '这段已删除正文不应继续返回给调用方。',
+            authorId: null,
+            keyHash: null,
+            deletedAt: new Date('2026-04-10T08:00:00.000Z')
+          }
+        ]
+      }
+    }
+    const service = createNoteReadService(repository)
+
+    await expect(service.getBySid('deleted123', null)).resolves.toEqual({
+      status: 'deleted',
+      error: {
+        sid: 'deleted123',
+        code: 'NOTE_DELETED',
+        status: 'deleted',
+        message: '该在线便签已删除，当前链接不可继续读取。'
+      }
+    })
+  })
 })

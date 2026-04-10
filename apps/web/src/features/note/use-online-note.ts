@@ -22,6 +22,7 @@ import {
 import {
   canDeleteOnlineNote,
   canEditOnlineNote,
+  createDeletedOnlineNoteViewModel,
   createOnlineNoteCopyFailureFeedback,
   createOnlineNoteCopySuccessFeedback,
   createOnlineNoteFavoriteSuccessFeedback,
@@ -187,6 +188,14 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
   const authSignature = computed(() => `${authStore.status}:${authStore.user?.id ?? ''}`)
 
   function resolveCurrentReadableNote(currentSid: string) {
+    if (
+      readRequest.loading.value ||
+      viewModel.value.status !== 'available' ||
+      viewModel.value.sid !== currentSid
+    ) {
+      return null
+    }
+
     const currentNote = readRequest.data.value
 
     if (isOnlineNoteDetailDto(currentNote) && currentNote.sid === currentSid) {
@@ -217,12 +226,36 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
     favoriteFeedback.value = null
   }
 
+  function applyDeletedTerminalState(nextSid: string, errorMessage: string) {
+    readRequest.update({
+      data: undefined
+    })
+    draftContent.value = ''
+    baselineContent.value = ''
+    editKey.value = ''
+    initializedSid.value = nextSid
+    lastSubmittedContent.value = null
+    saveState.value = 'unsaved'
+    saveErrorCode.value = null
+    saveErrorMessage.value = null
+    isDeleteConfirmOpen.value = false
+    clearDeleteFeedback()
+    copyFeedback.value = null
+    favoriteFeedback.value = null
+    terminalViewModel.value = createDeletedOnlineNoteViewModel(nextSid, errorMessage)
+  }
+
   function setTerminalViewModel(
     nextSid: string,
     errorMessage: string,
     status: 'deleted' | 'error',
     titleOverride?: string
   ) {
+    if (status === 'deleted') {
+      applyDeletedTerminalState(nextSid, errorMessage)
+      return
+    }
+
     editKey.value = ''
     terminalViewModel.value = {
       status,
@@ -230,12 +263,34 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       content: null,
       editAccess: null,
       favoriteState: null,
-      title: titleOverride ?? (status === 'deleted' ? '该在线便签已删除' : '保存当前在线便签失败'),
+      title: titleOverride ?? '保存当前在线便签失败',
       description: errorMessage
     }
   }
 
   function syncDraftFromRemote(nextSid: string) {
+    const noteReadError = resolveNoteReadErrorDto(readRequest.error.value)
+
+    if (noteReadError?.status === 'deleted') {
+      applyDeletedTerminalState(nextSid, noteReadError.message)
+      return
+    }
+
+    if (noteReadError?.status === 'not-found') {
+      readRequest.update({
+        data: undefined
+      })
+      terminalViewModel.value = null
+      const shouldReplaceDraft = initializedSid.value !== nextSid || !hasUnsavedChanges.value
+
+      baselineContent.value = ''
+      if (shouldReplaceDraft) {
+        draftContent.value = ''
+      }
+      initializedSid.value = nextSid
+      return
+    }
+
     const note = readRequest.data.value
 
     if (isOnlineNoteDetailDto(note) && note.sid === nextSid) {
@@ -245,20 +300,6 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       baselineContent.value = note.content
       if (shouldReplaceDraft) {
         draftContent.value = note.content
-      }
-      initializedSid.value = nextSid
-      return
-    }
-
-    const noteReadError = resolveNoteReadErrorDto(readRequest.error.value)
-
-    if (noteReadError?.status === 'not-found') {
-      terminalViewModel.value = null
-      const shouldReplaceDraft = initializedSid.value !== nextSid || !hasUnsavedChanges.value
-
-      baselineContent.value = ''
-      if (shouldReplaceDraft) {
-        draftContent.value = ''
       }
       initializedSid.value = nextSid
     }
@@ -679,13 +720,16 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       sidValue,
       () => authStore.status,
       () => authStore.pendingPostLoginAction,
-      () => readRequest.data.value,
+      () => readRequest.loading.value,
+      () => viewModel.value.status,
+      () => viewModel.value.sid,
+      () => viewModel.value.favoriteState,
       () => favoriteRequest.loading.value
     ],
-    ([currentSid, authStatus, pendingAction, currentNote, favoriteLoading]) => {
+    ([currentSid, authStatus, pendingAction, readLoading, viewStatus, viewSid, _favoriteState, favoriteLoading]) => {
       const readableNote =
-        currentSid && isOnlineNoteDetailDto(currentNote) && currentNote.sid === currentSid
-          ? currentNote
+        !readLoading && viewStatus === 'available' && viewSid === currentSid && currentSid
+          ? resolveCurrentReadableNote(currentSid)
           : null
 
       if (
