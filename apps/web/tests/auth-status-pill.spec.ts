@@ -309,6 +309,12 @@ describe('auth status pill', () => {
     expect(document.activeElement).toBe(trigger.element)
   })
 
+  it('uses a button-sized touch target for the auth trigger', async () => {
+    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    expect(wrapper.get('[data-testid="auth-status-pill-trigger"]').classes()).toContain('min-h-11')
+  })
+
   it('starts the SSO upgrade flow from keyboard confirmation with the current route as return-to', async () => {
     const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
 
@@ -605,6 +611,76 @@ describe('auth status pill', () => {
     await nextTick()
     await flushPromises()
 
+    expect(document.activeElement).toBe(trigger.element)
+  })
+
+  it('returns focus to the trigger when the user center closes from the overlay', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="modal-overlay"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="user-center-modal"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
+  })
+
+  it('closes the user center with Escape and returns focus to the trigger', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: {
+        id: '1001',
+        displayName: 'Demo User'
+      }
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+
+    meNotesRequestHarness.updateForScope('user:1001', {
+      data: {
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false
+      },
+      loading: false
+    })
+
+    const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="user-center-modal"]').exists()).toBe(false)
     expect(document.activeElement).toBe(trigger.element)
   })
 

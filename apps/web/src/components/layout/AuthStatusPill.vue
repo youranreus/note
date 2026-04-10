@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 
@@ -40,7 +40,7 @@ const {
   selectTab,
   userCenterOpen
 } = useUserPanel()
-const triggerRef = ref<HTMLButtonElement | null>(null)
+const triggerRef = useTemplateRef<HTMLButtonElement>('trigger')
 
 const triggerLabel = computed(() => {
   if (status.value === 'authenticated') {
@@ -138,11 +138,11 @@ async function handleBrowseNotes() {
 <template>
   <div class="flex items-center">
     <button
-      ref="triggerRef"
+      ref="trigger"
       :aria-expanded="loginModalOpen || userCenterOpen ? 'true' : 'false'"
       :aria-haspopup="status === 'recovering' ? undefined : 'dialog'"
       :disabled="status === 'recovering'"
-      class="rounded-full focus:outline-none focus-visible:ring-4 focus-visible:ring-accent-100"
+      class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus:outline-none focus-visible:ring-4 focus-visible:ring-accent-100"
       data-testid="auth-status-pill-trigger"
       type="button"
       @click="handleOpen"

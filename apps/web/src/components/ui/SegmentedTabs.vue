@@ -9,10 +9,14 @@ import { moveTabSelection } from './segmented-tabs'
 const props = withDefaults(
   defineProps<{
     options: Array<{ label: string; value: string }>
+    ariaLabel?: string
+    idPrefix?: string
     state?: InteractionState
     testIdPrefix?: string
   }>(),
   {
+    ariaLabel: '模式切换',
+    idPrefix: '',
     state: 'default',
     testIdPrefix: ''
   }
@@ -57,6 +61,14 @@ function selectOption(value: string) {
   model.value = value
 }
 
+function resolveTabId(value: string) {
+  return props.idPrefix ? `${props.idPrefix}-tab-${value}` : undefined
+}
+
+function resolvePanelId(value: string) {
+  return props.idPrefix ? `${props.idPrefix}-panel-${value}` : undefined
+}
+
 function setTabRef(
   element: Element | ComponentPublicInstance | null,
   index: number
@@ -71,15 +83,24 @@ async function handleKeydown(event: KeyboardEvent) {
     return
   }
 
-  if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') {
+  if (
+    event.key !== 'ArrowRight' &&
+    event.key !== 'ArrowLeft' &&
+    event.key !== 'Home' &&
+    event.key !== 'End'
+  ) {
     return
   }
 
   event.preventDefault()
 
   const currentIndex = props.options.findIndex((option) => option.value === activeValue.value)
-  const direction = event.key === 'ArrowRight' ? 'next' : 'prev'
-  const nextIndex = moveTabSelection(currentIndex, props.options.length, direction)
+  const nextIndex =
+    event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? props.options.length - 1
+        : moveTabSelection(currentIndex, props.options.length, event.key === 'ArrowRight' ? 'next' : 'prev')
   const nextOption = props.options[nextIndex]
 
   if (!nextOption) {
@@ -93,16 +114,23 @@ async function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div :class="containerClassName" role="tablist" aria-label="模式切换">
+  <div
+    :aria-label="props.ariaLabel"
+    :class="containerClassName"
+    aria-orientation="horizontal"
+    role="tablist"
+  >
     <button
       v-for="(option, index) in options"
       :key="option.value"
       :ref="(element) => setTabRef(element, index)"
+      :aria-controls="resolvePanelId(option.value)"
       :aria-selected="activeValue === option.value"
       :data-testid="props.testIdPrefix ? `${props.testIdPrefix}-${option.value}` : undefined"
+      :id="resolveTabId(option.value)"
       :tabindex="activeValue === option.value ? 0 : -1"
       :class="[
-        'rounded-[calc(var(--radius-control)-0.35rem)] px-4 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
+        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[calc(var(--radius-control)-0.35rem)] px-4 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
         activeValue === option.value ? 'bg-ink-900 text-white shadow-sm' : 'text-[color:var(--text-secondary)] hover:bg-white'
       ]"
       :disabled="props.state === 'disabled'"

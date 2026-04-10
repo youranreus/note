@@ -64,6 +64,8 @@ const tabOptions = [
   }
 ] as const satisfies Array<{ label: string; value: UserPanelTab }>
 
+const tabIdPrefix = 'user-center'
+
 const tabModel = computed({
   get: () => props.activeTab,
   set: (value: string) => emit('selectTab', value as UserPanelTab)
@@ -72,6 +74,7 @@ const tabModel = computed({
 
 <template>
   <Modal
+    initial-focus="active-tab"
     :open="open"
     close-label="关闭个人中心"
     description="这里承载你的账户资产入口，集中查看我创建过的在线便签与我收藏过的对象，并保持轻量弹层语义。"
@@ -88,12 +91,21 @@ const tabModel = computed({
 
       <SegmentedTabs
         v-model="tabModel"
+        aria-label="个人中心资产分类"
+        :id-prefix="tabIdPrefix"
         :options="tabOptions"
         state="default"
         test-id-prefix="user-center-tab"
       />
 
-      <div v-if="activeTab === 'created'" class="grid gap-4">
+      <div
+        v-if="activeTab === 'created'"
+        id="user-center-panel-created"
+        aria-labelledby="user-center-tab-created"
+        class="grid gap-4"
+        role="tabpanel"
+        tabindex="0"
+      >
         <LoadingCard v-if="createdLoading" />
 
         <InlineFeedback
@@ -164,7 +176,14 @@ const tabModel = computed({
         </SurfaceCard>
       </div>
 
-      <div v-else class="grid gap-4">
+      <div
+        v-else
+        id="user-center-panel-favorites"
+        aria-labelledby="user-center-tab-favorites"
+        class="grid gap-4"
+        role="tabpanel"
+        tabindex="0"
+      >
         <LoadingCard v-if="favoriteLoading" />
 
         <InlineFeedback

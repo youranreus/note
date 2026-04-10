@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
+
+import Button from './Button.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -9,10 +11,12 @@ const props = withDefaults(
     title: string
     description: string
     closeLabel?: string
+    initialFocus?: 'dialog' | 'first-focusable' | 'active-tab'
     state?: InteractionState
   }>(),
   {
     closeLabel: '关闭',
+    initialFocus: 'dialog',
     state: 'default'
   }
 )
@@ -23,8 +27,8 @@ const emit = defineEmits<{
 
 const titleId = computed(() => `modal-title-${props.title.length}-${props.description.length}`)
 const descriptionId = computed(() => `modal-description-${props.title.length}-${props.description.length}`)
-const panelRef = ref<HTMLElement | null>(null)
-const lastFocusedElement = ref<HTMLElement | null>(null)
+const panelRef = useTemplateRef<HTMLElement>('panel')
+const lastFocusedElement = shallowRef<HTMLElement | null>(null)
 
 function getFocusableElements() {
   if (!panelRef.value) {
@@ -36,6 +40,28 @@ function getFocusableElements() {
       'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
     )
   ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true')
+}
+
+function getInitialFocusTarget() {
+  const focusableElements = getFocusableElements()
+
+  if (props.initialFocus === 'active-tab') {
+    return (
+      focusableElements.find(
+        (element) =>
+          element.getAttribute('role') === 'tab' &&
+          element.getAttribute('aria-selected') === 'true'
+      ) ??
+      focusableElements[0] ??
+      panelRef.value
+    )
+  }
+
+  if (props.initialFocus === 'first-focusable') {
+    return focusableElements[0] ?? panelRef.value
+  }
+
+  return panelRef.value
 }
 
 function restoreFocus() {
@@ -101,7 +127,7 @@ watch(
     if (isOpen) {
       lastFocusedElement.value = document.activeElement instanceof HTMLElement ? document.activeElement : null
       await nextTick()
-      panelRef.value?.focus()
+      getInitialFocusTarget()?.focus()
       return
     }
 
@@ -109,6 +135,9 @@ watch(
       await nextTick()
       restoreFocus()
     }
+  },
+  {
+    immediate: true
   }
 )
 </script>
@@ -121,7 +150,7 @@ watch(
     @click.self="handleClose"
   >
     <section
-      ref="panelRef"
+      ref="panel"
       :aria-describedby="descriptionId"
       :aria-labelledby="titleId"
       :class="[
@@ -145,13 +174,9 @@ watch(
       </div>
       <div class="mt-5 flex justify-end gap-3">
         <slot name="actions">
-          <button
-            class="rounded-[var(--radius-control)] bg-ink-900 px-4 py-2 text-sm font-semibold text-white"
-            type="button"
-            @click="handleClose"
-          >
+          <Button type="button" variant="secondary" @click="handleClose">
             {{ closeLabel }}
-          </button>
+          </Button>
         </slot>
       </div>
     </section>

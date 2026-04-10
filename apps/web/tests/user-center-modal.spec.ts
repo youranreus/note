@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
 import UserCenterModal from '../src/features/user-panel/components/UserCenterModal.vue'
@@ -9,6 +9,7 @@ function mountUserCenterModal(
   overrides: Record<string, unknown> = {}
 ) {
   return mount(UserCenterModal, {
+    attachTo: document.body,
     props: {
       open: true,
       activeTab: 'created',
@@ -71,6 +72,56 @@ describe('user center modal', () => {
     await createdTab.trigger('keydown', { key: 'ArrowRight' })
 
     expect(wrapper.emitted('selectTab')).toEqual([['favorites']])
+  })
+
+  it('moves initial focus to the active tab when the modal opens', async () => {
+    const wrapper = mountUserCenterModal()
+
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="user-center-tab-created"]').element)
+  })
+
+  it('keeps initial focus on the selected favorites tab when the modal opens there', async () => {
+    const wrapper = mountUserCenterModal({
+      activeTab: 'favorites'
+    })
+
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="user-center-tab-favorites"]').element)
+  })
+
+  it('exposes tab-panel relationships and supports reverse keyboard switching', async () => {
+    const wrapper = mountUserCenterModal({
+      activeTab: 'favorites'
+    })
+
+    const favoritesTab = wrapper.get('[data-testid="user-center-tab-favorites"]')
+    const favoritesPanel = wrapper.get('#user-center-panel-favorites')
+
+    expect(favoritesTab.attributes('role')).toBe('tab')
+    expect(favoritesTab.attributes('aria-controls')).toBe('user-center-panel-favorites')
+    expect(favoritesTab.attributes('id')).toBe('user-center-tab-favorites')
+    expect(favoritesPanel.attributes('role')).toBe('tabpanel')
+    expect(favoritesPanel.attributes('aria-labelledby')).toBe('user-center-tab-favorites')
+
+    await favoritesTab.trigger('keydown', { key: 'ArrowLeft' })
+
+    expect(wrapper.emitted('selectTab')).toEqual([['created']])
+  })
+
+  it('uses button-sized touch targets for tabs and the close action', () => {
+    const wrapper = mountUserCenterModal()
+
+    expect(wrapper.get('[data-testid="user-center-tab-created"]').classes()).toContain('min-h-11')
+
+    const closeButton = wrapper
+      .findAll('button')
+      .find((candidate) => candidate.text() === '关闭个人中心')
+
+    expect(closeButton).toBeDefined()
+    expect(closeButton!.classes()).toContain('min-h-11')
   })
 
   it('renders pagination progress and emits load-more for additional created notes', async () => {
