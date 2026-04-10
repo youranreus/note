@@ -152,6 +152,7 @@ flowchart LR
 
 - `notes.sid` 唯一（替代当前 `findFirst/deleteMany` 风险）
 - `notes(author_id, updated_at desc)` 支撑“我的创建”分页
+- `note_favorites.user_id` 单列索引支撑外键与级联稳定性
 - `note_favorites(user_id, created_at desc)` 支撑“我的收藏”分页
 - `note_favorites.note_id` 索引支撑关联与级联
 

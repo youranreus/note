@@ -137,6 +137,7 @@ erDiagram
 
 - `notes.uk_sid (sid)`：路由查询与幂等写入
 - `notes.idx_author_updated (author_id, updated_at DESC)`：我的便签分页
+- `note_favorites.idx_user (user_id)`：外键约束与级联删除稳定性
 - `note_favorites.idx_user_created (user_id, created_at DESC)`：我的收藏分页
 - `note_favorites.idx_note (note_id)`：反查收藏数/级联效率
 
@@ -216,7 +217,9 @@ model NoteFavorite {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@id([noteId, userId])
+  @@index([userId], map: "idx_user")
   @@index([userId, createdAt(sort: Desc)], map: "idx_user_created")
+  @@index([noteId], map: "idx_note")
   @@map("note_favorites")
 }
 ```

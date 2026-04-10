@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:init": "prisma db push --schema prisma/schema.prisma && prisma generate --schema prisma/schema.prisma"
+    "db:init": "prisma db execute --file prisma/ensure-note-favorites-user-index.sql --schema prisma/schema.prisma && prisma db push --schema prisma/schema.prisma && prisma generate --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@fastify/cookie": "^10.0.1",

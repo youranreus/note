@@ -43,6 +43,7 @@ model NoteFavorite {
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   @@id([noteId, userId])
+  @@index([userId], map: "idx_user")
   @@index([userId, createdAt(sort: Desc)], map: "idx_user_created")
   @@index([noteId], map: "idx_note")
   @@map("note_favorites")
