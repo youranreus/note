@@ -10,6 +10,7 @@ import type {
   LocalNoteSaveState,
   LocalNoteViewModel
 } from '../src/features/local-note/local-note'
+import TextInput from '../src/components/ui/TextInput.vue'
 import LocalNoteShell from '../src/features/local-note/components/LocalNoteShell.vue'
 
 const mockedViewModel = vi.hoisted(
@@ -101,10 +102,13 @@ describe('local note shell', () => {
 
     const wrapper = mountShell()
     const textarea = wrapper.find('textarea')
+    const textInput = wrapper.findComponent(TextInput)
 
     expect(wrapper.text()).toContain('本地模式')
     expect(wrapper.text()).toContain('不会同步到在线')
+    expect(wrapper.text()).toContain('当前正文来自这个浏览器里按 sid 保存的本地记录')
     expect(wrapper.text()).toContain('保存到本地')
+    expect(textInput.props('state')).toBe('default')
     expect((textarea.element as HTMLTextAreaElement).value).toBe('仅保存在本地的草稿')
   })
 
@@ -175,8 +179,40 @@ describe('local note shell', () => {
     const wrapper = mountShell()
     const button = wrapper.find('button')
     const textarea = wrapper.find('textarea')
+    const textInput = wrapper.findComponent(TextInput)
 
     expect(button.attributes('disabled')).toBeDefined()
     expect(textarea.attributes('disabled')).toBeDefined()
+    expect(textInput.props('state')).toBe('disabled')
+  })
+
+  it('keeps the shell lightweight in normal states but still surfaces explicit save errors', () => {
+    mockedViewModel.value = createViewModel({})
+    mockedDraftContent.value = '保存失败后的本地正文'
+    mockedSaveState.value = 'save-error'
+    mockedPrimaryFeedback.value = {
+      tone: 'danger',
+      state: 'error',
+      title: '保存到本地失败',
+      description: '请检查浏览器本地存储权限或可用空间后重试。'
+    }
+    mockedObjectHeader.value = {
+      sid: 'local-note-1',
+      saveStatusLabel: '保存失败',
+      saveStatusTone: 'danger',
+      localStatusLabel: '已恢复本地内容',
+      localStatusTone: 'success',
+      localStatusDescription: '当前正文来自这个浏览器里按 sid 保存的本地记录，你可以继续修改并再次保存。',
+      boundaryStatusLabel: '不会同步到在线',
+      boundaryStatusTone: 'accent',
+      boundaryStatusCaption: '不可直接分享'
+    }
+
+    const wrapper = mountShell()
+    const textInput = wrapper.findComponent(TextInput)
+
+    expect(wrapper.text()).toContain('保存到本地失败')
+    expect(wrapper.text()).toContain('请检查浏览器本地存储权限或可用空间后重试。')
+    expect(textInput.props('state')).toBe('error')
   })
 })

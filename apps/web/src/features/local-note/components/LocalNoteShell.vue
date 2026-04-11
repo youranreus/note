@@ -19,6 +19,17 @@ const { viewModel, draftContent, saveState, primaryFeedback, objectHeader, saveN
 )
 
 const canEdit = computed(() => viewModel.value.status === 'ready')
+const headerDescription = computed(
+  () => objectHeader.value?.localStatusDescription ?? viewModel.value.description
+)
+const boundaryDescription = computed(() => {
+  if (objectHeader.value) {
+    return `${objectHeader.value.boundaryStatusLabel}，${objectHeader.value.boundaryStatusCaption}`
+  }
+
+  return '当前内容仅保存在这个浏览器中，不会自动同步到在线对象。'
+})
+const shouldShowErrorFeedback = computed(() => primaryFeedback.value?.state === 'error')
 
 const editorInputState = computed<InteractionState>(() => {
   if (!canEdit.value || saveState.value === 'saving') {
@@ -29,7 +40,7 @@ const editorInputState = computed<InteractionState>(() => {
     return 'error'
   }
 
-  return 'focus'
+  return 'default'
 })
 
 const actionState = computed<InteractionState>(() => {
@@ -63,15 +74,18 @@ function handleSave() {
           <StatusPill label="本地便签" tone="accent" />
           <span class="text-[12px] font-medium text-[color:var(--text-secondary)]">字数 {{ wordCount }}</span>
         </div>
+        <p class="m-0 max-w-[42rem] text-sm leading-6 text-[color:var(--text-secondary)]">
+          {{ headerDescription }}
+        </p>
         <div class="sr-only">
           <span>本地模式</span>
           <span v-if="objectHeader">{{ objectHeader.boundaryStatusLabel }}</span>
+          <span v-if="objectHeader">{{ objectHeader.boundaryStatusCaption }}</span>
         </div>
       </div>
 
       <InlineFeedback
-        v-if="primaryFeedback"
-        :class="primaryFeedback.tone === 'success' ? 'max-w-fit' : ''"
+        v-if="primaryFeedback && shouldShowErrorFeedback"
         :title="primaryFeedback.title"
         :description="primaryFeedback.description"
         :tone="primaryFeedback.tone"
@@ -88,7 +102,10 @@ function handleSave() {
         placeholder="在这里开始记录你的想法..."
       />
 
-      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-[color:var(--panel-border)] pt-3">
+      <div class="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <p class="m-0 text-[12px] font-medium text-[color:var(--text-secondary)]">
+          {{ boundaryDescription }}
+        </p>
         <Button :state="actionState" icon="save" size="compact" variant="primary" @click="handleSave">
           <span>保存</span>
           <span class="sr-only">保存到本地</span>
@@ -96,12 +113,16 @@ function handleSave() {
       </div>
     </div>
 
-    <InlineFeedback
+    <div
       v-else
-      :title="primaryFeedback?.title ?? viewModel.title"
-      :description="primaryFeedback?.description ?? viewModel.description"
-      :tone="viewModel.status === 'invalid-sid' ? 'warning' : 'danger'"
-      :state="viewModel.status === 'invalid-sid' ? 'default' : 'error'"
-    />
+      class="max-w-[36rem] rounded-[var(--radius-panel)] bg-[color:var(--panel-bg)] px-6 py-6 shadow-[var(--panel-shadow)]"
+    >
+      <p class="m-0 text-xl font-semibold text-[color:var(--text-primary)]">
+        {{ primaryFeedback?.title ?? viewModel.title }}
+      </p>
+      <p class="mt-3 mb-0 text-sm leading-6 text-[color:var(--text-secondary)]">
+        {{ primaryFeedback?.description ?? viewModel.description }}
+      </p>
+    </div>
   </div>
 </template>

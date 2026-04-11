@@ -56,7 +56,7 @@ const editorInputState = computed<InteractionState>(() => {
     return 'error'
   }
 
-  return 'focus'
+  return 'default'
 })
 
 const actionState = computed<InteractionState>(() => {
@@ -72,7 +72,7 @@ const editKeyInputState = computed<InteractionState>(() => {
     return 'error'
   }
 
-  return 'focus'
+  return 'default'
 })
 const wordCount = computed(() => draftContent.value.length)
 const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
