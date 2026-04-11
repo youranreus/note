@@ -6,9 +6,10 @@ body,
 
 body {
   margin: 0;
-  font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
+  font-family: "Inter", "PingFang SC", "Noto Sans SC", sans-serif;
   background: var(--shell-bg);
   color: var(--text-primary);
+  line-height: 1.5;
 }
 
 * {

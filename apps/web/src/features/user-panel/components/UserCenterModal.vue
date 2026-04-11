@@ -10,11 +10,9 @@ import type {
 import Button from '@/components/ui/Button.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import InlineFeedback from '@/components/ui/InlineFeedback.vue'
-import ListItem from '@/components/ui/ListItem.vue'
 import LoadingCard from '@/components/ui/LoadingCard.vue'
 import Modal from '@/components/ui/Modal.vue'
 import SegmentedTabs from '@/components/ui/SegmentedTabs.vue'
-import SurfaceCard from '@/components/ui/SurfaceCard.vue'
 
 import {
   formatUserPanelFavoritedAt,
@@ -55,12 +53,12 @@ const emit = defineEmits<{
 
 const tabOptions = [
   {
-    label: '我的创建',
-    value: 'created'
-  },
-  {
     label: '我的收藏',
     value: 'favorites'
+  },
+  {
+    label: '我的创建',
+    value: 'created'
   }
 ] as const satisfies Array<{ label: string; value: UserPanelTab }>
 
@@ -77,18 +75,12 @@ const tabModel = computed({
     initial-focus="active-tab"
     :open="open"
     close-label="关闭个人中心"
-    description="这里承载你的账户资产入口，集中查看我创建过的在线便签与我收藏过的对象，并保持轻量弹层语义。"
-    state="focus"
+    description="集中查看我收藏过的对象与我创建过的在线便签。"
+    size="lg"
     title="个人中心"
     @close="emit('close')"
   >
     <div class="grid gap-4" data-testid="user-center-modal">
-      <InlineFeedback
-        description="个人中心不会带你离开当前产品主路径；你可以从这里查看我创建的便签和我收藏过的对象，并回到同一条在线对象路径。"
-        title="轻量资产入口"
-        tone="info"
-      />
-
       <SegmentedTabs
         v-model="tabModel"
         aria-label="个人中心资产分类"
@@ -115,50 +107,43 @@ const tabModel = computed({
           tone="danger"
         />
 
-        <div v-else-if="createdNotes.length > 0" class="grid gap-3">
-          <SurfaceCard
+        <div v-else-if="createdNotes.length > 0" class="grid gap-2"
+        >
+          <button
             v-for="note in createdNotes"
             :key="note.sid"
-            state="default"
+            :data-testid="`user-center-open-note-${note.sid}`"
+            class="grid gap-1 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-3 text-left transition duration-[var(--duration-fast)] hover:bg-[#fcfcfd]"
+            type="button"
+            @click="emit('openNote', note.sid)"
           >
-            <div class="grid gap-3">
-              <ListItem
-                :description="note.preview"
-                :meta="formatUserPanelUpdatedAt(note.updatedAt)"
-                :title="note.sid"
-                state="default"
-              />
-              <div class="flex justify-end">
-                <Button
-                  :data-testid="`user-center-open-note-${note.sid}`"
-                  variant="secondary"
-                  @click="emit('openNote', note.sid)"
-                >
-                  进入便签
-                </Button>
-              </div>
-            </div>
-          </SurfaceCard>
+            <span class="text-sm font-medium text-[color:var(--text-primary)]">
+              {{ note.preview || note.sid }}
+            </span>
+            <span class="sr-only">{{ note.sid }}</span>
+            <span class="text-[11px] text-[color:var(--text-muted)]">
+              {{ formatUserPanelUpdatedAt(note.updatedAt) }}
+            </span>
+          </button>
 
-          <SurfaceCard state="default">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p class="m-0 text-sm leading-6 text-[color:var(--text-secondary)]">
-                当前已显示 {{ createdNotes.length }} / {{ createdTotal }} 条创建记录，当前页为第 {{ createdPage }} 页。
-              </p>
-              <Button
-                v-if="createdHasMore"
-                data-testid="user-center-load-more"
-                :state="createdLoadingMore ? 'disabled' : 'default'"
-                variant="secondary"
-                @click="emit('loadMoreCreated')"
-              >
-                {{ createdLoadingMore ? '正在加载更多' : '加载更多' }}
-              </Button>
-            </div>
-          </SurfaceCard>
+          <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <p class="m-0 text-[12px] leading-5 text-[color:var(--text-muted)]">
+              当前已显示 {{ createdNotes.length }} / {{ createdTotal }} 条创建记录，当前页为第 {{ createdPage }} 页。
+            </p>
+            <Button
+              v-if="createdHasMore"
+              data-testid="user-center-load-more"
+              :state="createdLoadingMore ? 'disabled' : 'default'"
+              size="compact"
+              variant="secondary"
+              @click="emit('loadMoreCreated')"
+            >
+              {{ createdLoadingMore ? '正在加载更多' : '加载更多' }}
+            </Button>
+          </div>
         </div>
 
-        <SurfaceCard v-else state="default">
+        <div v-else class="grid gap-4 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-5">
           <div class="grid gap-4">
             <EmptyState
               description="当前账户下还没有创建过在线便签。回到首页输入或生成一个 sid 后，你创建的对象会出现在这里。"
@@ -167,13 +152,14 @@ const tabModel = computed({
             <div class="flex justify-center">
               <Button
                 data-testid="user-center-create-first-note"
+                size="compact"
                 @click="emit('createFirstNote')"
               >
                 回到首页创建第一条便签
               </Button>
             </div>
           </div>
-        </SurfaceCard>
+        </div>
       </div>
 
       <div
@@ -193,53 +179,43 @@ const tabModel = computed({
           tone="danger"
         />
 
-        <div v-else-if="favoriteNotes.length > 0" class="grid gap-3">
-          <SurfaceCard
+        <div v-else-if="favoriteNotes.length > 0" class="grid gap-2">
+          <button
             v-for="note in favoriteNotes"
             :key="note.sid"
-            state="default"
+            :data-testid="`user-center-open-favorite-${note.sid}`"
+            class="grid gap-1 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-3 text-left transition duration-[var(--duration-fast)] hover:bg-[#fcfcfd]"
+            type="button"
+            @click="emit('openNote', note.sid)"
           >
-            <div class="grid gap-3">
-              <ListItem
-                :description="note.preview"
-                :meta="formatUserPanelFavoritedAt(note.favoritedAt)"
-                :title="note.sid"
-                state="default"
-              />
-              <p class="m-0 text-sm leading-6 text-[color:var(--text-secondary)]">
-                最近更新：{{ formatUserPanelUpdatedAt(note.updatedAt) }}
-              </p>
-              <div class="flex justify-end">
-                <Button
-                  :data-testid="`user-center-open-favorite-${note.sid}`"
-                  variant="secondary"
-                  @click="emit('openNote', note.sid)"
-                >
-                  返回便签
-                </Button>
-              </div>
-            </div>
-          </SurfaceCard>
+            <span class="text-sm font-medium text-[color:var(--text-primary)]">
+              {{ note.preview || note.sid }}
+            </span>
+            <span class="sr-only">{{ note.sid }}</span>
+            <span class="text-[11px] text-[color:var(--text-muted)]">
+              {{ formatUserPanelFavoritedAt(note.favoritedAt) }}
+            </span>
+            <span class="sr-only">最近更新：{{ formatUserPanelUpdatedAt(note.updatedAt) }}</span>
+          </button>
 
-          <SurfaceCard state="default">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p class="m-0 text-sm leading-6 text-[color:var(--text-secondary)]">
-                当前已显示 {{ favoriteNotes.length }} / {{ favoriteTotal }} 条收藏记录，当前页为第 {{ favoritePage }} 页。
-              </p>
-              <Button
-                v-if="favoriteHasMore"
-                data-testid="user-center-load-more-favorites"
-                :state="favoriteLoadingMore ? 'disabled' : 'default'"
-                variant="secondary"
-                @click="emit('loadMoreFavorites')"
-              >
-                {{ favoriteLoadingMore ? '正在加载更多' : '加载更多' }}
-              </Button>
-            </div>
-          </SurfaceCard>
+          <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <p class="m-0 text-[12px] leading-5 text-[color:var(--text-muted)]">
+              当前已显示 {{ favoriteNotes.length }} / {{ favoriteTotal }} 条收藏记录，当前页为第 {{ favoritePage }} 页。
+            </p>
+            <Button
+              v-if="favoriteHasMore"
+              data-testid="user-center-load-more-favorites"
+              :state="favoriteLoadingMore ? 'disabled' : 'default'"
+              size="compact"
+              variant="secondary"
+              @click="emit('loadMoreFavorites')"
+            >
+              {{ favoriteLoadingMore ? '正在加载更多' : '加载更多' }}
+            </Button>
+          </div>
         </div>
 
-        <SurfaceCard v-else state="default">
+        <div v-else class="grid gap-4 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-5">
           <div class="grid gap-4">
             <EmptyState
               description="当前没有收藏内容。去阅读在线便签并执行收藏后，你收藏过的对象会出现在这里。"
@@ -248,13 +224,14 @@ const tabModel = computed({
             <div class="flex justify-center">
               <Button
                 data-testid="user-center-browse-notes"
+                size="compact"
                 @click="emit('browseNotes')"
               >
                 去阅读并收藏
               </Button>
             </div>
           </div>
-        </SurfaceCard>
+        </div>
       </div>
     </div>
   </Modal>

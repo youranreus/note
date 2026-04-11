@@ -14,30 +14,34 @@ export const foundationStateRegistry: Record<string, InteractionState[]> = {
 }
 
 export const buttonVariantClasses = {
-  primary: 'border-transparent bg-ink-900 text-white hover:-translate-y-0.5 hover:bg-ink-800',
+  primary:
+    'border-[#1d1d1f] bg-[#1d1d1f] text-white hover:bg-[#2c2c2e] hover:border-[#2c2c2e]',
   secondary:
-    'border-[color:var(--panel-border)] bg-white/88 text-[color:var(--text-primary)] hover:-translate-y-0.5 hover:bg-white',
+    'border-[color:var(--panel-border)] bg-[color:var(--surface-white)] text-[color:var(--text-primary)] hover:bg-[#fcfcfd]',
+  subtle:
+    'border-transparent bg-[color:var(--subtle-fill)] text-[color:var(--text-primary)] hover:bg-[color:var(--subtle-fill-strong)]',
   danger:
-    'border-transparent bg-danger text-white hover:-translate-y-0.5 hover:bg-red-700'
+    'border-transparent bg-[color:var(--danger-soft)] text-[color:var(--danger)] hover:bg-[#ffdfe2]'
 } as const
 
 export const buttonStateClasses: Record<InteractionState, string> = {
   default: '',
-  focus: 'ring-4 ring-accent-200',
-  error: 'border-danger ring-4 ring-red-200',
-  disabled: 'cursor-not-allowed border-transparent bg-ink-300 text-white opacity-70'
+  focus: 'ring-2 ring-[color:var(--accent-soft)]',
+  error: 'ring-2 ring-[#ffd9dd]',
+  disabled: 'cursor-not-allowed opacity-55'
 }
 
 export const textInputStateClasses: Record<InteractionState, string> = {
-  default: 'border-[color:var(--panel-border)] bg-white/90 text-[color:var(--text-primary)]',
-  focus: 'border-accent-400 bg-white ring-4 ring-accent-100',
-  error: 'border-danger bg-red-50 ring-4 ring-red-100',
-  disabled: 'cursor-not-allowed border-transparent bg-ink-100 text-[color:var(--text-muted)] opacity-80'
+  default: 'border-[color:var(--panel-border)] bg-[color:var(--surface-white)] text-[color:var(--text-primary)]',
+  focus: 'border-[color:var(--accent)] bg-[color:var(--surface-white)] ring-2 ring-[color:var(--accent-soft)]',
+  error: 'border-[color:var(--danger)] bg-[#fff7f8] ring-2 ring-[#ffd9dd]',
+  disabled:
+    'cursor-not-allowed border-[color:var(--panel-border)] bg-[#f2f2f7] text-[color:var(--text-muted)] opacity-80'
 }
 
 export const surfaceStateClasses: Record<InteractionState, string> = {
   default: 'border-[color:var(--panel-border)] bg-[color:var(--panel-bg)]',
-  focus: 'border-accent-300 bg-white ring-4 ring-accent-100',
-  error: 'border-red-200 bg-red-50',
-  disabled: 'border-transparent bg-white/60 opacity-70'
+  focus: 'border-[color:var(--accent)] bg-[color:var(--panel-bg)] ring-2 ring-[color:var(--accent-soft)]',
+  error: 'border-[#ffd9dd] bg-[#fff7f8]',
+  disabled: 'border-[color:var(--panel-border)] bg-[#f2f2f7] opacity-70'
 }

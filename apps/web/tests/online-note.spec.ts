@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   resolveOnlineNoteAuthorizationUiModel,
   resolveOnlineNoteObjectHeader,
+  resolveOnlineNoteSaveFeedback,
   resolveOnlineNoteViewModel,
   type OnlineNoteObjectHeaderModel,
   type OnlineNoteSaveFeedback,
@@ -975,6 +976,18 @@ describe('resolveOnlineNoteObjectHeader', () => {
     expect(header).not.toMatchObject({
       showDeleteButton: true
     })
+  })
+})
+
+describe('resolveOnlineNoteSaveFeedback', () => {
+  it('does not show a warning alert when the page only has unsaved draft changes', () => {
+    const feedback = resolveOnlineNoteSaveFeedback({
+      viewStatus: 'available',
+      editAccess: 'anonymous-editable',
+      saveState: 'unsaved'
+    })
+
+    expect(feedback).toBeNull()
   })
 })
 

@@ -13,12 +13,14 @@ const props = withDefaults(
     closeLabel?: string
     dialogTestId?: string
     initialFocus?: 'dialog' | 'first-focusable' | 'active-tab'
+    size?: 'sm' | 'md' | 'lg'
     state?: InteractionState
   }>(),
   {
     closeLabel: '关闭',
     dialogTestId: '',
     initialFocus: 'dialog',
+    size: 'md',
     state: 'default'
   }
 )
@@ -31,6 +33,11 @@ const titleId = computed(() => `modal-title-${props.title.length}-${props.descri
 const descriptionId = computed(() => `modal-description-${props.title.length}-${props.description.length}`)
 const panelRef = useTemplateRef<HTMLElement>('panel')
 const lastFocusedElement = shallowRef<HTMLElement | null>(null)
+const sizeClassMap = {
+  sm: 'max-w-[22.5rem]',
+  md: 'max-w-[28rem]',
+  lg: 'max-w-[38.75rem]'
+} as const
 
 function getFocusableElements() {
   if (!panelRef.value) {
@@ -147,7 +154,7 @@ watch(
 <template>
   <div
     v-if="open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/45 px-4 py-8 backdrop-blur-sm"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--overlay-bg)] px-4 py-8"
     data-testid="modal-overlay"
     @click.self="handleClose"
   >
@@ -157,19 +164,19 @@ watch(
       :aria-labelledby="titleId"
       :data-testid="dialogTestId || undefined"
       :class="[
-        'w-full max-w-lg rounded-[var(--radius-panel)] border bg-white p-6 shadow-[var(--panel-shadow)]',
-        state === 'focus' ? 'border-accent-300 ring-4 ring-accent-100' : '',
-        state === 'error' ? 'border-red-200 bg-red-50' : '',
-        state === 'disabled' ? 'opacity-70' : 'border-[color:var(--panel-border)]'
+        'w-full rounded-[var(--radius-panel)] bg-[color:var(--panel-bg)] p-6 shadow-[var(--panel-shadow)]',
+        sizeClassMap[props.size],
+        state === 'focus' ? 'ring-2 ring-[color:var(--accent-soft)]' : '',
+        state === 'error' ? 'ring-2 ring-[#ffd9dd]' : '',
+        state === 'disabled' ? 'opacity-70' : ''
       ]"
       aria-modal="true"
       role="dialog"
       tabindex="-1"
       @keydown="handleKeydown"
     >
-      <p class="m-0 text-sm uppercase tracking-[0.2em] text-[color:var(--text-muted)]">Modal</p>
-      <h3 :id="titleId" class="mt-3 text-xl font-semibold">{{ title }}</h3>
-      <p :id="descriptionId" class="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
+      <h3 :id="titleId" class="m-0 text-[22px] font-semibold text-[color:var(--text-primary)]">{{ title }}</h3>
+      <p :id="descriptionId" class="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">
         {{ description }}
       </p>
       <div class="mt-4">

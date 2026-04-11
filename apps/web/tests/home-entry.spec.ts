@@ -107,33 +107,32 @@ describe('home entry utilities', () => {
     expect(router.resolve(localTarget).fullPath).toContain('/note/l/local123ab9')
   })
 
-  it('shows the prepared sid in the homepage input and disables autocapitalize', async () => {
+  it('keeps the homepage input visually empty while still disabling autocapitalize', async () => {
     const { wrapper } = await mountHomeEntry()
 
     const input = wrapper.get('input')
 
-    expect((input.element as HTMLInputElement).value).toBe('abcdefghjk')
+    expect((input.element as HTMLInputElement).value).toBe('')
     expect(input.attributes('auto-capitalize')).toBeUndefined()
     expect(input.attributes('autocapitalize')).toBe('off')
-    expect(wrapper.text()).toContain('已自动准备好固定入口')
-    expect(wrapper.text()).toContain('abcdefghjk')
+    expect(input.attributes('placeholder')).toBe('输入 ID')
   })
 
-  it('regenerates a fallback sid after the draft is cleared and submitted', async () => {
+  it('submits the prepared fallback sid when the draft stays empty', async () => {
     const { router, wrapper } = await mountHomeEntry()
 
     const input = wrapper.get('input')
     await input.setValue('')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('mnpqrstuvw')
+    expect((input.element as HTMLInputElement).value).toBe('')
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('online-note')
-    expect(router.currentRoute.value.params.sid).toBe('mnpqrstuvw')
-    expect((wrapper.get('input').element as HTMLInputElement).value).toBe('mnpqrstuvw')
+    expect(router.currentRoute.value.params.sid).toBe('abcdefghjk')
+    expect((wrapper.get('input').element as HTMLInputElement).value).toBe('')
   })
 
   it('keeps the online path as the default form submit route', async () => {

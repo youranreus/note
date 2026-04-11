@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, useId, useTemplateRef } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
 
@@ -12,6 +12,7 @@ const props = withDefaults(
     placeholder?: string
     state?: InteractionState
     hint?: string
+    hideLabel?: boolean
     describedBy?: string
     type?: string
     autoComplete?: string
@@ -27,6 +28,7 @@ const props = withDefaults(
     placeholder: '',
     state: 'default',
     hint: '',
+    hideLabel: false,
     describedBy: '',
     type: 'text',
     autoComplete: 'off',
@@ -41,6 +43,7 @@ const props = withDefaults(
 
 const model = defineModel<string>({ default: '' })
 const baseId = useId()
+const fieldRef = useTemplateRef<HTMLInputElement | HTMLTextAreaElement>('field')
 
 const inputId = computed(() => props.id ?? `text-input-${baseId}`)
 const hintId = computed(() => (props.hint ? `${inputId.value}-hint` : null))
@@ -53,20 +56,29 @@ const describedByValue = computed(() => {
 })
 
 const fieldClassName = computed(() => [
-  'w-full rounded-[var(--radius-control)] border px-4 py-3 text-sm outline-none transition duration-[var(--duration-fast)]',
-  props.multiline ? 'min-h-48 resize-y leading-7' : 'min-h-12',
+  'w-full rounded-[var(--radius-control)] border px-3.5 text-[15px] outline-none transition duration-[var(--duration-fast)] placeholder:text-[color:var(--text-muted)]',
+  props.multiline ? 'min-h-[18.75rem] resize-y py-3.5 leading-6' : 'min-h-[52px] py-3',
   textInputStateClasses[props.state]
 ])
+
+function focus() {
+  fieldRef.value?.focus()
+}
+
+defineExpose({
+  focus
+})
 </script>
 
 <template>
   <label class="flex w-full flex-col gap-2">
-    <span class="text-sm font-medium text-[color:var(--text-secondary)]">
+    <span :class="props.hideLabel ? 'sr-only' : 'text-[13px] font-medium text-[color:var(--text-secondary)]'">
       {{ label }}
     </span>
 
     <textarea
       v-if="props.multiline"
+      ref="field"
       v-model="model"
       :id="inputId"
       :aria-describedby="describedByValue"
@@ -83,6 +95,7 @@ const fieldClassName = computed(() => [
 
     <input
       v-else
+      ref="field"
       v-model="model"
       :id="inputId"
       :aria-describedby="describedByValue"
@@ -98,7 +111,7 @@ const fieldClassName = computed(() => [
       :type="props.type"
     />
 
-    <span v-if="hint" :id="hintId ?? undefined" class="text-xs text-[color:var(--text-muted)]">
+    <span v-if="hint" :id="hintId ?? undefined" class="text-[12px] text-[color:var(--text-muted)]">
       {{ hint }}
     </span>
   </label>

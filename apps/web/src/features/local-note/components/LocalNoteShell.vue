@@ -6,7 +6,6 @@ import type { InteractionState } from '@note/shared-types'
 import Button from '@/components/ui/Button.vue'
 import InlineFeedback from '@/components/ui/InlineFeedback.vue'
 import StatusPill from '@/components/ui/StatusPill.vue'
-import SurfaceCard from '@/components/ui/SurfaceCard.vue'
 import TextInput from '@/components/ui/TextInput.vue'
 
 import { useLocalNote } from '../use-local-note'
@@ -40,6 +39,8 @@ const actionState = computed<InteractionState>(() => {
 
   return 'default'
 })
+const wordCount = computed(() => draftContent.value.length)
+const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
 
 function handleSave() {
   void saveNote()
@@ -47,102 +48,53 @@ function handleSave() {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <SurfaceCard>
-      <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">本地模式</p>
-      <div class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 class="text-2xl font-semibold">SID: {{ viewModel.sid ?? 'invalid' }}</h2>
-          <p class="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-secondary)]">
-            {{ viewModel.description }}
-          </p>
+  <div class="mx-auto flex w-full max-w-[45rem] flex-col gap-4 pt-16">
+    <div v-if="canEdit" class="grid gap-4">
+      <div class="grid gap-3">
+        <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
+          {{ noteTitle }}
+        </h1>
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusPill
+            v-if="objectHeader"
+            :label="objectHeader.saveStatusLabel"
+            :tone="objectHeader.saveStatusTone"
+          />
+          <StatusPill label="本地便签" tone="accent" />
+          <span class="text-[12px] font-medium text-[color:var(--text-secondary)]">字数 {{ wordCount }}</span>
         </div>
-        <StatusPill label="只保存在当前浏览器" tone="accent" />
-      </div>
-    </SurfaceCard>
-
-    <SurfaceCard v-if="canEdit" state="focus">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">本地对象</p>
-          <h3 class="mt-2 text-xl font-semibold">{{ viewModel.title }}</h3>
-          <p class="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
-            本地便签用于当前浏览器里的轻量记录，不会进入在线分享、收藏、登录或远端数据库链路。
-          </p>
-        </div>
-        <StatusPill label="本地模式" tone="accent" />
-      </div>
-
-      <div
-        v-if="objectHeader"
-        class="mt-5 rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 p-4"
-      >
-        <div class="min-w-0">
-          <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">本地对象头部</p>
-          <h4 class="mt-2 break-all text-lg font-semibold">SID: {{ objectHeader.sid }}</h4>
-          <p class="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
-            {{ objectHeader.localStatusDescription }}
-          </p>
-        </div>
-
-        <div class="mt-5 grid gap-3 md:grid-cols-3">
-          <div class="rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 px-4 py-3">
-            <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">保存状态</p>
-            <div class="mt-2">
-              <StatusPill :label="objectHeader.saveStatusLabel" :tone="objectHeader.saveStatusTone" />
-            </div>
-          </div>
-
-          <div class="rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 px-4 py-3">
-            <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">本地状态</p>
-            <div class="mt-2">
-              <StatusPill :label="objectHeader.localStatusLabel" :tone="objectHeader.localStatusTone" />
-            </div>
-          </div>
-
-          <div class="rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-white/70 px-4 py-3">
-            <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">在线边界</p>
-            <div class="mt-2">
-              <StatusPill
-                :label="objectHeader.boundaryStatusLabel"
-                :caption="objectHeader.boundaryStatusCaption"
-                :tone="objectHeader.boundaryStatusTone"
-              />
-            </div>
-          </div>
+        <div class="sr-only">
+          <span>本地模式</span>
+          <span v-if="objectHeader">{{ objectHeader.boundaryStatusLabel }}</span>
         </div>
       </div>
 
       <InlineFeedback
         v-if="primaryFeedback"
-        class="mt-5"
+        :class="primaryFeedback.tone === 'success' ? 'max-w-fit' : ''"
         :title="primaryFeedback.title"
         :description="primaryFeedback.description"
         :tone="primaryFeedback.tone"
         :state="primaryFeedback.state"
       />
 
-      <div class="mt-5 rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-ink-50/60 p-4">
-        <TextInput
-          v-model="draftContent"
-          label="正文"
-          multiline
-          :rows="14"
-          :state="editorInputState"
-          placeholder="在这里输入本地便签正文…"
-          hint="只有点击“保存到本地”后，当前正文才会写入这个浏览器中以当前 sid 为键的本地存储。"
-        />
-      </div>
+      <TextInput
+        v-model="draftContent"
+        hide-label
+        label="正文"
+        multiline
+        :rows="14"
+        :state="editorInputState"
+        placeholder="在这里开始记录你的想法..."
+      />
 
-      <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p class="m-0 text-sm text-[color:var(--text-secondary)]">
-          本地便签不会变成可分享的在线对象；如果你需要固定链接分享，请回到首页选择在线便签。
-        </p>
-        <Button :state="actionState" leading-label="local" variant="secondary" @click="handleSave">
-          保存到本地
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-[color:var(--panel-border)] pt-3">
+        <Button :state="actionState" icon="save" size="compact" variant="primary" @click="handleSave">
+          <span>保存</span>
+          <span class="sr-only">保存到本地</span>
         </Button>
       </div>
-    </SurfaceCard>
+    </div>
 
     <InlineFeedback
       v-else

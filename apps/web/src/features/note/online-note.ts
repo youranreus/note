@@ -86,7 +86,6 @@ interface OnlineNoteSaveFeedbackInput {
   viewStatus: NoteReadViewStatus
   editAccess: NoteEditAccess | null
   saveState: OnlineNoteSaveState
-  hasUnsavedChanges: boolean
   errorCode?: NoteWriteErrorCode | null
   errorMessage?: string | null
 }
@@ -696,15 +695,6 @@ export function resolveOnlineNoteSaveFeedback(
       state: 'default',
       title: '尚未保存',
       description: '当前 sid 还没有远端对象，点击保存后会创建第一版内容。'
-    })
-  }
-
-  if (input.hasUnsavedChanges) {
-    return createOnlineNoteFeedback({
-      tone: 'warning',
-      state: 'default',
-      title: '未保存变更',
-      description: '你已经修改当前正文，点击“保存更新”后会写回同一 sid。'
     })
   }
 

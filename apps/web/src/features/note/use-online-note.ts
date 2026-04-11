@@ -160,7 +160,6 @@ export function useOnlineNote(sid: MaybeRefOrGetter<string | null>) {
       viewStatus: viewModel.value.status,
       editAccess: viewModel.value.editAccess,
       saveState: saveState.value,
-      hasUnsavedChanges: hasUnsavedChanges.value,
       errorCode: saveErrorCode.value,
       errorMessage: saveErrorMessage.value
     })

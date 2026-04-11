@@ -41,14 +41,14 @@ watchEffect(() => {
 
 const containerClassName = computed(() => {
   const stateClassMap: Record<InteractionState, string> = {
-    default: 'border-[color:var(--panel-border)] bg-white/60',
-    focus: 'border-accent-300 bg-white ring-4 ring-accent-100',
-    error: 'border-red-200 bg-red-50',
-    disabled: 'border-transparent bg-ink-100 opacity-70'
+    default: 'border-transparent bg-[color:var(--subtle-fill-strong)]',
+    focus: 'border-[color:var(--accent)] bg-[color:var(--subtle-fill-strong)] ring-2 ring-[color:var(--accent-soft)]',
+    error: 'border-[#ffd9dd] bg-[#fff7f8]',
+    disabled: 'border-transparent bg-[#f2f2f7] opacity-70'
   }
 
   return [
-    'flex flex-wrap gap-2 rounded-[var(--radius-control)] border p-2 transition duration-[var(--duration-fast)]',
+    'flex flex-wrap gap-2 rounded-[var(--radius-control)] border p-1 transition duration-[var(--duration-fast)]',
     stateClassMap[props.state]
   ]
 })
@@ -130,8 +130,10 @@ async function handleKeydown(event: KeyboardEvent) {
       :id="resolveTabId(option.value)"
       :tabindex="activeValue === option.value ? 0 : -1"
       :class="[
-        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[calc(var(--radius-control)-0.35rem)] px-4 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
-        activeValue === option.value ? 'bg-ink-900 text-white shadow-sm' : 'text-[color:var(--text-secondary)] hover:bg-white'
+        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[10px] px-4 py-2 text-[14px] transition duration-[var(--duration-fast)]',
+        activeValue === option.value
+          ? 'bg-[color:var(--surface-white)] font-semibold text-[color:var(--text-primary)] shadow-sm'
+          : 'font-medium text-[color:var(--text-secondary)]'
       ]"
       :disabled="props.state === 'disabled'"
       role="tab"

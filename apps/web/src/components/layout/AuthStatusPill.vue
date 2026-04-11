@@ -3,7 +3,6 @@ import { computed, nextTick, onMounted, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 
-import StatusPill from '@/components/ui/StatusPill.vue'
 import SsoConfirmModal from '@/features/auth/components/SsoConfirmModal.vue'
 import { useAuthFlow } from '@/features/auth/use-auth-flow'
 import UserCenterModal from '@/features/user-panel/components/UserCenterModal.vue'
@@ -12,7 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const authStore = useAuthStore()
 const router = useRouter()
-const { description, label, loginModalOpen, status, tone } = storeToRefs(authStore)
+const { description, loginModalOpen, status } = storeToRefs(authStore)
 const { closeLoginModal, hydrateSession, openLoginModal, startLoginUpgrade } = useAuthFlow()
 const {
   activeTab,
@@ -42,36 +41,19 @@ const {
 } = useUserPanel()
 const triggerRef = useTemplateRef<HTMLButtonElement>('trigger')
 
-const triggerLabel = computed(() => {
-  if (status.value === 'authenticated') {
-    return label.value
+const displayLabel = computed(() => {
+  if (status.value === 'recovering') {
+    return '登录中'
   }
 
-  return label.value
+  return status.value === 'authenticated' ? '已登录' : '登录'
 })
-
-const triggerDescription = computed(() => {
+const triggerAriaLabel = computed(() => {
   if (status.value === 'authenticated') {
-    return userCenterOpen.value ? '个人中心已打开' : '打开个人中心查看我的创建与收藏'
+    return userCenterOpen.value ? '个人中心已打开' : '打开个人中心'
   }
 
   return description.value
-})
-
-const triggerTone = computed(() => {
-  if (status.value === 'authenticated' && userCenterOpen.value) {
-    return 'accent'
-  }
-
-  return tone.value
-})
-
-const triggerState = computed(() => {
-  if (status.value === 'recovering' || userCenterOpen.value) {
-    return 'focus'
-  }
-
-  return 'default'
 })
 
 onMounted(() => {
@@ -139,20 +121,26 @@ async function handleBrowseNotes() {
   <div class="flex items-center">
     <button
       ref="trigger"
+      :aria-label="triggerAriaLabel"
       :aria-expanded="loginModalOpen || userCenterOpen ? 'true' : 'false'"
       :aria-haspopup="status === 'recovering' ? undefined : 'dialog'"
       :disabled="status === 'recovering'"
-      class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus:outline-none focus-visible:ring-4 focus-visible:ring-accent-100"
+      class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-soft)]"
       data-testid="auth-status-pill-trigger"
       type="button"
       @click="handleOpen"
     >
-      <StatusPill
-        :caption="triggerDescription"
-        :label="triggerLabel"
-        :state="triggerState"
-        :tone="triggerTone"
-      />
+      <span
+        :class="[
+          'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-medium transition duration-[var(--duration-fast)]',
+          userCenterOpen
+            ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
+            : 'border-transparent bg-[rgba(255,255,255,0.85)] text-[color:var(--text-primary)]'
+        ]"
+      >
+        <span class="h-4 w-4 rounded-full border border-[color:var(--panel-border)] bg-[color:var(--subtle-fill)]" />
+        <span>{{ displayLabel }}</span>
+      </span>
     </button>
 
     <SsoConfirmModal

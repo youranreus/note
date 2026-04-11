@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, useId, useTemplateRef } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
 
 import Button from '@/components/ui/Button.vue'
 import InlineFeedback from '@/components/ui/InlineFeedback.vue'
 import LoadingCard from '@/components/ui/LoadingCard.vue'
-import SurfaceCard from '@/components/ui/SurfaceCard.vue'
+import StatusPill from '@/components/ui/StatusPill.vue'
 import TextInput from '@/components/ui/TextInput.vue'
 import { politeInlineFeedbackA11y } from '@/components/ui/inline-feedback'
 import { useAuthStore } from '@/stores/auth-store'
 
-import NoteObjectHeader from './NoteObjectHeader.vue'
 import DeleteNoteConfirmModal from './DeleteNoteConfirmModal.vue'
 import { resolveOnlineNoteAuthorizationUiModel } from '../online-note'
 import { useOnlineNote } from '../use-online-note'
@@ -23,6 +22,7 @@ const props = defineProps<{
 const authStore = useAuthStore()
 const feedbackBaseId = useId()
 const primaryFeedbackId = `${feedbackBaseId}-primary-feedback`
+const editKeyInputRef = useTemplateRef<{ focus: () => void }>('editKeyInput')
 const {
   viewModel,
   draftContent,
@@ -93,6 +93,12 @@ const editKeyInputState = computed<InteractionState>(() => {
 const editKeyDescribedBy = computed(() =>
   primaryFeedback.value?.describedField === 'editKey' ? primaryFeedbackId : undefined
 )
+const wordCount = computed(() => draftContent.value.length)
+const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
+const canShowObjectLayout = computed(() => authorizationUi.value.canShowEditor)
+const showEncryptButton = computed(() => authorizationUi.value.shouldShowEditKeyInput)
+const showFavoriteButton = computed(() => objectHeader.value?.showFavoriteButton)
+const showDeleteButton = computed(() => objectHeader.value?.showDeleteButton)
 
 function handleSave() {
   void saveNote()
@@ -117,25 +123,14 @@ function handleCloseDeleteConfirm() {
 function handleConfirmDelete() {
   void confirmDelete()
 }
+
+function handleFocusEditKey() {
+  editKeyInputRef.value?.focus()
+}
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <SurfaceCard>
-      <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">在线模式</p>
-      <div class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 class="text-2xl font-semibold">SID: {{ viewModel.sid ?? 'invalid' }}</h2>
-          <p class="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-secondary)]">
-            {{ authorizationUi.shellDescription }}
-          </p>
-        </div>
-        <div class="rounded-full border border-accent-200 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700">
-          {{ authorizationUi.modeBadgeLabel }}
-        </div>
-      </div>
-    </SurfaceCard>
-
+  <div class="mx-auto flex w-full max-w-[45rem] flex-col gap-4 pt-16">
     <div v-if="viewModel.status === 'loading'" class="grid gap-3">
       <InlineFeedback
         title="正在读取在线便签"
@@ -144,33 +139,36 @@ function handleConfirmDelete() {
         state="focus"
         v-bind="politeInlineFeedbackA11y"
       />
-      <LoadingCard state="focus" />
-    </div>
-
-    <SurfaceCard v-else-if="authorizationUi.canShowEditor" state="focus">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p class="m-0 text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">对象内容</p>
-          <h3 class="mt-2 text-xl font-semibold">{{ viewModel.title }}</h3>
-          <p class="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
-            {{ viewModel.description }}
-          </p>
-        </div>
-        <div
-          class="rounded-full border border-[color:var(--panel-border)] bg-white/80 px-3 py-1 text-xs text-[color:var(--text-secondary)]"
-        >
-          {{ saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : saveState === 'save-error' ? '保存失败' : '编辑中' }}
+      <div class="max-w-[26.25rem] rounded-[var(--radius-panel)] bg-[color:var(--panel-bg)] px-6 py-6 shadow-[var(--panel-shadow)]">
+        <p class="m-0 text-xl font-semibold text-[color:var(--text-primary)]">正在读取在线便签</p>
+        <p class="sr-only">{{ viewModel.sid }}</p>
+        <div class="mt-4">
+          <LoadingCard state="focus" />
         </div>
       </div>
+    </div>
 
-      <NoteObjectHeader
-        v-if="objectHeader"
-        class="mt-5"
-        :model="objectHeader"
-        @copy="handleCopyShareLink"
-        @favorite="handleFavoriteNote"
-        @delete="handleOpenDeleteConfirm"
-      />
+    <div v-else-if="canShowObjectLayout" class="grid gap-4">
+      <div class="grid gap-3">
+        <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
+          {{ noteTitle }}
+        </h1>
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusPill
+            v-if="objectHeader"
+            :label="objectHeader.saveStatusLabel"
+            :tone="objectHeader.saveStatusTone"
+          />
+          <StatusPill label="在线便签" tone="accent" />
+          <span class="text-[12px] font-medium text-[color:var(--text-secondary)]">字数 {{ wordCount }}</span>
+        </div>
+        <div class="sr-only">
+          <span>{{ viewModel.title }}</span>
+          <span v-if="objectHeader">{{ objectHeader.shareStatusLabel }}</span>
+          <span v-if="objectHeader">{{ objectHeader.editStatusLabel }}</span>
+          <span>{{ authorizationUi.modeBadgeLabel }}</span>
+        </div>
+      </div>
 
       <DeleteNoteConfirmModal
         :open="isDeleteConfirmOpen"
@@ -181,7 +179,7 @@ function handleConfirmDelete() {
 
       <InlineFeedback
         v-if="primaryFeedback"
-        class="mt-5"
+        :class="primaryFeedback.tone === 'success' ? 'max-w-fit' : ''"
         :id="primaryFeedbackId"
         :title="primaryFeedback.title"
         :description="primaryFeedback.description"
@@ -194,7 +192,6 @@ function handleConfirmDelete() {
 
       <InlineFeedback
         v-if="authorizationUi.shouldShowEditKeyRisk"
-        class="mt-5"
         title="遗失编辑密钥后将无法恢复编辑权"
         description="当前这次首次保存会把对象创建成共享编辑模式；如果你之后忘记这枚密钥，系统不会帮你找回匿名编辑权限。"
         tone="warning"
@@ -202,40 +199,90 @@ function handleConfirmDelete() {
         v-bind="politeInlineFeedbackA11y"
       />
 
-      <div class="mt-5 rounded-[var(--radius-control)] border border-[color:var(--panel-border)] bg-ink-50/60 p-4">
-        <TextInput
-          v-model="draftContent"
-          label="正文"
-          multiline
-          :rows="14"
-          :state="editorInputState"
-          :placeholder="authorizationUi.editorPlaceholder"
-          :hint="authorizationUi.editorHint"
-        />
+      <TextInput
+        v-model="draftContent"
+        hide-label
+        label="正文"
+        multiline
+        :rows="14"
+        :state="editorInputState"
+        :placeholder="authorizationUi.editorPlaceholder"
+      />
 
-        <div v-if="authorizationUi.shouldShowEditKeyInput" class="mt-4">
-          <TextInput
-            v-model="editKey"
-            :label="authorizationUi.editKeyLabel"
-            type="password"
-            auto-complete="off"
-            :state="editKeyInputState"
-            placeholder="输入编辑密钥…"
-            :hint="authorizationUi.editKeyHint"
-            :described-by="editKeyDescribedBy"
-          />
+      <div class="flex flex-col gap-3 border-t border-[color:var(--panel-border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+          <Button
+            v-if="showFavoriteButton"
+            :aria-label="objectHeader?.favoriteButtonLabel"
+            icon="star"
+            :state="objectHeader?.favoriteButtonState"
+            size="icon"
+            variant="subtle"
+            @click="handleFavoriteNote"
+          >
+            <span class="sr-only">{{ objectHeader?.favoriteButtonLabel }}</span>
+          </Button>
+          <Button
+            aria-label="复制链接"
+            icon="copy"
+            :state="objectHeader?.copyButtonState"
+            size="icon"
+            variant="subtle"
+            @click="handleCopyShareLink"
+          >
+            <span class="sr-only">{{ objectHeader?.copyButtonLabel }}</span>
+          </Button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <Button
+            v-if="showEncryptButton"
+            aria-label="聚焦编辑密钥输入框"
+            icon="lock"
+            size="compact"
+            variant="subtle"
+            @click="handleFocusEditKey"
+          >
+            加密
+          </Button>
+          <Button
+            :state="actionState"
+            icon="save"
+            size="compact"
+            @click="handleSave"
+          >
+            <span>保存</span>
+            <span class="sr-only">{{ authorizationUi.actionLabel }}</span>
+            <span v-if="viewModel.status === 'available'" class="sr-only">保存更新</span>
+          </Button>
+          <Button
+            v-if="showDeleteButton"
+            aria-label="删除便签"
+            icon="trash"
+            :state="objectHeader?.deleteButtonState"
+            data-testid="note-delete-trigger"
+            size="compact"
+            variant="danger"
+            @click="handleOpenDeleteConfirm"
+          >
+            删除
+          </Button>
         </div>
       </div>
 
-      <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p class="m-0 text-sm text-[color:var(--text-secondary)]">
-          保存不会改变当前链接；后续再次打开同一 `sid` 时会读取这里最后一次成功保存的内容。
-        </p>
-        <Button :state="actionState" leading-label="online" @click="handleSave">
-          {{ authorizationUi.actionLabel }}
-        </Button>
-      </div>
-    </SurfaceCard>
+      <TextInput
+        v-if="authorizationUi.shouldShowEditKeyInput"
+        ref="editKeyInput"
+        v-model="editKey"
+        hide-label
+        :label="authorizationUi.editKeyLabel"
+        type="password"
+        auto-complete="off"
+        :state="editKeyInputState"
+        placeholder="输入编辑密钥"
+        :described-by="editKeyDescribedBy"
+      />
+    </div>
 
     <InlineFeedback
       v-else

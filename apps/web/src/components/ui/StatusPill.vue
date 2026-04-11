@@ -18,11 +18,11 @@ const props = withDefaults(
 )
 
 const toneClassMap = {
-  neutral: 'bg-ink-100 text-ink-700',
-  accent: 'bg-accent-100 text-accent-700',
-  success: 'bg-emerald-100 text-emerald-700',
-  warning: 'bg-amber-100 text-amber-700',
-  danger: 'bg-rose-100 text-rose-700'
+  neutral: 'border-[color:var(--panel-border)] bg-[color:var(--surface-white)] text-[color:var(--text-secondary)]',
+  accent: 'border-[#dce4ff] bg-[color:var(--accent-soft)] text-[color:var(--accent)]',
+  success: 'border-[#cdedd7] bg-[color:var(--success-soft)] text-[color:var(--success)]',
+  warning: 'border-[#f0d5ad] bg-[color:var(--warning-soft)] text-[color:var(--warning)]',
+  danger: 'border-[#ffd5d9] bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
 } as const
 
 const stateClassMap: Record<InteractionState, string> = {
@@ -33,7 +33,7 @@ const stateClassMap: Record<InteractionState, string> = {
 }
 
 const pillClassName = computed(() => [
-  'inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition duration-[var(--duration-fast)]',
+  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[12px] font-semibold transition duration-[var(--duration-fast)]',
   toneClassMap[props.tone],
   stateClassMap[props.state]
 ])
@@ -41,8 +41,8 @@ const pillClassName = computed(() => [
 
 <template>
   <span :class="pillClassName">
-    <span class="h-2.5 w-2.5 rounded-full bg-current opacity-60" />
+    <span class="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
     <span>{{ label }}</span>
-    <span v-if="caption" class="text-xs opacity-70">{{ caption }}</span>
+    <span v-if="caption" class="text-[11px] font-medium opacity-75">{{ caption }}</span>
   </span>
 </template>
