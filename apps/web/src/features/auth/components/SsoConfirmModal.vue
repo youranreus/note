@@ -20,8 +20,8 @@ function handleKeyboardConfirm() {
   <Modal
     :open="open"
     close-label="取消"
-    data-testid="sso-confirm-modal"
-    description="将跳转到企业身份提供方完成认证。"
+    dialog-test-id="sso-confirm-modal"
+    description="将跳转到企业身份提供方完成认证，完成后会自动回到当前上下文。"
     size="sm"
     title="使用 SSO 登录"
     @close="emit('close')"
@@ -32,7 +32,7 @@ function handleKeyboardConfirm() {
       <Button
         data-testid="sso-confirm-cancel"
         size="compact"
-        variant="subtle"
+        variant="secondary"
         @click="emit('close')"
       >
         取消
@@ -40,7 +40,7 @@ function handleKeyboardConfirm() {
       <Button
         data-testid="sso-confirm-action"
         size="compact"
-        variant="subtle"
+        variant="primary"
         @click="emit('confirm')"
         @keydown.enter.prevent="handleKeyboardConfirm"
         @keydown.space.prevent="handleKeyboardConfirm"

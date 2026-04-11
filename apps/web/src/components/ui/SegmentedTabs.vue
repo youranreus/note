@@ -48,7 +48,7 @@ const containerClassName = computed(() => {
   }
 
   return [
-    'flex flex-wrap gap-2 rounded-[var(--radius-control)] border p-1 transition duration-[var(--duration-fast)]',
+    'flex flex-wrap gap-1.5 rounded-[var(--radius-control)] border p-1.5 transition duration-[var(--duration-fast)]',
     stateClassMap[props.state]
   ]
 })
@@ -130,10 +130,10 @@ async function handleKeydown(event: KeyboardEvent) {
       :id="resolveTabId(option.value)"
       :tabindex="activeValue === option.value ? 0 : -1"
       :class="[
-        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[10px] px-4 py-2 text-[14px] transition duration-[var(--duration-fast)]',
+        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[10px] border px-4 py-2 text-[14px] leading-none transition-[background-color,border-color,color,box-shadow] duration-[var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-soft)] motion-reduce:transition-none',
         activeValue === option.value
-          ? 'bg-[color:var(--surface-white)] font-semibold text-[color:var(--text-primary)] shadow-sm'
-          : 'font-medium text-[color:var(--text-secondary)]'
+          ? 'border-[color:var(--control-border)] bg-[color:var(--surface-white)] font-semibold text-[color:var(--text-primary)]'
+          : 'border-transparent font-medium text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'
       ]"
       :disabled="props.state === 'disabled'"
       role="tab"

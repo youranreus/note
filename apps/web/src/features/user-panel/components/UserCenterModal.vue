@@ -63,6 +63,8 @@ const tabOptions = [
 ] as const satisfies Array<{ label: string; value: UserPanelTab }>
 
 const tabIdPrefix = 'user-center'
+const noteItemClassName =
+  'group grid gap-1.5 rounded-[14px] border border-transparent bg-[color:var(--surface-white)]/90 px-4 py-3.5 text-left transition-[background-color,border-color] duration-[var(--duration-fast)] hover:bg-white focus-visible:border-[color:var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-soft)] motion-reduce:transition-none'
 
 const tabModel = computed({
   get: () => props.activeTab,
@@ -107,21 +109,20 @@ const tabModel = computed({
           tone="danger"
         />
 
-        <div v-else-if="createdNotes.length > 0" class="grid gap-2"
-        >
+        <div v-else-if="createdNotes.length > 0" class="grid gap-2.5">
           <button
             v-for="note in createdNotes"
             :key="note.sid"
             :data-testid="`user-center-open-note-${note.sid}`"
-            class="grid gap-1 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-3 text-left transition duration-[var(--duration-fast)] hover:bg-[#fcfcfd]"
+            :class="noteItemClassName"
             type="button"
             @click="emit('openNote', note.sid)"
           >
-            <span class="text-sm font-medium text-[color:var(--text-primary)]">
+            <span class="break-all text-sm font-semibold text-[color:var(--text-primary)]">
               {{ note.preview || note.sid }}
             </span>
             <span class="sr-only">{{ note.sid }}</span>
-            <span class="text-[11px] text-[color:var(--text-muted)]">
+            <span class="text-[11px] leading-5 text-[color:var(--text-muted)]">
               {{ formatUserPanelUpdatedAt(note.updatedAt) }}
             </span>
           </button>
@@ -143,7 +144,7 @@ const tabModel = computed({
           </div>
         </div>
 
-        <div v-else class="grid gap-4 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-5">
+        <div v-else class="grid gap-4 rounded-[14px] bg-[color:var(--surface-white)]/88 px-4 py-5">
           <div class="grid gap-4">
             <EmptyState
               description="当前账户下还没有创建过在线便签。回到首页输入或生成一个 sid 后，你创建的对象会出现在这里。"
@@ -179,20 +180,20 @@ const tabModel = computed({
           tone="danger"
         />
 
-        <div v-else-if="favoriteNotes.length > 0" class="grid gap-2">
+        <div v-else-if="favoriteNotes.length > 0" class="grid gap-2.5">
           <button
             v-for="note in favoriteNotes"
             :key="note.sid"
             :data-testid="`user-center-open-favorite-${note.sid}`"
-            class="grid gap-1 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-3 text-left transition duration-[var(--duration-fast)] hover:bg-[#fcfcfd]"
+            :class="noteItemClassName"
             type="button"
             @click="emit('openNote', note.sid)"
           >
-            <span class="text-sm font-medium text-[color:var(--text-primary)]">
+            <span class="break-all text-sm font-semibold text-[color:var(--text-primary)]">
               {{ note.preview || note.sid }}
             </span>
             <span class="sr-only">{{ note.sid }}</span>
-            <span class="text-[11px] text-[color:var(--text-muted)]">
+            <span class="text-[11px] leading-5 text-[color:var(--text-muted)]">
               {{ formatUserPanelFavoritedAt(note.favoritedAt) }}
             </span>
             <span class="sr-only">最近更新：{{ formatUserPanelUpdatedAt(note.updatedAt) }}</span>
@@ -215,7 +216,7 @@ const tabModel = computed({
           </div>
         </div>
 
-        <div v-else class="grid gap-4 rounded-[10px] bg-[color:var(--surface-white)] px-4 py-5">
+        <div v-else class="grid gap-4 rounded-[14px] bg-[color:var(--surface-white)]/88 px-4 py-5">
           <div class="grid gap-4">
             <EmptyState
               description="当前没有收藏内容。去阅读在线便签并执行收藏后，你收藏过的对象会出现在这里。"

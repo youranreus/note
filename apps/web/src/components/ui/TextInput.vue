@@ -56,8 +56,8 @@ const describedByValue = computed(() => {
 })
 
 const fieldClassName = computed(() => [
-  'w-full rounded-[var(--radius-control)] border px-3.5 text-[15px] outline-none transition duration-[var(--duration-fast)] placeholder:text-[color:var(--text-muted)]',
-  props.multiline ? 'min-h-[18.75rem] resize-y py-3.5 leading-6' : 'min-h-[52px] py-3',
+  'w-full rounded-[var(--radius-control)] border text-[15px] text-[color:var(--text-primary)] outline-none transition-[background-color,border-color,color,box-shadow] duration-[var(--duration-fast)] placeholder:text-[color:var(--text-muted)] focus-visible:border-[color:var(--accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--accent-soft)] motion-reduce:transition-none',
+  props.multiline ? 'min-h-[18.75rem] resize-y px-4 py-3.5 leading-6' : 'min-h-12 px-4 py-3 leading-6',
   textInputStateClasses[props.state]
 ])
 
@@ -71,8 +71,10 @@ defineExpose({
 </script>
 
 <template>
-  <label class="flex w-full flex-col gap-2">
-    <span :class="props.hideLabel ? 'sr-only' : 'text-[13px] font-medium text-[color:var(--text-secondary)]'">
+  <label class="flex w-full flex-col gap-2.5">
+    <span
+      :class="props.hideLabel ? 'sr-only' : 'text-[12px] font-semibold tracking-[0.01em] text-[color:var(--text-secondary)]'"
+    >
       {{ label }}
     </span>
 
@@ -111,7 +113,7 @@ defineExpose({
       :type="props.type"
     />
 
-    <span v-if="hint" :id="hintId ?? undefined" class="text-[12px] text-[color:var(--text-muted)]">
+    <span v-if="hint" :id="hintId ?? undefined" class="text-[12px] leading-5 text-[color:var(--text-muted)]">
       {{ hint }}
     </span>
   </label>

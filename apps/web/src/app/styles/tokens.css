@@ -4,7 +4,7 @@
   --panel-bg: #f9f9fb;
   --panel-border: #d2d2d7;
   --panel-shadow: 0 10px 30px rgba(28, 28, 30, 0.1);
-  --overlay-bg: rgba(229, 229, 234, 0.55);
+  --overlay-bg: rgba(237, 239, 245, 0.8);
   --text-primary: #1c1c1e;
   --text-secondary: #636366;
   --text-muted: #8e8e93;
@@ -19,6 +19,10 @@
   --subtle-fill: #e5e5ea;
   --subtle-fill-strong: #ececf1;
   --surface-white: #ffffff;
+  --control-border: rgba(28, 28, 30, 0.08);
+  --control-border-strong: rgba(28, 28, 30, 0.12);
+  --control-fill: rgba(255, 255, 255, 0.96);
+  --modal-shadow: 0 20px 48px rgba(28, 28, 30, 0.1);
   --radius-panel: 16px;
   --radius-control: 12px;
   --spacing-content: clamp(1rem, 1vw + 0.9rem, 1.5rem);
