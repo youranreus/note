@@ -258,6 +258,7 @@ describe('online note shell', () => {
     expect(wrapper.text()).toContain('匿名可编辑')
     expect(wrapper.text()).toContain('复制链接')
     expect(wrapper.text()).toContain('登录后收藏')
+    expect(wrapper.text()).not.toContain('最新修改已经写回当前 sid。')
   })
 
   it('opens the delete confirmation modal from the object header and moves focus into the dialog', async () => {
@@ -595,7 +596,7 @@ describe('online note shell', () => {
     expect((textarea.element as HTMLTextAreaElement).disabled).toBe(true)
     expect(wrapper.text()).toContain('只读查看')
     expect(wrapper.text()).toContain('当前账户不可编辑')
-    expect(wrapper.text()).toContain('当前账户只能查看')
+    expect(wrapper.text()).not.toContain('当前账户只能查看')
     expect(saveButton?.attributes('disabled')).toBeDefined()
   })
 
@@ -634,13 +635,13 @@ describe('online note shell', () => {
     const wrapper = mountShell()
 
     expect(wrapper.text()).toContain('输入密钥后可编辑')
-    expect(wrapper.text()).toContain('需要编辑密钥')
+    expect(wrapper.text()).not.toContain('需要编辑密钥')
     expect(wrapper.text()).toContain('编辑密钥')
     expect(wrapper.find('textarea').exists()).toBe(true)
     expect(wrapper.text()).toContain('保存更新')
   })
 
-  it('announces edit-key feedback politely and associates it with the password field', () => {
+  it('does not render edit-key feedback alert or aria-describedby even when save feedback exists', () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
       title: '在线便签内容',
@@ -674,20 +675,15 @@ describe('online note shell', () => {
     }
 
     const wrapper = mountShell()
-    const feedback = wrapper.get('[role="status"]')
     const editKeyInput = wrapper.get('input[type="password"]')
     const describedBy = editKeyInput.attributes('aria-describedby')
 
-    expect(feedback.attributes('aria-live')).toBe('polite')
-    expect(feedback.attributes('aria-atomic')).toBe('true')
-    expect(describedBy).toBeTruthy()
-
-    for (const id of describedBy!.split(/\s+/)) {
-      expect(wrapper.find(`#${id}`).exists()).toBe(true)
-    }
+    expect(wrapper.text()).not.toContain('编辑密钥不正确')
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(describedBy).toBeUndefined()
   })
 
-  it('shows the irreversible-risk warning only for anonymous first saves with an edit key', () => {
+  it('does not render the irreversible-risk feedback for first saves', () => {
     mockedViewModel.value = createViewModel({
       status: 'not-found',
       title: '这个 sid 还没有保存内容',
@@ -706,14 +702,8 @@ describe('online note shell', () => {
 
     const anonymousWrapper = mountShell('anonymous')
     const authenticatedWrapper = mountShell('authenticated')
-    const riskFeedback = anonymousWrapper
-      .findAll('[role="status"]')
-      .find((wrapper) => wrapper.text().includes('遗失编辑密钥后将无法恢复编辑权'))
 
-    expect(anonymousWrapper.text()).toContain('遗失编辑密钥后将无法恢复编辑权')
-    expect(riskFeedback).toBeTruthy()
-    expect(riskFeedback?.attributes('aria-live')).toBe('polite')
-    expect(riskFeedback?.attributes('aria-atomic')).toBe('true')
+    expect(anonymousWrapper.text()).not.toContain('遗失编辑密钥后将无法恢复编辑权')
     expect(authenticatedWrapper.text()).not.toContain('遗失编辑密钥后将无法恢复编辑权')
   })
 

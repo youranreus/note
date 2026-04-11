@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { computed, useId, useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 
 import type { InteractionState } from '@note/shared-types'
 
 import Button from '@/components/ui/Button.vue'
-import InlineFeedback from '@/components/ui/InlineFeedback.vue'
 import LoadingCard from '@/components/ui/LoadingCard.vue'
 import StatusPill from '@/components/ui/StatusPill.vue'
 import TextInput from '@/components/ui/TextInput.vue'
-import { politeInlineFeedbackA11y } from '@/components/ui/inline-feedback'
 import { useAuthStore } from '@/stores/auth-store'
 
 import DeleteNoteConfirmModal from './DeleteNoteConfirmModal.vue'
@@ -20,15 +18,12 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const feedbackBaseId = useId()
-const primaryFeedbackId = `${feedbackBaseId}-primary-feedback`
 const editKeyInputRef = useTemplateRef<{ focus: () => void }>('editKeyInput')
 const {
   viewModel,
   draftContent,
   editKey,
   saveState,
-  primaryFeedback,
   objectHeader,
   isDeleteConfirmOpen,
   saveNote,
@@ -68,16 +63,6 @@ const actionState = computed<InteractionState>(() => {
   return saveState.value === 'saving' || !authorizationUi.value.canSave ? 'disabled' : 'default'
 })
 
-const feedbackTone = computed(() => {
-  return viewModel.value.status === 'deleted' || viewModel.value.status === 'error'
-    ? 'danger'
-    : 'warning'
-})
-
-const feedbackState = computed(() => {
-  return viewModel.value.status === 'error' ? 'error' : 'default'
-})
-
 const editKeyInputState = computed<InteractionState>(() => {
   if (viewModel.value.editAccess === 'forbidden' || saveState.value === 'saving') {
     return 'disabled'
@@ -89,10 +74,6 @@ const editKeyInputState = computed<InteractionState>(() => {
 
   return 'focus'
 })
-
-const editKeyDescribedBy = computed(() =>
-  primaryFeedback.value?.describedField === 'editKey' ? primaryFeedbackId : undefined
-)
 const wordCount = computed(() => draftContent.value.length)
 const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
 const canShowObjectLayout = computed(() => authorizationUi.value.canShowEditor)
@@ -132,13 +113,6 @@ function handleFocusEditKey() {
 <template>
   <div class="mx-auto flex w-full max-w-[45rem] flex-col gap-4 pt-16">
     <div v-if="viewModel.status === 'loading'" class="grid gap-3">
-      <InlineFeedback
-        title="正在读取在线便签"
-        description="我们正在根据当前 sid 拉取该在线便签的最新已保存内容。"
-        tone="info"
-        state="focus"
-        v-bind="politeInlineFeedbackA11y"
-      />
       <div class="max-w-[26.25rem] rounded-[var(--radius-panel)] bg-[color:var(--panel-bg)] px-6 py-6 shadow-[var(--panel-shadow)]">
         <p class="m-0 text-xl font-semibold text-[color:var(--text-primary)]">正在读取在线便签</p>
         <p class="sr-only">{{ viewModel.sid }}</p>
@@ -175,28 +149,6 @@ function handleFocusEditKey() {
         :busy="objectHeader?.deleteButtonState === 'disabled'"
         @close="handleCloseDeleteConfirm"
         @confirm="handleConfirmDelete"
-      />
-
-      <InlineFeedback
-        v-if="primaryFeedback"
-        :class="primaryFeedback.tone === 'success' ? 'max-w-fit' : ''"
-        :id="primaryFeedbackId"
-        :title="primaryFeedback.title"
-        :description="primaryFeedback.description"
-        :tone="primaryFeedback.tone"
-        :state="primaryFeedback.state"
-        :role="primaryFeedback.role ?? politeInlineFeedbackA11y.role"
-        :aria-live="primaryFeedback.ariaLive ?? politeInlineFeedbackA11y.ariaLive"
-        :aria-atomic="primaryFeedback.ariaAtomic ?? politeInlineFeedbackA11y.ariaAtomic"
-      />
-
-      <InlineFeedback
-        v-if="authorizationUi.shouldShowEditKeyRisk"
-        title="遗失编辑密钥后将无法恢复编辑权"
-        description="当前这次首次保存会把对象创建成共享编辑模式；如果你之后忘记这枚密钥，系统不会帮你找回匿名编辑权限。"
-        tone="warning"
-        state="default"
-        v-bind="politeInlineFeedbackA11y"
       />
 
       <TextInput
@@ -280,17 +232,19 @@ function handleFocusEditKey() {
         auto-complete="off"
         :state="editKeyInputState"
         placeholder="输入编辑密钥"
-        :described-by="editKeyDescribedBy"
       />
     </div>
 
-    <InlineFeedback
+    <div
       v-else
-      :title="viewModel.title"
-      :description="viewModel.description"
-      :tone="feedbackTone"
-      :state="feedbackState"
-      v-bind="politeInlineFeedbackA11y"
-    />
+      class="max-w-[36rem] rounded-[var(--radius-panel)] bg-[color:var(--panel-bg)] px-6 py-6 shadow-[var(--panel-shadow)]"
+    >
+      <p class="m-0 text-xl font-semibold text-[color:var(--text-primary)]">
+        {{ viewModel.title }}
+      </p>
+      <p class="mt-3 mb-0 text-sm leading-6 text-[color:var(--text-secondary)]">
+        {{ viewModel.description }}
+      </p>
+    </div>
   </div>
 </template>
