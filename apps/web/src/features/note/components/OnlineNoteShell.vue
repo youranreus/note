@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, useTemplateRef } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import type { InteractionState } from '@note/shared-types'
 
@@ -18,12 +19,14 @@ const props = defineProps<{
 }>()
 
 const authStore = useAuthStore()
+const router = useRouter()
 const editKeyInputRef = useTemplateRef<{ focus: () => void }>('editKeyInput')
 const {
   viewModel,
   draftContent,
   editKey,
   saveState,
+  primaryFeedback,
   objectHeader,
   isDeleteConfirmOpen,
   saveNote,
@@ -33,6 +36,7 @@ const {
   closeDeleteConfirm,
   confirmDelete
 } = useOnlineNote(computed(() => props.sid))
+const isEditKeyExpanded = shallowRef(false)
 
 const authorizationUi = computed(() =>
   resolveOnlineNoteAuthorizationUiModel({
@@ -80,9 +84,53 @@ const canShowObjectLayout = computed(() => authorizationUi.value.canShowEditor)
 const showEncryptButton = computed(() => authorizationUi.value.shouldShowEditKeyInput)
 const showFavoriteButton = computed(() => objectHeader.value?.showFavoriteButton)
 const showDeleteButton = computed(() => objectHeader.value?.showDeleteButton)
+const showEncryptedPill = computed(
+  () =>
+    viewModel.value.status === 'available' &&
+    (viewModel.value.editAccess === 'key-required' || viewModel.value.editAccess === 'key-editable')
+)
+const shouldAutoExpandEditKey = computed(() => {
+  if (!authorizationUi.value.shouldShowEditKeyInput) {
+    return false
+  }
+
+  if (primaryFeedback.value?.describedField === 'editKey') {
+    return true
+  }
+
+  return viewModel.value.editAccess === 'key-required' || viewModel.value.editAccess === 'key-editable'
+})
+const shouldRenderEditKeyInput = computed(
+  () =>
+    authorizationUi.value.shouldShowEditKeyInput &&
+    (isEditKeyExpanded.value || shouldAutoExpandEditKey.value)
+)
+const editKeyButtonAriaLabel = computed(() => {
+  if (shouldAutoExpandEditKey.value) {
+    return '聚焦编辑密钥输入框'
+  }
+
+  return shouldRenderEditKeyInput.value ? '收起编辑密钥输入框' : '展开编辑密钥输入框'
+})
+const encryptButtonLabel = computed(() => {
+  if (shouldAutoExpandEditKey.value) {
+    return '编辑密钥'
+  }
+
+  return shouldRenderEditKeyInput.value ? '收起加密' : '加密'
+})
 
 function handleSave() {
   void saveNote()
+}
+
+function handleGoBack() {
+  if (typeof window !== 'undefined' && window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  void router.push({ name: 'home' })
 }
 
 function handleCopyShareLink() {
@@ -105,9 +153,51 @@ function handleConfirmDelete() {
   void confirmDelete()
 }
 
-function handleFocusEditKey() {
-  editKeyInputRef.value?.focus()
+function handleToggleEditKey() {
+  if (shouldAutoExpandEditKey.value) {
+    nextTick(() => {
+      editKeyInputRef.value?.focus()
+    })
+    return
+  }
+
+  const nextExpanded = !isEditKeyExpanded.value
+  isEditKeyExpanded.value = nextExpanded
+
+  if (nextExpanded) {
+    nextTick(() => {
+      editKeyInputRef.value?.focus()
+    })
+  }
 }
+
+watch(
+  () => props.sid,
+  () => {
+    isEditKeyExpanded.value = false
+  }
+)
+
+watch(
+  () => primaryFeedback.value?.describedField,
+  (nextField, previousField) => {
+    if (nextField !== 'editKey' || nextField === previousField) {
+      return
+    }
+
+    nextTick(() => {
+      editKeyInputRef.value?.focus()
+    })
+  }
+)
+
+watch(shouldAutoExpandEditKey, (nextValue, previousValue) => {
+  if (!nextValue || nextValue === previousValue || primaryFeedback.value?.describedField === 'editKey') {
+    return
+  }
+
+  isEditKeyExpanded.value = false
+})
 </script>
 
 <template>
@@ -124,9 +214,21 @@ function handleFocusEditKey() {
 
     <div v-else-if="canShowObjectLayout" class="grid gap-4">
       <div class="grid gap-3">
-        <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
-          {{ noteTitle }}
-        </h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <Button
+            aria-label="返回上一页"
+            data-testid="note-back-button"
+            icon="back"
+            size="compact"
+            variant="subtle"
+            @click="handleGoBack"
+          >
+            返回
+          </Button>
+          <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
+            {{ noteTitle }}
+          </h1>
+        </div>
         <div class="flex flex-wrap items-center gap-2">
           <StatusPill
             v-if="objectHeader"
@@ -134,6 +236,7 @@ function handleFocusEditKey() {
             :tone="objectHeader.saveStatusTone"
           />
           <StatusPill label="在线便签" tone="accent" />
+          <StatusPill v-if="showEncryptedPill" label="已加密" tone="warning" />
           <span class="text-[12px] font-medium text-[color:var(--text-secondary)]">字数 {{ wordCount }}</span>
         </div>
         <div class="sr-only">
@@ -161,7 +264,7 @@ function handleFocusEditKey() {
         :placeholder="authorizationUi.editorPlaceholder"
       />
 
-      <div class="flex flex-col gap-3 border-t border-[color:var(--panel-border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-2">
           <Button
             v-if="showFavoriteButton"
@@ -189,13 +292,14 @@ function handleFocusEditKey() {
         <div class="flex flex-wrap items-center gap-2">
           <Button
             v-if="showEncryptButton"
-            aria-label="聚焦编辑密钥输入框"
+            :aria-label="editKeyButtonAriaLabel"
+            data-testid="toggle-edit-key"
             icon="lock"
             size="compact"
             variant="subtle"
-            @click="handleFocusEditKey"
+            @click="handleToggleEditKey"
           >
-            加密
+            {{ encryptButtonLabel }}
           </Button>
           <Button
             :state="actionState"
@@ -224,12 +328,14 @@ function handleFocusEditKey() {
 
       <TextInput
         v-if="authorizationUi.shouldShowEditKeyInput"
+        v-show="shouldRenderEditKeyInput"
         ref="editKeyInput"
         v-model="editKey"
         hide-label
         :label="authorizationUi.editKeyLabel"
         type="password"
         auto-complete="off"
+        :hint="authorizationUi.editKeyHint"
         :state="editKeyInputState"
         placeholder="输入编辑密钥"
       />

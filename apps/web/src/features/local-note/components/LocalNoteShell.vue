@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 
 import type { InteractionState } from '@note/shared-types'
 
@@ -13,6 +14,7 @@ import { useLocalNote } from '../use-local-note'
 const props = defineProps<{
   sid: string | null
 }>()
+const router = useRouter()
 
 const { viewModel, draftContent, saveState, primaryFeedback, objectHeader, saveNote } = useLocalNote(
   computed(() => props.sid)
@@ -53,6 +55,15 @@ const actionState = computed<InteractionState>(() => {
 const wordCount = computed(() => draftContent.value.length)
 const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
 
+function handleGoBack() {
+  if (typeof window !== 'undefined' && window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  void router.push({ name: 'home' })
+}
+
 function handleSave() {
   void saveNote()
 }
@@ -62,9 +73,21 @@ function handleSave() {
   <div class="mx-auto flex w-full max-w-[45rem] flex-col gap-4 pt-16">
     <div v-if="canEdit" class="grid gap-4">
       <div class="grid gap-3">
-        <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
-          {{ noteTitle }}
-        </h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <Button
+            aria-label="返回上一页"
+            data-testid="note-back-button"
+            icon="back"
+            size="compact"
+            variant="subtle"
+            @click="handleGoBack"
+          >
+            返回
+          </Button>
+          <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
+            {{ noteTitle }}
+          </h1>
+        </div>
         <div class="flex flex-wrap items-center gap-2">
           <StatusPill
             v-if="objectHeader"

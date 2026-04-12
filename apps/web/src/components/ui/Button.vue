@@ -8,7 +8,7 @@ import { buttonStateClasses, buttonVariantClasses } from './state-presets'
 const props = withDefaults(
   defineProps<{
     ariaLabel?: string
-    icon?: 'star' | 'copy' | 'lock' | 'save' | 'trash' | 'close'
+    icon?: 'star' | 'copy' | 'lock' | 'save' | 'trash' | 'close' | 'back'
     leadingLabel?: string
     size?: 'default' | 'compact' | 'icon'
     state?: InteractionState
@@ -65,7 +65,8 @@ const iconNameMap = {
   lock: 'lock-closed-outline',
   save: 'save-outline',
   trash: 'trash-outline',
-  close: 'close-outline'
+  close: 'close-outline',
+  back: 'arrow-back-outline'
 } as const
 const iconName = computed(() => (props.icon ? iconNameMap[props.icon] : ''))
 

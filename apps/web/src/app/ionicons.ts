@@ -1,5 +1,6 @@
 import { addIcons } from 'ionicons'
 import {
+  arrowBackOutline,
   closeOutline,
   copyOutline,
   lockClosedOutline,
@@ -18,6 +19,7 @@ export function setupIonicons() {
 
   defineCustomElements(window)
   addIcons({
+    'arrow-back-outline': arrowBackOutline,
     'close-outline': closeOutline,
     'copy-outline': copyOutline,
     'star-outline': starOutline,

@@ -3,7 +3,7 @@
 import { computed, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   resolveOnlineNoteAuthorizationUiModel,
@@ -17,6 +17,20 @@ import {
 } from '../src/features/note/online-note'
 import OnlineNoteShell from '../src/features/note/components/OnlineNoteShell.vue'
 import { useAuthStore } from '../src/stores/auth-store'
+
+const mockedRouter = vi.hoisted(() => ({
+  back: vi.fn(),
+  push: vi.fn(async () => undefined)
+}))
+
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
+
+  return {
+    ...actual,
+    useRouter: () => mockedRouter
+  }
+})
 
 const mockedViewModel = vi.hoisted(
   (): {
@@ -38,6 +52,7 @@ const mockedDraftContent = vi.hoisted(() => ({ value: '' }))
 const mockedEditKey = vi.hoisted(() => ({ value: '' }))
 const mockedSaveState = vi.hoisted((): { value: OnlineNoteSaveState } => ({ value: 'unsaved' }))
 const mockedSaveFeedback = vi.hoisted((): { value: OnlineNoteSaveFeedback | null } => ({ value: null }))
+const mockedPrimaryFeedback = vi.hoisted((): { value: OnlineNoteSaveFeedback | null } => ({ value: null }))
 const mockedObjectHeader = vi.hoisted(
   (): {
     value: OnlineNoteObjectHeaderModel | null
@@ -98,7 +113,7 @@ vi.mock('../src/features/note/use-online-note', async () => {
       }),
       saveState: computed(() => mockedSaveState.value),
       saveFeedback: computed(() => mockedSaveFeedback.value),
-      primaryFeedback: computed(() => mockedSaveFeedback.value),
+      primaryFeedback: computed(() => mockedPrimaryFeedback.value ?? mockedSaveFeedback.value),
       objectHeader: computed(() => mockedObjectHeader.value),
       saveNote: mockedSaveNote,
       copyShareLink: mockedCopyShareLink,
@@ -155,6 +170,12 @@ function mountShell(
 }
 
 describe('online note shell', () => {
+  beforeEach(() => {
+    mockedRouter.back.mockReset()
+    mockedRouter.push.mockReset()
+    mockedPrimaryFeedback.value = null
+  })
+
   it('renders a clear loading state while the note detail is being fetched', () => {
     mockedViewModel.value = createViewModel({
       status: 'loading'
@@ -211,6 +232,54 @@ describe('online note shell', () => {
     expect(wrapper.find('button[disabled]').exists()).toBe(true)
   })
 
+  it('toggles the edit-key input from the encrypt button for optional key flows', async () => {
+    mockedViewModel.value = createViewModel({
+      status: 'not-found',
+      title: '这个 sid 还没有保存内容',
+      description: '你可以直接开始输入正文，并在当前固定链接下首次保存。'
+    })
+    mockedDraftContent.value = ''
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'unsaved'
+    mockedSaveFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '尚未保存',
+      saveStatusTone: 'warning',
+      shareStatusLabel: '保存后可分享',
+      shareStatusTone: 'warning',
+      shareStatusDescription: '先完成首次保存，当前 sid 才会成为可直接分享的稳定对象链接。',
+      editStatusLabel: '首次保存后决定编辑身份',
+      editStatusTone: 'warning',
+      editStatusCaption: '已登录时会绑定创建者，未登录则保持匿名可编辑。',
+      canCopyShareLink: false,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'disabled'
+    }
+
+    const wrapper = mountShell('anonymous', {
+      attachTo: document.body
+    })
+    const editKeyInput = wrapper.get('input[type="password"]')
+    const toggleButton = wrapper.get('[data-testid="toggle-edit-key"]')
+
+    expect(editKeyInput.isVisible()).toBe(false)
+    expect(toggleButton.text()).toContain('加密')
+
+    await toggleButton.trigger('click')
+    await nextTick()
+
+    expect(editKeyInput.isVisible()).toBe(true)
+    expect(toggleButton.text()).toContain('收起加密')
+
+    await toggleButton.trigger('click')
+    await nextTick()
+
+    expect(editKeyInput.isVisible()).toBe(false)
+
+    wrapper.unmount()
+  })
+
   it('renders the loaded content inside an editable area for existing notes', () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
@@ -259,6 +328,42 @@ describe('online note shell', () => {
     expect(wrapper.text()).toContain('复制链接')
     expect(wrapper.text()).toContain('登录后收藏')
     expect(wrapper.text()).not.toContain('最新修改已经写回当前 sid。')
+  })
+
+  it('returns to the previous page from the detail header', async () => {
+    window.history.pushState({}, '', '/from-home')
+    mockedViewModel.value = createViewModel({
+      status: 'available',
+      title: '在线便签内容',
+      description: '当前对象已经存在，持有链接即可继续编辑并保存更新。',
+      content: '这是最新已保存内容。',
+      editAccess: 'anonymous-editable'
+    })
+    mockedDraftContent.value = '这是最新已保存内容。'
+    mockedEditKey.value = ''
+    mockedSaveState.value = 'saved'
+    mockedSaveFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'note123abc4',
+      saveStatusLabel: '已保存',
+      saveStatusTone: 'success',
+      shareStatusLabel: '可分享',
+      shareStatusTone: 'success',
+      shareStatusDescription: '复制的是当前固定链接，接收者会看到最近一次成功保存的内容。',
+      editStatusLabel: '匿名可编辑',
+      editStatusTone: 'warning',
+      editStatusCaption: '该对象尚未绑定创建者，持有链接即可继续修改。',
+      canCopyShareLink: true,
+      copyButtonLabel: '复制链接',
+      copyButtonState: 'default'
+    }
+
+    const wrapper = mountShell()
+
+    await wrapper.get('[data-testid="note-back-button"]').trigger('click')
+
+    expect(mockedRouter.back).toHaveBeenCalledTimes(1)
+    expect(mockedRouter.push).not.toHaveBeenCalled()
   })
 
   it('opens the delete confirmation modal from the object header and moves focus into the dialog', async () => {
@@ -633,11 +738,14 @@ describe('online note shell', () => {
     }
 
     const wrapper = mountShell()
+    const editKeyInput = wrapper.get('input[type="password"]')
 
     expect(wrapper.text()).toContain('输入密钥后可编辑')
+    expect(wrapper.text()).toContain('已加密')
     expect(wrapper.text()).not.toContain('需要编辑密钥')
     expect(wrapper.text()).toContain('编辑密钥')
     expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(editKeyInput.isVisible()).toBe(true)
     expect(wrapper.text()).toContain('保存更新')
   })
 
@@ -680,7 +788,7 @@ describe('online note shell', () => {
 
     expect(wrapper.text()).not.toContain('编辑密钥不正确')
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
-    expect(describedBy).toBeUndefined()
+    expect(describedBy).toMatch(/-hint$/)
   })
 
   it('does not render the irreversible-risk feedback for first saves', () => {

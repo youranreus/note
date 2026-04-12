@@ -13,6 +13,20 @@ import type {
 import TextInput from '../src/components/ui/TextInput.vue'
 import LocalNoteShell from '../src/features/local-note/components/LocalNoteShell.vue'
 
+const mockedRouter = vi.hoisted(() => ({
+  back: vi.fn(),
+  push: vi.fn(async () => undefined)
+}))
+
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
+
+  return {
+    ...actual,
+    useRouter: () => mockedRouter
+  }
+})
+
 const mockedViewModel = vi.hoisted(
   (): { value: LocalNoteViewModel } => ({
     value: {
@@ -76,6 +90,8 @@ function mountShell() {
 describe('local note shell', () => {
   beforeEach(() => {
     mockedSaveNote.mockReset()
+    mockedRouter.back.mockReset()
+    mockedRouter.push.mockReset()
   })
 
   it('renders an editable local-note shell with explicit local-only messaging', () => {
@@ -110,6 +126,32 @@ describe('local note shell', () => {
     expect(wrapper.text()).toContain('保存到本地')
     expect(textInput.props('state')).toBe('default')
     expect((textarea.element as HTMLTextAreaElement).value).toBe('仅保存在本地的草稿')
+  })
+
+  it('returns to the previous page from the local note header', async () => {
+    window.history.pushState({}, '', '/from-home')
+    mockedViewModel.value = createViewModel({})
+    mockedDraftContent.value = '仅保存在本地的草稿'
+    mockedSaveState.value = 'saved'
+    mockedPrimaryFeedback.value = null
+    mockedObjectHeader.value = {
+      sid: 'local-note-1',
+      saveStatusLabel: '已保存在本地',
+      saveStatusTone: 'success',
+      localStatusLabel: '已恢复本地内容',
+      localStatusTone: 'success',
+      localStatusDescription: '当前正文来自这个浏览器里按 sid 保存的本地记录，你可以继续修改并再次保存。',
+      boundaryStatusLabel: '不会同步到在线',
+      boundaryStatusTone: 'accent',
+      boundaryStatusCaption: '不可直接分享'
+    }
+
+    const wrapper = mountShell()
+
+    await wrapper.get('[data-testid="note-back-button"]').trigger('click')
+
+    expect(mockedRouter.back).toHaveBeenCalledTimes(1)
+    expect(mockedRouter.push).not.toHaveBeenCalled()
   })
 
   it('shows a clear invalid-sid state without rendering the editor', () => {
@@ -177,11 +219,12 @@ describe('local note shell', () => {
     }
 
     const wrapper = mountShell()
-    const button = wrapper.find('button')
+    const buttons = wrapper.findAll('button')
+    const button = buttons.find((candidate) => candidate.text().includes('保存'))
     const textarea = wrapper.find('textarea')
     const textInput = wrapper.findComponent(TextInput)
 
-    expect(button.attributes('disabled')).toBeDefined()
+    expect(button?.attributes('disabled')).toBeDefined()
     expect(textarea.attributes('disabled')).toBeDefined()
     expect(textInput.props('state')).toBe('disabled')
   })
