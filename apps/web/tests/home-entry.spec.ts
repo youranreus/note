@@ -102,9 +102,9 @@ describe('home entry utilities', () => {
     const localTarget = createEntryLocation('local', 'local123ab9')
 
     expect(router.resolve(onlineTarget).name).toBe('online-note')
-    expect(router.resolve(onlineTarget).fullPath).toContain('/note/o/note123abc4')
+    expect(router.resolve(onlineTarget).fullPath).toContain('/o/note123abc4')
     expect(router.resolve(localTarget).name).toBe('local-note')
-    expect(router.resolve(localTarget).fullPath).toContain('/note/l/local123ab9')
+    expect(router.resolve(localTarget).fullPath).toContain('/l/local123ab9')
   })
 
   it('keeps the homepage input visually empty while still disabling autocapitalize', async () => {

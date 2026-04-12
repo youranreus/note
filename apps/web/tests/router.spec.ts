@@ -11,10 +11,10 @@ describe('app router shell', () => {
       expect.arrayContaining([
         '/',
         '/auth/callback',
-        '/note/o',
-        '/note/o/:sid',
-        '/note/l',
-        '/note/l/:sid'
+        '/o',
+        '/o/:sid',
+        '/l',
+        '/l/:sid'
       ])
     )
   })

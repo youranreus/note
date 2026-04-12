@@ -80,7 +80,7 @@ describe('auth callback card', () => {
         id: '1001',
         displayName: 'Demo User'
       },
-      returnTo: '/note/o/demo123',
+      returnTo: '/o/demo123',
       message: '登录已完成，正在返回刚才的页面。'
     }
     completeAuthCallbackMock.mockReturnValue(callbackDeferred.promise)
@@ -97,7 +97,7 @@ describe('auth callback card', () => {
     await flushPromises()
 
     expect(authStore.status).toBe('authenticated')
-    expect(router.currentRoute.value.fullPath).toBe('/note/o/demo123')
+    expect(router.currentRoute.value.fullPath).toBe('/o/demo123')
   })
 
   it('shows a stable error state and lets the user go back home when callback recovery fails', async () => {

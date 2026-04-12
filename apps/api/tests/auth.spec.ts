@@ -66,7 +66,7 @@ describe('auth endpoints', () => {
   it('starts the SSO login flow with a stateful redirect and flow cookie', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/auth/login?returnTo=/note/o/demo123'
+      url: '/api/auth/login?returnTo=/o/demo123'
     })
 
     expect(response.statusCode).toBe(302)
@@ -80,7 +80,7 @@ describe('auth endpoints', () => {
   it('creates a session from the callback and exposes it through /api/me/session', async () => {
     const loginResponse = await app.inject({
       method: 'GET',
-      url: '/api/auth/login?returnTo=/note/o/demo123'
+      url: '/api/auth/login?returnTo=/o/demo123'
     })
     const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
     const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
@@ -100,7 +100,7 @@ describe('auth endpoints', () => {
         id: '1001',
         displayName: 'Demo User'
       },
-      returnTo: '/note/o/demo123',
+      returnTo: '/o/demo123',
       postLoginAction: null,
       message: '登录已完成，正在恢复原页面上下文。'
     })
@@ -130,7 +130,7 @@ describe('auth endpoints', () => {
     try {
       const loginResponse = await app.inject({
         method: 'GET',
-        url: '/api/auth/login?returnTo=/note/o/demo123'
+        url: '/api/auth/login?returnTo=/o/demo123'
       })
       const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
       const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
@@ -145,10 +145,10 @@ describe('auth endpoints', () => {
 
       expect(callbackResponse.statusCode).toBe(200)
       expect(consoleInfo).toHaveBeenCalledWith(
-        expect.stringContaining('登录流程已启动，完成后将返回 /note/o/:sid。')
+        expect.stringContaining('登录流程已启动，完成后将返回 /o/demo123。')
       )
       expect(consoleInfo).toHaveBeenCalledWith(
-        expect.stringContaining('用户(1***1) 登录成功，将返回 /note/o/:sid。')
+        expect.stringContaining('用户(1***1) 登录成功，将返回 /o/demo123。')
       )
     } finally {
       consoleInfo.mockRestore()
@@ -171,7 +171,7 @@ describe('auth endpoints', () => {
   it('returns a stable validation error when the callback state is invalid', async () => {
     const loginResponse = await app.inject({
       method: 'GET',
-      url: '/api/auth/login?returnTo=/note/l/demo123'
+      url: '/api/auth/login?returnTo=/l/demo123'
     })
     const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
 
@@ -208,7 +208,7 @@ describe('auth endpoints', () => {
     try {
       const loginResponse = await app.inject({
         method: 'GET',
-        url: '/api/auth/login?returnTo=/note/o/demo123&intent=favorite-note&sid=demo123'
+        url: '/api/auth/login?returnTo=/o/demo123&intent=favorite-note&sid=demo123'
       })
       const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
       const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
@@ -228,7 +228,7 @@ describe('auth endpoints', () => {
           id: '1001',
           displayName: 'Demo User'
         },
-        returnTo: '/note/o/demo123',
+        returnTo: '/o/demo123',
         postLoginAction: {
           type: 'favorite-note',
           sid: 'demo123'
@@ -236,10 +236,10 @@ describe('auth endpoints', () => {
         message: '登录已完成，正在恢复原页面上下文。'
       })
       expect(consoleInfo).toHaveBeenCalledWith(
-        expect.stringContaining('登录流程已启动，完成后将返回 /note/o/:sid，登录后将继续收藏便签(dem...123)。')
+        expect.stringContaining('登录流程已启动，完成后将返回 /o/demo123，登录后将继续收藏便签(dem...123)。')
       )
       expect(consoleInfo).toHaveBeenCalledWith(
-        expect.stringContaining('用户(1***1) 登录成功，将返回 /note/o/:sid，登录后将继续收藏便签(dem...123)。')
+        expect.stringContaining('用户(1***1) 登录成功，将返回 /o/demo123，登录后将继续收藏便签(dem...123)。')
       )
     } finally {
       consoleInfo.mockRestore()

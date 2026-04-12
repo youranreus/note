@@ -29,7 +29,7 @@ const defaultMyNotesQuery = {
 } satisfies Required<MyNotesQueryDto>
 
 function isBrowseAndFavoriteRoute(path: string) {
-  return path === '/' || path.startsWith('/note/o/')
+  return path === '/' || path.startsWith('/o/')
 }
 
 interface LoadCreatedNotesPayload {
@@ -406,7 +406,7 @@ export function useUserPanel() {
 
   async function openNote(sid: string) {
     closeUserCenter()
-    await router.push(`/note/o/${encodeURIComponent(sid)}`)
+    await router.push(`/o/${encodeURIComponent(sid)}`)
   }
 
   async function goCreateFirstNote() {

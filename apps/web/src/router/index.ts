@@ -35,7 +35,7 @@ export const appRoutes: RouteRecordRaw[] = [
         meta
       },
       {
-        path: isOnline ? '/note/o' : '/note/l',
+        path: isOnline ? '/o' : '/l',
         name: isOnline ? 'online-note-missing-sid' : 'local-note-missing-sid',
         component,
         meta

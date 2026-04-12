@@ -226,7 +226,7 @@ export interface MeErrorDto {
   message: string
 }
 
-const safeAuthReturnToPatterns = [/^\/$/u, /^\/note\/[ol](?:\/[A-Za-z0-9-]+)?$/u]
+const safeAuthReturnToPatterns = [/^\/$/u, /^\/[ol](?:\/[A-Za-z0-9-]+)?$/u]
 
 export function isSafeAuthReturnToPath(path: string) {
   if (!path || path.includes('\n') || path.includes('\r') || path.startsWith('//')) {

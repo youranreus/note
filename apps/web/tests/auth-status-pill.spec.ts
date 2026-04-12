@@ -252,7 +252,7 @@ import AuthStatusPill from '../src/components/layout/AuthStatusPill.vue'
 import { createAppRouter } from '../src/router'
 import { useAuthStore } from '../src/stores/auth-store'
 
-async function mountAuthStatusPill(path = '/note/o/demo123') {
+async function mountAuthStatusPill(path = '/o/demo123') {
   const pinia = createPinia()
   const router = createAppRouter({
     history: createMemoryHistory()
@@ -290,7 +290,7 @@ describe('auth status pill', () => {
   })
 
   it('opens the SSO confirm modal, keeps the current page on cancel, and returns focus to the trigger', async () => {
-    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
 
     const trigger = wrapper.get('[data-testid="auth-status-pill-trigger"]')
     await trigger.trigger('click')
@@ -304,19 +304,19 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="sso-confirm-cancel"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/note/o/demo123')
+    expect(router.currentRoute.value.fullPath).toBe('/o/demo123')
     expect(wrapper.find('[data-testid="sso-confirm-modal"]').exists()).toBe(false)
     expect(document.activeElement).toBe(trigger.element)
   })
 
   it('uses a button-sized touch target for the auth trigger', async () => {
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     expect(wrapper.get('[data-testid="auth-status-pill-trigger"]').classes()).toContain('min-h-11')
   })
 
   it('starts the SSO upgrade flow from keyboard confirmation with the current route as return-to', async () => {
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     await wrapper.get('[data-testid="auth-status-pill-trigger"]').trigger('click')
     await flushPromises()
@@ -324,14 +324,14 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="sso-confirm-action"]').trigger('keydown.enter')
     await flushPromises()
 
-    expect(createAuthLoginUrlMock).toHaveBeenCalledWith('/note/o/demo123', null)
+    expect(createAuthLoginUrlMock).toHaveBeenCalledWith('/o/demo123', null)
     expect(redirectToLoginMock).toHaveBeenCalledWith(
-      'http://localhost:3001/api/auth/login?returnTo=%2Fnote%2Fo%2Fdemo123'
+      'http://localhost:3001/api/auth/login?returnTo=%2Fo%2Fdemo123'
     )
   })
 
   it('traps keyboard focus inside the modal while it is open', async () => {
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     await wrapper.get('[data-testid="auth-status-pill-trigger"]').trigger('click')
     await flushPromises()
@@ -361,7 +361,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.update({
       data: {
@@ -396,7 +396,7 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="user-center-open-note-owned123"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/note/o/owned123')
+    expect(router.currentRoute.value.fullPath).toBe('/o/owned123')
     expect(document.activeElement).not.toBe(trigger.element)
   })
 
@@ -409,7 +409,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -484,7 +484,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -525,7 +525,7 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="user-center-open-favorite-shared123"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/note/o/shared123')
+    expect(router.currentRoute.value.fullPath).toBe('/o/shared123')
     expect(document.activeElement).not.toBe(trigger.element)
   })
 
@@ -538,7 +538,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -570,7 +570,7 @@ describe('auth status pill', () => {
     await wrapper.get('[data-testid="user-center-browse-notes"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/note/o/demo123')
+    expect(router.currentRoute.value.fullPath).toBe('/o/demo123')
     expect(document.activeElement).toBe(trigger.element)
   })
 
@@ -583,7 +583,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -623,7 +623,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -658,7 +658,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -693,7 +693,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { pinia, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { pinia, wrapper } = await mountAuthStatusPill('/o/demo123')
     const authStore = useAuthStore(pinia)
 
     meNotesRequestHarness.updateForScope('user:1001', {
@@ -756,7 +756,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { router, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -789,7 +789,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForScope('user:1001', {
       data: {
@@ -815,7 +815,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { pinia, wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { pinia, wrapper } = await mountAuthStatusPill('/o/demo123')
     const authStore = useAuthStore(pinia)
 
     meNotesRequestHarness.updateForScope('user:1001', {
@@ -846,7 +846,7 @@ describe('auth status pill', () => {
       }
     })
 
-    const { wrapper } = await mountAuthStatusPill('/note/o/demo123')
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
     meNotesRequestHarness.updateForRequest('user:1001', 1, 20, {
       data: {

@@ -657,7 +657,7 @@ describe('useOnlineNote', () => {
   })
 
   it('lets later copy feedback replace a previous delete failure', async () => {
-    window.history.replaceState({}, '', '/note/o/shared123')
+    window.history.replaceState({}, '', '/o/shared123')
     const clipboardWriteText = vi.fn(async () => undefined)
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -710,7 +710,7 @@ describe('useOnlineNote', () => {
     await note.copyShareLink()
     await flushState()
 
-    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/note/o/shared123`)
+    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/o/shared123`)
     expect(note.primaryFeedback.value?.title).toBe('已复制当前在线便签链接')
   })
 
@@ -760,7 +760,7 @@ describe('useOnlineNote', () => {
   })
 
   it('copies the stable online note link and exposes a success feedback message', async () => {
-    window.history.replaceState({}, '', '/note/o/share123')
+    window.history.replaceState({}, '', '/o/share123')
     const clipboardWriteText = vi.fn(async () => undefined)
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -792,7 +792,7 @@ describe('useOnlineNote', () => {
     await note.copyShareLink()
     await flushState()
 
-    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/note/o/share123`)
+    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/o/share123`)
     expect(note.objectHeader.value).toMatchObject({
       shareStatusLabel: '可分享',
       canCopyShareLink: true
@@ -801,7 +801,7 @@ describe('useOnlineNote', () => {
   })
 
   it('surfaces a clear failure feedback when the clipboard API rejects the copy action', async () => {
-    window.history.replaceState({}, '', '/note/o/share123')
+    window.history.replaceState({}, '', '/o/share123')
     const clipboardWriteText = vi.fn(async () => {
       throw new Error('clipboard denied')
     })
@@ -829,7 +829,7 @@ describe('useOnlineNote', () => {
     await note.copyShareLink()
     await flushState()
 
-    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/note/o/share123`)
+    expect(clipboardWriteText).toHaveBeenCalledWith(`${window.location.origin}/o/share123`)
     expect(note.primaryFeedback.value).toMatchObject({
       tone: 'danger',
       title: '复制当前在线便签链接失败'
