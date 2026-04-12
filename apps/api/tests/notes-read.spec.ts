@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '../src/app.js'
 import type {
@@ -118,6 +118,24 @@ describe('notes read endpoint', () => {
       editAccess: 'anonymous-editable',
       favoriteState: 'not-favorited'
     })
+  })
+
+  it('logs note reads with sid and outcome when a note is returned', async () => {
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/notes/readable123'
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('匿名用户读取了便签(rea...123)，读取成功，编辑权限为 anonymous-editable。')
+      )
+    } finally {
+      consoleInfo.mockRestore()
+    }
   })
 
   it('returns a stable not-found payload when no note matches the sid', async () => {

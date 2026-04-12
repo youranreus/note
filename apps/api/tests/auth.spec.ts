@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '../src/app.js'
 import { resolveAppConfig } from '../src/infra/config.js'
@@ -124,6 +124,37 @@ describe('auth endpoints', () => {
     })
   })
 
+  it('logs the login flow start and success with route-safe metadata', async () => {
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+
+    try {
+      const loginResponse = await app.inject({
+        method: 'GET',
+        url: '/api/auth/login?returnTo=/note/o/demo123'
+      })
+      const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
+      const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
+
+      const callbackResponse = await app.inject({
+        method: 'GET',
+        url: `/api/auth/callback?code=valid-code&state=${state}`,
+        headers: {
+          cookie: flowCookie
+        }
+      })
+
+      expect(callbackResponse.statusCode).toBe(200)
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('登录流程已启动，完成后将返回 /note/o/:sid。')
+      )
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('用户(1***1) 登录成功，将返回 /note/o/:sid。')
+      )
+    } finally {
+      consoleInfo.mockRestore()
+    }
+  })
+
   it('returns a stable validation error when the callback code is missing', async () => {
     const response = await app.inject({
       method: 'GET',
@@ -172,34 +203,46 @@ describe('auth endpoints', () => {
   })
 
   it('preserves a favorite intent through the login callback and returns it exactly once', async () => {
-    const loginResponse = await app.inject({
-      method: 'GET',
-      url: '/api/auth/login?returnTo=/note/o/demo123&intent=favorite-note&sid=demo123'
-    })
-    const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
-    const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined)
 
-    const callbackResponse = await app.inject({
-      method: 'GET',
-      url: `/api/auth/callback?code=valid-code&state=${state}`,
-      headers: {
-        cookie: flowCookie
-      }
-    })
+    try {
+      const loginResponse = await app.inject({
+        method: 'GET',
+        url: '/api/auth/login?returnTo=/note/o/demo123&intent=favorite-note&sid=demo123'
+      })
+      const flowCookie = readCookie(loginResponse.headers['set-cookie'], 'note_session_flow')
+      const state = new URL(loginResponse.headers.location ?? '').searchParams.get('state')
 
-    expect(callbackResponse.statusCode).toBe(200)
-    expect(callbackResponse.json()).toEqual({
-      status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      },
-      returnTo: '/note/o/demo123',
-      postLoginAction: {
-        type: 'favorite-note',
-        sid: 'demo123'
-      },
-      message: '登录已完成，正在恢复原页面上下文。'
-    })
+      const callbackResponse = await app.inject({
+        method: 'GET',
+        url: `/api/auth/callback?code=valid-code&state=${state}`,
+        headers: {
+          cookie: flowCookie
+        }
+      })
+
+      expect(callbackResponse.statusCode).toBe(200)
+      expect(callbackResponse.json()).toEqual({
+        status: 'authenticated',
+        user: {
+          id: '1001',
+          displayName: 'Demo User'
+        },
+        returnTo: '/note/o/demo123',
+        postLoginAction: {
+          type: 'favorite-note',
+          sid: 'demo123'
+        },
+        message: '登录已完成，正在恢复原页面上下文。'
+      })
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('登录流程已启动，完成后将返回 /note/o/:sid，登录后将继续收藏便签(dem...123)。')
+      )
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('用户(1***1) 登录成功，将返回 /note/o/:sid，登录后将继续收藏便签(dem...123)。')
+      )
+    } finally {
+      consoleInfo.mockRestore()
+    }
   })
 })

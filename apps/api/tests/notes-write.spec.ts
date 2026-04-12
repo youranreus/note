@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '../src/app.js'
 import { createAuthSessionService } from '../src/services/auth-session-service.js'
@@ -335,6 +335,32 @@ describe('notes write endpoint', () => {
         favoriteState: 'not-favorited'
       })
     } finally {
+      await app.close()
+    }
+  })
+
+  it('logs note creation when the first save creates a new note', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices(),
+      authSessionService
+    })
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+
+    try {
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/notes/log-create-123',
+        payload: {
+          content: '第一次保存的正文。'
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('匿名用户创建了便签(log...123)，编辑权限为 anonymous-editable。')
+      )
+    } finally {
+      consoleInfo.mockRestore()
       await app.close()
     }
   })
@@ -723,6 +749,38 @@ describe('notes write endpoint', () => {
         message: '该在线便签已删除，当前链接不可恢复。'
       })
     } finally {
+      await app.close()
+    }
+  })
+
+  it('logs note deletion with sid and actor when delete succeeds', async () => {
+    const app = buildApp({
+      ...createFakeNoteServices([
+        {
+          sid: 'owner-delete-log-123',
+          content: '创建者原始正文。',
+          authorSessionId: '1001'
+        }
+      ]),
+      authSessionService
+    })
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+
+    try {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/notes/owner-delete-log-123',
+        headers: {
+          cookie: ownerCookie
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(consoleInfo).toHaveBeenCalledWith(
+        expect.stringContaining('用户(1***1)删除了便签(own...123)，删除成功。')
+      )
+    } finally {
+      consoleInfo.mockRestore()
       await app.close()
     }
   })
