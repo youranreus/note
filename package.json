@@ -5,6 +5,7 @@
   "scripts": {
     "boot": "node scripts/boot.mjs",
     "db:init": "pnpm sync:env && pnpm --filter @note/api db:init",
+    "start:api:prod": "pnpm sync:env && pnpm --filter @note/api prisma:generate && pnpm --filter @note/api build && pnpm --filter @note/api start",
     "sync:env": "node scripts/sync-env.mjs",
     "prepare:types": "pnpm --filter @note/shared-types build",
     "predev": "pnpm prepare:types && pnpm sync:env",
