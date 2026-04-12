@@ -80,6 +80,10 @@ const editKeyInputState = computed<InteractionState>(() => {
 })
 const wordCount = computed(() => draftContent.value.length)
 const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
+const loadingTitle = computed(() => `# ${viewModel.value.sid ?? '...'}`)
+const loadingDescription = computed(
+  () => authorizationUi.value.shellDescription || viewModel.value.description
+)
 const canShowObjectLayout = computed(() => authorizationUi.value.canShowEditor)
 const showEncryptButton = computed(() => authorizationUi.value.shouldShowEditKeyInput)
 const showFavoriteButton = computed(() => objectHeader.value?.showFavoriteButton)
@@ -202,13 +206,89 @@ watch(shouldAutoExpandEditKey, (nextValue, previousValue) => {
 
 <template>
   <div class="mx-auto flex w-full max-w-[45rem] flex-col gap-4 pt-16">
-    <div v-if="viewModel.status === 'loading'" class="grid gap-3">
-      <div class="max-w-[26.25rem] rounded-[var(--radius-panel)] bg-[color:var(--panel-bg)] px-6 py-6 shadow-[var(--panel-shadow)]">
-        <p class="m-0 text-xl font-semibold text-[color:var(--text-primary)]">正在读取在线便签</p>
-        <p class="sr-only">{{ viewModel.sid }}</p>
-        <div class="mt-4">
-          <LoadingCard state="focus" />
+    <div
+      v-if="viewModel.status === 'loading'"
+      aria-busy="true"
+      aria-live="polite"
+      class="grid gap-4"
+      role="status"
+    >
+      <div class="grid gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <Button
+            aria-label="返回上一页"
+            data-testid="note-back-button"
+            icon="back"
+            size="compact"
+            variant="subtle"
+            @click="handleGoBack"
+          >
+            返回
+          </Button>
+          <h1 class="m-0 break-all text-[32px] font-bold leading-[1.1] text-[color:var(--text-primary)]">
+            {{ loadingTitle }}
+          </h1>
         </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusPill :label="authorizationUi.modeBadgeLabel" tone="accent" />
+          <StatusPill label="在线便签" tone="accent" />
+          <span class="text-[12px] font-medium text-[color:var(--text-secondary)]">正在同步最新内容</span>
+        </div>
+        <p class="m-0 max-w-[42rem] text-sm leading-6 text-[color:var(--text-secondary)]">
+          {{ loadingDescription }}
+        </p>
+        <div class="sr-only">
+          <span>{{ viewModel.sid }}</span>
+          <span>{{ viewModel.description }}</span>
+        </div>
+      </div>
+
+      <div class="grid gap-3">
+        <div
+          class="overflow-hidden rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-[color:var(--panel-bg)]/92 px-6 py-6 shadow-[var(--panel-shadow)]"
+        >
+          <div class="grid gap-5">
+            <div class="flex flex-wrap items-center gap-2">
+              <div
+                class="h-6 w-20 animate-pulse rounded-full bg-[color:var(--accent-soft)] motion-reduce:animate-none"
+              />
+              <div
+                class="h-6 w-24 animate-pulse rounded-full bg-[color:var(--subtle-fill)] motion-reduce:animate-none"
+              />
+              <div
+                class="h-4 w-16 animate-pulse rounded-full bg-[color:var(--subtle-fill)]/90 motion-reduce:animate-none"
+              />
+            </div>
+
+            <LoadingCard state="focus" />
+
+            <div class="grid gap-3">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="h-4 w-full max-w-[19rem] animate-pulse rounded-full bg-[color:var(--subtle-fill)] motion-reduce:animate-none"
+                />
+                <div class="flex items-center gap-2">
+                  <div
+                    class="h-10 w-10 animate-pulse rounded-[var(--radius-control)] bg-[color:var(--subtle-fill)] motion-reduce:animate-none"
+                  />
+                  <div
+                    class="h-10 w-10 animate-pulse rounded-[var(--radius-control)] bg-[color:var(--subtle-fill)] motion-reduce:animate-none"
+                  />
+                  <div
+                    class="h-10 w-24 animate-pulse rounded-[var(--radius-control)] bg-[color:var(--accent-soft)] motion-reduce:animate-none"
+                  />
+                </div>
+              </div>
+              <div
+                class="h-11 w-full max-w-[22rem] animate-pulse rounded-[var(--radius-control)] bg-[color:var(--subtle-fill)]/95 motion-reduce:animate-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        <p class="m-0 text-[12px] leading-5 text-[color:var(--text-muted)]">
+          先展示最近一次成功保存的版本；读取完成后，你会直接进入可编辑页面。
+        </p>
       </div>
     </div>
 
@@ -250,6 +330,7 @@ watch(shouldAutoExpandEditKey, (nextValue, previousValue) => {
       <DeleteNoteConfirmModal
         :open="isDeleteConfirmOpen"
         :busy="objectHeader?.deleteButtonState === 'disabled'"
+        :sid="viewModel.sid"
         @close="handleCloseDeleteConfirm"
         @confirm="handleConfirmDelete"
       />
