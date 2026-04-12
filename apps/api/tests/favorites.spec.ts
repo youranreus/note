@@ -72,7 +72,9 @@ describe('favorites endpoint', () => {
   })
   const sessionCookie = `sid=${authSessionService.createSession({
     id: '1001',
-    displayName: 'Receiver'
+    ssoId: '1001',
+    displayName: 'Receiver',
+    avatarUrl: null
   })}`
 
   it('rejects anonymous favorite requests with a stable auth-required error', async () => {

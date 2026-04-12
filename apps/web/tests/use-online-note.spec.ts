@@ -244,6 +244,23 @@ async function flushState() {
   await nextTick()
 }
 
+function createAuthenticatedUser(
+  overrides: Partial<{
+    id: string
+    ssoId: string
+    displayName: string
+    avatarUrl: string | null
+  }> = {}
+) {
+  return {
+    id: '1001',
+    ssoId: '1001',
+    displayName: 'Owner',
+    avatarUrl: null,
+    ...overrides
+  }
+}
+
 describe('useOnlineNote', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -457,10 +474,7 @@ describe('useOnlineNote', () => {
 
     authStore.setAuthenticated({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Owner'
-      }
+      user: createAuthenticatedUser()
     })
 
     requestHarness.resolveRead({
@@ -502,10 +516,7 @@ describe('useOnlineNote', () => {
 
     authStore.setAuthenticated({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Owner'
-      }
+      user: createAuthenticatedUser()
     })
 
     requestHarness.resolveRead({
@@ -930,10 +941,7 @@ describe('useOnlineNote', () => {
 
     authStore.setAuthenticated({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Owner'
-      }
+      user: createAuthenticatedUser()
     })
     await flushState()
 
@@ -979,10 +987,9 @@ describe('useOnlineNote', () => {
 
     authStore.setAuthenticated({
       status: 'authenticated',
-      user: {
-        id: '1001',
+      user: createAuthenticatedUser({
         displayName: 'Receiver'
-      }
+      })
     })
     await flushState()
 
@@ -1118,10 +1125,9 @@ describe('useOnlineNote', () => {
     authStore.setAuthenticated(
       {
         status: 'authenticated',
-        user: {
-          id: '1001',
+        user: createAuthenticatedUser({
           displayName: 'Receiver'
-        }
+        })
       },
       {
         type: 'favorite-note',
@@ -1423,10 +1429,9 @@ describe('useOnlineNote', () => {
     authStore.setAuthenticated(
       {
         status: 'authenticated',
-        user: {
-          id: '1001',
+        user: createAuthenticatedUser({
           displayName: 'Receiver'
-        }
+        })
       },
       {
         type: 'favorite-note',

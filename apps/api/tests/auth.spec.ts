@@ -16,7 +16,9 @@ function createFakeAuthSsoService(browserUrl: string): AuthSsoService {
 
       return {
         id: '1001',
-        displayName: 'Demo User'
+        ssoId: '1001',
+        displayName: 'Demo User',
+        avatarUrl: null
       }
     }
   }
@@ -98,7 +100,9 @@ describe('auth endpoints', () => {
       status: 'authenticated',
       user: {
         id: '1001',
-        displayName: 'Demo User'
+        ssoId: '1001',
+        displayName: 'Demo User',
+        avatarUrl: null
       },
       returnTo: '/o/demo123',
       postLoginAction: null,
@@ -119,7 +123,9 @@ describe('auth endpoints', () => {
       status: 'authenticated',
       user: {
         id: '1001',
-        displayName: 'Demo User'
+        ssoId: '1001',
+        displayName: 'Demo User',
+        avatarUrl: null
       }
     })
   })
@@ -226,7 +232,9 @@ describe('auth endpoints', () => {
         status: 'authenticated',
         user: {
           id: '1001',
-          displayName: 'Demo User'
+          ssoId: '1001',
+          displayName: 'Demo User',
+          avatarUrl: null
         },
         returnTo: '/o/demo123',
         postLoginAction: {

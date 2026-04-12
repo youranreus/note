@@ -9,7 +9,9 @@ function createSession(userId = '1001'): AuthenticatedSessionDto {
     status: 'authenticated',
     user: {
       id: userId,
-      displayName: 'Demo User'
+      ssoId: userId,
+      displayName: 'Demo User',
+      avatarUrl: null
     }
   }
 }

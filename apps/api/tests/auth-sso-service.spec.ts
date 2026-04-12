@@ -61,7 +61,9 @@ describe('auth sso service', () => {
     expect(userApiMocks.getUserInfo).toHaveBeenCalledWith('Bearer access-token')
     expect(user).toEqual({
       id: '1001',
-      displayName: 'demo_user'
+      ssoId: '1001',
+      displayName: 'demo_user',
+      avatarUrl: null
     })
   })
 

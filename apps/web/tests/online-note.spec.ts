@@ -151,7 +151,9 @@ function mountShell(
       status: 'authenticated',
       user: {
         id: '1001',
-        displayName: 'Demo User'
+        ssoId: '1001',
+        displayName: 'Demo User',
+        avatarUrl: null
       }
     })
   } else {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 
@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const authStore = useAuthStore()
 const router = useRouter()
-const { description, loginModalOpen, status } = storeToRefs(authStore)
+const { description, loginModalOpen, status, user } = storeToRefs(authStore)
 const { closeLoginModal, hydrateSession, openLoginModal, startLoginUpgrade } = useAuthFlow()
 const {
   activeTab,
@@ -40,13 +40,43 @@ const {
   userCenterOpen
 } = useUserPanel()
 const triggerRef = useTemplateRef<HTMLButtonElement>('trigger')
+const avatarLoadFailed = ref(false)
+
+const authenticatedLabel = computed(() => {
+  if (!user.value?.displayName || !user.value?.ssoId) {
+    return '已登录'
+  }
+
+  return `${user.value.displayName}#${user.value.ssoId}`
+})
 
 const displayLabel = computed(() => {
   if (status.value === 'recovering') {
     return '登录中'
   }
 
-  return status.value === 'authenticated' ? '已登录' : '登录'
+  return status.value === 'authenticated' ? authenticatedLabel.value : '登录'
+})
+
+const avatarSrc = computed(() => {
+  if (status.value !== 'authenticated') {
+    return null
+  }
+
+  return user.value?.avatarUrl ?? null
+})
+
+const showAvatarImage = computed(() => Boolean(avatarSrc.value) && !avatarLoadFailed.value)
+
+const avatarFallbackText = computed(() => {
+  if (status.value !== 'authenticated') {
+    return ''
+  }
+
+  const seed = user.value?.displayName?.trim() || user.value?.ssoId?.trim() || ''
+  const initial = Array.from(seed)[0]
+
+  return initial ? initial.toUpperCase() : ''
 })
 const triggerAriaLabel = computed(() => {
   if (status.value === 'authenticated') {
@@ -59,6 +89,13 @@ const triggerAriaLabel = computed(() => {
 onMounted(() => {
   void hydrateSession()
 })
+
+watch(
+  () => user.value?.avatarUrl,
+  () => {
+    avatarLoadFailed.value = false
+  }
+)
 
 function handleOpen() {
   if (status.value === 'recovering') {
@@ -115,6 +152,10 @@ async function handleBrowseNotes() {
     triggerRef.value?.focus()
   }
 }
+
+function handleAvatarError() {
+  avatarLoadFailed.value = true
+}
 </script>
 
 <template>
@@ -138,7 +179,24 @@ async function handleBrowseNotes() {
             : 'border-transparent bg-[rgba(255,255,255,0.85)] text-[color:var(--text-primary)]'
         ]"
       >
-        <span class="h-4 w-4 rounded-full border border-[color:var(--panel-border)] bg-[color:var(--subtle-fill)]" />
+        <span
+          class="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[color:var(--panel-border)] bg-[color:var(--subtle-fill)] text-[10px] font-semibold uppercase text-[color:var(--text-secondary)]"
+        >
+          <img
+            v-if="showAvatarImage"
+            :src="avatarSrc ?? undefined"
+            :alt="`${displayLabel} 头像`"
+            class="h-full w-full object-cover"
+            data-testid="auth-status-pill-avatar-image"
+            @error="handleAvatarError"
+          />
+          <span
+            v-else
+            data-testid="auth-status-pill-avatar-fallback"
+          >
+            {{ avatarFallbackText }}
+          </span>
+        </span>
         <span>{{ displayLabel }}</span>
       </span>
     </button>

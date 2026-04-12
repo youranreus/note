@@ -22,7 +22,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     if (status.value === 'authenticated') {
-      return user.value?.displayName ? `${user.value.displayName}` : '已登录'
+      if (user.value?.displayName && user.value.ssoId) {
+        return `${user.value.displayName}#${user.value.ssoId}`
+      }
+
+      return user.value?.displayName ?? '已登录'
     }
 
     return '未登录'

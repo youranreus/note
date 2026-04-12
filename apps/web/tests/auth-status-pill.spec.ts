@@ -252,6 +252,23 @@ import AuthStatusPill from '../src/components/layout/AuthStatusPill.vue'
 import { createAppRouter } from '../src/router'
 import { useAuthStore } from '../src/stores/auth-store'
 
+function createAuthenticatedUser(
+  overrides: Partial<{
+    id: string
+    ssoId: string
+    displayName: string
+    avatarUrl: string | null
+  }> = {}
+) {
+  return {
+    id: '1001',
+    ssoId: '1001',
+    displayName: 'Demo User',
+    avatarUrl: null,
+    ...overrides
+  }
+}
+
 async function mountAuthStatusPill(path = '/o/demo123') {
   const pinia = createPinia()
   const router = createAppRouter({
@@ -352,13 +369,43 @@ describe('auth status pill', () => {
     expect(document.activeElement).toBe(confirmButton.element)
   })
 
+  it('shows the authenticated pill as displayName plus ssoId and falls back to an initial avatar', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: createAuthenticatedUser()
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
+
+    expect(wrapper.get('[data-testid="auth-status-pill-trigger"]').text()).toContain('Demo User#1001')
+    expect(wrapper.get('[data-testid="auth-status-pill-avatar-fallback"]').text()).toBe('D')
+    expect(wrapper.find('[data-testid="auth-status-pill-avatar-image"]').exists()).toBe(false)
+  })
+
+  it('prefers avatarUrl for the pill avatar and falls back when the image fails', async () => {
+    fetchSessionMock.mockResolvedValueOnce({
+      status: 'authenticated',
+      user: createAuthenticatedUser({
+        avatarUrl: 'https://cdn.example.test/avatar.png'
+      })
+    })
+
+    const { wrapper } = await mountAuthStatusPill('/o/demo123')
+    const avatarImage = wrapper.get('[data-testid="auth-status-pill-avatar-image"]')
+
+    expect(avatarImage.attributes('src')).toBe('https://cdn.example.test/avatar.png')
+
+    await avatarImage.trigger('error')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="auth-status-pill-avatar-image"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="auth-status-pill-avatar-fallback"]').text()).toBe('D')
+  })
+
   it('opens the user center for authenticated users and navigates to a created note from the modal', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -403,10 +450,7 @@ describe('auth status pill', () => {
   it('reopens the user center on 我的创建 after visiting favorites', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -478,10 +522,7 @@ describe('auth status pill', () => {
   it('navigates to a favorite note from the modal and keeps object-level return semantics', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -532,10 +573,7 @@ describe('auth status pill', () => {
   it('keeps the current online-note route when using the empty favorites CTA', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -577,10 +615,7 @@ describe('auth status pill', () => {
   it('returns focus to the trigger when the user center closes without navigation', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -617,10 +652,7 @@ describe('auth status pill', () => {
   it('returns focus to the trigger when the user center closes from the overlay', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -652,10 +684,7 @@ describe('auth status pill', () => {
   it('closes the user center with Escape and returns focus to the trigger', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -687,10 +716,7 @@ describe('auth status pill', () => {
   it('clears created notes when the authenticated user changes', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { pinia, wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -727,10 +753,11 @@ describe('auth status pill', () => {
 
     authStore.setAuthenticated({
       status: 'authenticated',
-      user: {
+      user: createAuthenticatedUser({
         id: '2002',
+        ssoId: '2002',
         displayName: 'Second User'
-      }
+      })
     })
     await flushPromises()
 
@@ -750,10 +777,7 @@ describe('auth status pill', () => {
   it('navigates to the home route from the empty-state CTA without forcing focus back to the trigger', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { router, wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -783,10 +807,7 @@ describe('auth status pill', () => {
   it('shows an inline error instead of an empty state for malformed my-notes payloads', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -809,10 +830,7 @@ describe('auth status pill', () => {
   it('downgrades to anonymous when my-notes returns 401 for a stale authenticated session', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { pinia, wrapper } = await mountAuthStatusPill('/o/demo123')
@@ -840,10 +858,7 @@ describe('auth status pill', () => {
   it('loads the next page of created notes when the user requests more', async () => {
     fetchSessionMock.mockResolvedValueOnce({
       status: 'authenticated',
-      user: {
-        id: '1001',
-        displayName: 'Demo User'
-      }
+      user: createAuthenticatedUser()
     })
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')

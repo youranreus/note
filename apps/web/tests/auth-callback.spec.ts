@@ -22,7 +22,9 @@ interface SuccessfulCallbackPayload {
   status: 'authenticated'
   user: {
     id: string
+    ssoId: string
     displayName: string
+    avatarUrl: string | null
   }
   returnTo: string
   message: string
@@ -78,7 +80,9 @@ describe('auth callback card', () => {
       status: 'authenticated',
       user: {
         id: '1001',
-        displayName: 'Demo User'
+        ssoId: '1001',
+        displayName: 'Demo User',
+        avatarUrl: null
       },
       returnTo: '/o/demo123',
       message: '登录已完成，正在返回刚才的页面。'

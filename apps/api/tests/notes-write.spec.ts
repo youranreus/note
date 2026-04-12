@@ -289,11 +289,15 @@ describe('notes write endpoint', () => {
   })
   const ownerCookie = `sid=${authSessionService.createSession({
     id: '1001',
-    displayName: 'Owner'
+    ssoId: '1001',
+    displayName: 'Owner',
+    avatarUrl: null
   })}`
   const otherCookie = `sid=${authSessionService.createSession({
     id: '2002',
-    displayName: 'Other User'
+    ssoId: '2002',
+    displayName: 'Other User',
+    avatarUrl: null
   })}`
 
   it('creates a new note on the first PUT and keeps it readable through GET', async () => {

@@ -84,7 +84,9 @@ export interface HealthResponse {
 
 export interface AuthUserDto {
   id: string
+  ssoId: string
   displayName: string
+  avatarUrl: string | null
 }
 
 export interface AnonymousSessionDto {

@@ -116,11 +116,15 @@ describe('me endpoints', () => {
   })
   const sessionCookie = `sid=${authSessionService.createSession({
     id: '1001',
-    displayName: 'Owner'
+    ssoId: '1001',
+    displayName: 'Owner',
+    avatarUrl: null
   })}`
   const emptySessionCookie = `sid=${authSessionService.createSession({
     id: '2002',
-    displayName: 'Empty Owner'
+    ssoId: '2002',
+    displayName: 'Empty Owner',
+    avatarUrl: null
   })}`
 
   it('rejects anonymous requests with a stable auth-required error', async () => {

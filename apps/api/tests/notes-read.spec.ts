@@ -93,7 +93,9 @@ describe('notes read endpoint', () => {
   })
   const ownerSessionCookie = `sid=${authSessionService.createSession({
     id: '1001',
-    displayName: 'Owner'
+    ssoId: '1001',
+    displayName: 'Owner',
+    avatarUrl: null
   })}`
   const app = buildApp({
     noteReadService: createFakeNoteReadService(),

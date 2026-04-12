@@ -92,8 +92,8 @@ function resolveAuthUser(payload: unknown) {
   const id = readFirstText(
     userCandidate.id,
     userCandidate.userId,
-    userCandidate.ssoId,
     userCandidate.uid,
+    userCandidate.ssoId,
     userCandidate.username,
     userCandidate.email
   )
@@ -101,6 +101,16 @@ function resolveAuthUser(payload: unknown) {
   if (!id) {
     return null
   }
+
+  const ssoId =
+    readFirstText(
+      userCandidate.ssoId,
+      userCandidate.userId,
+      userCandidate.id,
+      userCandidate.uid,
+      userCandidate.username,
+      userCandidate.email
+    ) ?? id
 
   const displayName =
     readFirstString(
@@ -110,9 +120,24 @@ function resolveAuthUser(payload: unknown) {
       userCandidate.username
     ) ?? id
 
+  const avatarUrl = readFirstString(
+    userCandidate.avatarUrl,
+    userCandidate.avatar_url,
+    userCandidate.avatar,
+    userCandidate.headImg,
+    userCandidate.headimg,
+    userCandidate.headImage,
+    userCandidate.head_image,
+    userCandidate.photo,
+    userCandidate.picture,
+    userCandidate.image
+  )
+
   return {
     id,
-    displayName
+    ssoId,
+    displayName,
+    avatarUrl: avatarUrl ?? null
   }
 }
 
@@ -157,7 +182,9 @@ function resolveMockUser(code: string, config: AppConfig) {
 
   return {
     id,
-    displayName
+    ssoId: id,
+    displayName,
+    avatarUrl: null
   }
 }
 
