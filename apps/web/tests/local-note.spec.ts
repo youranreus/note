@@ -128,8 +128,7 @@ describe('local note shell', () => {
     expect((textarea.element as HTMLTextAreaElement).value).toBe('仅保存在本地的草稿')
   })
 
-  it('returns to the previous page from the local note header', async () => {
-    window.history.pushState({}, '', '/from-home')
+  it('returns to the home page from the local note header', async () => {
     mockedViewModel.value = createViewModel({})
     mockedDraftContent.value = '仅保存在本地的草稿'
     mockedSaveState.value = 'saved'
@@ -150,8 +149,8 @@ describe('local note shell', () => {
 
     await wrapper.get('[data-testid="note-back-button"]').trigger('click')
 
-    expect(mockedRouter.back).toHaveBeenCalledTimes(1)
-    expect(mockedRouter.push).not.toHaveBeenCalled()
+    expect(mockedRouter.back).not.toHaveBeenCalled()
+    expect(mockedRouter.push).toHaveBeenCalledWith({ name: 'home' })
   })
 
   it('shows a clear invalid-sid state without rendering the editor', () => {

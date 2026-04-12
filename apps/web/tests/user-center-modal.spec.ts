@@ -146,6 +146,19 @@ describe('user center modal', () => {
     expect(wrapper.emitted('loadMoreCreated')).toHaveLength(1)
   })
 
+  it('keeps tabs fixed while letting the created note panel scroll', () => {
+    const wrapper = mountUserCenterModal({
+      createdNotes: Array.from({ length: 8 }, (_, index) => ({
+        sid: `note-${index + 1}`,
+        preview: `第 ${index + 1} 条便签摘要`,
+        updatedAt: '2026-04-07T10:00:00.000Z'
+      }))
+    })
+
+    expect(wrapper.get('[data-testid="user-center-modal"]').classes()).toContain('grid-rows-[auto,minmax(0,1fr)]')
+    expect(wrapper.get('#user-center-panel-created').classes()).toContain('overflow-y-auto')
+  })
+
   it('renders favorite notes with favorite semantics and enter actions', async () => {
     const wrapper = mountUserCenterModal({
       activeTab: 'favorites',
@@ -168,6 +181,24 @@ describe('user center modal', () => {
     await wrapper.get('[data-testid="user-center-open-favorite-shared123"]').trigger('click')
 
     expect(wrapper.emitted('openNote')).toEqual([['shared123']])
+  })
+
+  it('clamps note preview text to two lines and keeps the full value in the title', () => {
+    const longPreview = '这是一个非常长的便签摘要，用来验证个人中心里展示的 note 文本会被限制为最多两行，同时仍然可以通过 title 查看完整内容。'
+    const wrapper = mountUserCenterModal({
+      createdNotes: [
+        {
+          sid: 'alpha123',
+          preview: longPreview,
+          updatedAt: '2026-04-07T10:00:00.000Z'
+        }
+      ]
+    })
+
+    const preview = wrapper.get('.user-center-note-preview')
+
+    expect(preview.attributes('title')).toBe(longPreview)
+    expect(preview.classes()).toContain('leading-5')
   })
 
   it('renders an empty favorites state with a clear browse-and-favorite suggestion', async () => {

@@ -23,9 +23,11 @@ import {
   resolveUserPanelErrorMessage
 } from './user-panel'
 
+const userPanelPageSize = 5
+
 const defaultMyNotesQuery = {
   page: 1,
-  limit: 20
+  limit: userPanelPageSize
 } satisfies Required<MyNotesQueryDto>
 
 function isBrowseAndFavoriteRoute(path: string) {

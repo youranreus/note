@@ -188,7 +188,8 @@ describe('online note shell', () => {
 
     const wrapper = mountShell()
 
-    expect(wrapper.text()).toContain('正在读取在线便签')
+    expect(wrapper.text()).toContain('读取中')
+    expect(wrapper.text()).toContain('正在根据当前 sid 读取在线便签的最新已保存内容。')
     expect(wrapper.text()).toContain('note123abc4')
   })
 
@@ -330,8 +331,7 @@ describe('online note shell', () => {
     expect(wrapper.text()).not.toContain('最新修改已经写回当前 sid。')
   })
 
-  it('returns to the previous page from the detail header', async () => {
-    window.history.pushState({}, '', '/from-home')
+  it('returns to the home page from the detail header', async () => {
     mockedViewModel.value = createViewModel({
       status: 'available',
       title: '在线便签内容',
@@ -362,8 +362,8 @@ describe('online note shell', () => {
 
     await wrapper.get('[data-testid="note-back-button"]').trigger('click')
 
-    expect(mockedRouter.back).toHaveBeenCalledTimes(1)
-    expect(mockedRouter.push).not.toHaveBeenCalled()
+    expect(mockedRouter.back).not.toHaveBeenCalled()
+    expect(mockedRouter.push).toHaveBeenCalledWith({ name: 'home' })
   })
 
   it('opens the delete confirmation modal from the object header and moves focus into the dialog', async () => {

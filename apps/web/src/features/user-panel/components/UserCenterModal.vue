@@ -65,6 +65,9 @@ const tabOptions = [
 const tabIdPrefix = 'user-center'
 const noteItemClassName =
   'group grid gap-1.5 rounded-[14px] border border-transparent bg-[color:var(--surface-white)]/90 px-4 py-3.5 text-left transition-[background-color,border-color] duration-[var(--duration-fast)] hover:bg-white focus-visible:border-[color:var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-soft)] motion-reduce:transition-none'
+const modalContentClassName =
+  'grid min-h-0 max-h-[calc(100vh-16rem)] grid-rows-[auto,minmax(0,1fr)] gap-4 sm:max-h-[calc(100vh-17rem)]'
+const tabPanelClassName = 'grid min-h-0 gap-4 overflow-y-auto pr-1'
 
 const tabModel = computed({
   get: () => props.activeTab,
@@ -82,7 +85,7 @@ const tabModel = computed({
     title="个人中心"
     @close="emit('close')"
   >
-    <div class="grid gap-4" data-testid="user-center-modal">
+    <div :class="modalContentClassName" data-testid="user-center-modal">
       <SegmentedTabs
         v-model="tabModel"
         aria-label="个人中心资产分类"
@@ -96,7 +99,7 @@ const tabModel = computed({
         v-if="activeTab === 'created'"
         id="user-center-panel-created"
         aria-labelledby="user-center-tab-created"
-        class="grid gap-4"
+        :class="tabPanelClassName"
         role="tabpanel"
         tabindex="0"
       >
@@ -118,7 +121,10 @@ const tabModel = computed({
             type="button"
             @click="emit('openNote', note.sid)"
           >
-            <span class="break-all text-sm font-semibold text-[color:var(--text-primary)]">
+            <span
+              class="user-center-note-preview break-all text-sm font-semibold leading-5 text-[color:var(--text-primary)]"
+              :title="note.preview || note.sid"
+            >
               {{ note.preview || note.sid }}
             </span>
             <span class="sr-only">{{ note.sid }}</span>
@@ -167,7 +173,7 @@ const tabModel = computed({
         v-else
         id="user-center-panel-favorites"
         aria-labelledby="user-center-tab-favorites"
-        class="grid gap-4"
+        :class="tabPanelClassName"
         role="tabpanel"
         tabindex="0"
       >
@@ -189,7 +195,10 @@ const tabModel = computed({
             type="button"
             @click="emit('openNote', note.sid)"
           >
-            <span class="break-all text-sm font-semibold text-[color:var(--text-primary)]">
+            <span
+              class="user-center-note-preview break-all text-sm font-semibold leading-5 text-[color:var(--text-primary)]"
+              :title="note.preview || note.sid"
+            >
               {{ note.preview || note.sid }}
             </span>
             <span class="sr-only">{{ note.sid }}</span>
@@ -237,3 +246,12 @@ const tabModel = computed({
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.user-center-note-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+</style>

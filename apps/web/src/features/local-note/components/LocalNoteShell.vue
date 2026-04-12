@@ -56,11 +56,6 @@ const wordCount = computed(() => draftContent.value.length)
 const noteTitle = computed(() => `# ${viewModel.value.sid ?? 'invalid'}`)
 
 function handleGoBack() {
-  if (typeof window !== 'undefined' && window.history.length > 1) {
-    router.back()
-    return
-  }
-
   void router.push({ name: 'home' })
 }
 
@@ -75,7 +70,7 @@ function handleSave() {
       <div class="grid gap-3">
         <div class="flex flex-wrap items-center gap-3">
           <Button
-            aria-label="返回上一页"
+            aria-label="返回首页"
             data-testid="note-back-button"
             icon="back"
             size="compact"

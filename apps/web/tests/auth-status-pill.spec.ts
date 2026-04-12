@@ -373,7 +373,7 @@ describe('auth status pill', () => {
           }
         ],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 1,
         hasMore: false
       },
@@ -388,7 +388,7 @@ describe('auth status pill', () => {
     expect(meNotesRequestHarness.getLastArg()).toEqual({
       query: {
         page: 1,
-        limit: 20
+        limit: 5
       },
       cacheScope: 'user:1001'
     })
@@ -421,7 +421,7 @@ describe('auth status pill', () => {
           }
         ],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 1,
         hasMore: false
       },
@@ -438,7 +438,7 @@ describe('auth status pill', () => {
           }
         ],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 1,
         hasMore: false
       },
@@ -454,7 +454,7 @@ describe('auth status pill', () => {
     expect(meNotesRequestHarness.getFavoritesLastArg()).toEqual({
       query: {
         page: 1,
-        limit: 20
+        limit: 5
       },
       cacheScope: 'user:1001'
     })
@@ -490,7 +490,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -507,7 +507,7 @@ describe('auth status pill', () => {
           }
         ],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 1,
         hasMore: false
       },
@@ -544,7 +544,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -554,7 +554,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -589,7 +589,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -629,7 +629,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -664,7 +664,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -706,7 +706,7 @@ describe('auth status pill', () => {
           }
         ],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 1,
         hasMore: false
       },
@@ -741,7 +741,7 @@ describe('auth status pill', () => {
     expect(meNotesRequestHarness.getLastArg()).toEqual({
       query: {
         page: 1,
-        limit: 20
+        limit: 5
       },
       cacheScope: 'user:2002'
     })
@@ -762,7 +762,7 @@ describe('auth status pill', () => {
       data: {
         items: [],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 0,
         hasMore: false
       },
@@ -848,7 +848,7 @@ describe('auth status pill', () => {
 
     const { wrapper } = await mountAuthStatusPill('/o/demo123')
 
-    meNotesRequestHarness.updateForRequest('user:1001', 1, 20, {
+    meNotesRequestHarness.updateForRequest('user:1001', 1, 5, {
       data: {
         items: [
           {
@@ -858,13 +858,13 @@ describe('auth status pill', () => {
           }
         ],
         page: 1,
-        limit: 20,
+        limit: 5,
         total: 21,
         hasMore: true
       },
       loading: false
     })
-    meNotesRequestHarness.updateForRequest('user:1001', 2, 20, {
+    meNotesRequestHarness.updateForRequest('user:1001', 2, 5, {
       data: {
         items: [
           {
@@ -874,7 +874,7 @@ describe('auth status pill', () => {
           }
         ],
         page: 2,
-        limit: 20,
+        limit: 5,
         total: 21,
         hasMore: false
       },
@@ -892,7 +892,7 @@ describe('auth status pill', () => {
     expect(meNotesRequestHarness.getLastArg()).toEqual({
       query: {
         page: 2,
-        limit: 20
+        limit: 5
       },
       cacheScope: 'user:1001'
     })

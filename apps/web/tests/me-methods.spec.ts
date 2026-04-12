@@ -30,21 +30,34 @@ describe('me methods', () => {
         limit: 10
       },
       name: 'me-notes:user:1001:r0:2:10',
-      cacheFor: 30 * 1000
+      cacheFor: 0
+    })
+  })
+
+  it('defaults my-notes requests to the user-center page size without caching', () => {
+    createGetMyNotesMethod({}, 'user:1001')
+
+    expect(getMock).toHaveBeenCalledWith('/api/me/notes', {
+      params: {
+        page: 1,
+        limit: 5
+      },
+      name: 'me-notes:user:1001:r0:1:5',
+      cacheFor: 0
     })
   })
 
   it('bumps the cache revision after invalidating a user created-notes cache', () => {
     invalidateMyNotesCacheForUser('1001')
-    createGetMyNotesMethod({ page: 1, limit: 20 }, 'user:1001')
+    createGetMyNotesMethod({}, 'user:1001')
 
     expect(getMock).toHaveBeenLastCalledWith('/api/me/notes', {
       params: {
         page: 1,
-        limit: 20
+        limit: 5
       },
-      name: 'me-notes:user:1001:r1:1:20',
-      cacheFor: 30 * 1000
+      name: 'me-notes:user:1001:r1:1:5',
+      cacheFor: 0
     })
   })
 
@@ -57,21 +70,34 @@ describe('me methods', () => {
         limit: 10
       },
       name: 'me-favorites:user:1001:r0:2:10',
-      cacheFor: 30 * 1000
+      cacheFor: 0
+    })
+  })
+
+  it('defaults my-favorites requests to the user-center page size without caching', () => {
+    createGetMyFavoritesMethod({}, 'user:1001')
+
+    expect(getMock).toHaveBeenCalledWith('/api/me/favorites', {
+      params: {
+        page: 1,
+        limit: 5
+      },
+      name: 'me-favorites:user:1001:r0:1:5',
+      cacheFor: 0
     })
   })
 
   it('bumps the cache revision after invalidating a user favorites cache', () => {
     invalidateMyFavoritesCacheForUser('1001')
-    createGetMyFavoritesMethod({ page: 1, limit: 20 }, 'user:1001')
+    createGetMyFavoritesMethod({}, 'user:1001')
 
     expect(getMock).toHaveBeenLastCalledWith('/api/me/favorites', {
       params: {
         page: 1,
-        limit: 20
+        limit: 5
       },
-      name: 'me-favorites:user:1001:r1:1:20',
-      cacheFor: 30 * 1000
+      name: 'me-favorites:user:1001:r1:1:5',
+      cacheFor: 0
     })
   })
 })
