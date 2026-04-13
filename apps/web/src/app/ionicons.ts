@@ -8,7 +8,7 @@ import {
   starOutline,
   trashOutline
 } from 'ionicons/icons'
-import { defineCustomElements } from 'ionicons/loader'
+import { defineCustomElement } from 'ionicons/components/ion-icon.js'
 
 let isIoniconsReady = false
 
@@ -17,7 +17,7 @@ export function setupIonicons() {
     return
   }
 
-  defineCustomElements(window)
+  defineCustomElement()
   addIcons({
     'arrow-back-outline': arrowBackOutline,
     'close-outline': closeOutline,
