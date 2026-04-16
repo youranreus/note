@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import type { NoteMode } from '@note/shared-types'
 
 import EntryShell from './components/EntryShell.vue'
+import LocalNotesPanel from './components/LocalNotesPanel.vue'
 import {
   createEntryLocation,
   generateEntrySid,
@@ -46,13 +47,26 @@ function handleOnlineSubmit() {
 function handleLocalStart() {
   return navigateToMode('local')
 }
+
+function handleOpenLocalNote(sid: string) {
+  return router.push(createEntryLocation('local', sid))
+}
 </script>
 
 <template>
-  <EntryShell
-    :model-value="sidDraft"
-    @start-local="handleLocalStart"
-    @submit-online="handleOnlineSubmit"
-    @update:model-value="handleDraftUpdate"
-  />
+  <div
+    class="mx-auto flex h-[calc(100vh-7rem)] w-full max-w-[28.75rem] flex-col justify-center overflow-hidden pb-6"
+    data-testid="home-entry-layout"
+  >
+    <div class="grid gap-3">
+      <EntryShell
+        :model-value="sidDraft"
+        @start-local="handleLocalStart"
+        @submit-online="handleOnlineSubmit"
+        @update:model-value="handleDraftUpdate"
+      />
+
+      <LocalNotesPanel @open-note="handleOpenLocalNote" />
+    </div>
+  </div>
 </template>

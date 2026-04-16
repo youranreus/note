@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import 'fake-indexeddb/auto'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
@@ -11,6 +13,11 @@ import {
   normalizeEntrySid,
   resolveEntrySid
 } from '../src/features/home/entry-sid'
+import {
+  LOCAL_NOTE_DB_NAME,
+  createLocalNoteRecord,
+  resolveLocalNoteStorage
+} from '../src/features/local-note/storage/local-note-storage'
 import { createAppRouter } from '../src/router'
 
 const deterministicSidBytes = [
@@ -52,11 +59,53 @@ async function mountHomeEntry() {
   return { router, wrapper }
 }
 
+async function flushUiState() {
+  for (let index = 0; index < 3; index += 1) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0)
+    })
+    await flushPromises()
+  }
+}
+
+async function resetLocalNoteDatabase() {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(LOCAL_NOTE_DB_NAME)
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error('delete database blocked'))
+  })
+}
+
+function getLocalNoteStorage() {
+  const storage = resolveLocalNoteStorage()
+
+  if (!storage) {
+    throw new Error('expected indexedDB local note storage to be available')
+  }
+
+  return storage
+}
+
+async function seedLocalNotes() {
+  const storage = getLocalNoteStorage()
+
+  await storage.writeRecord(
+    createLocalNoteRecord('alpha-note', '这是第一条本地便签', '2026-04-04T09:00:00.000Z')
+  )
+  await storage.writeRecord(
+    createLocalNoteRecord('beta-note', '用于搜索的第二条摘要', '2026-04-04T11:00:00.000Z')
+  )
+}
+
 describe('home entry utilities', () => {
   let getRandomValuesSpy: ReturnType<typeof installDeterministicRandomBytes>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     getRandomValuesSpy = installDeterministicRandomBytes()
+    await resetLocalNoteDatabase()
+    window.localStorage.clear()
   })
 
   afterEach(() => {
@@ -116,6 +165,15 @@ describe('home entry utilities', () => {
     expect(input.attributes('auto-capitalize')).toBeUndefined()
     expect(input.attributes('autocapitalize')).toBe('off')
     expect(input.attributes('placeholder')).toBe('输入 ID')
+    expect(wrapper.text()).toContain('留空时会自动生成一个新 ID')
+  })
+
+  it('keeps the homepage single-screen and the local note panel collapsed by default', async () => {
+    const { wrapper } = await mountHomeEntry()
+
+    expect(wrapper.get('[data-testid="home-entry-layout"]').classes()).toContain('overflow-hidden')
+    expect(wrapper.get('[data-testid="local-notes-toggle"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('[data-testid="local-notes-panel"]').text()).toContain('本地便签')
   })
 
   it('submits the prepared fallback sid when the draft stays empty', async () => {
@@ -148,5 +206,60 @@ describe('home entry utilities', () => {
 
     expect(router.currentRoute.value.name).toBe('online-note')
     expect(router.currentRoute.value.params.sid).toBe('keep-me')
+  })
+
+  it('expands the local note panel, filters summaries, and opens the selected local note', async () => {
+    await seedLocalNotes()
+
+    const { router, wrapper } = await mountHomeEntry()
+
+    await wrapper.get('[data-testid="local-notes-toggle"]').trigger('click')
+    await flushUiState()
+
+    expect(wrapper.get('[data-testid="local-notes-toggle"]').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('[data-testid="local-notes-list"]').classes()).toContain('overflow-y-auto')
+    expect(wrapper.findAll('[data-testid="local-note-item"]')).toHaveLength(2)
+
+    const searchInput = wrapper.get('[data-testid="local-notes-search"] input')
+    await searchInput.setValue('beta')
+    await flushUiState()
+
+    const filteredItems = wrapper.findAll('[data-testid="local-note-item"]')
+    expect(filteredItems).toHaveLength(1)
+    expect(filteredItems[0]?.text()).toContain('beta-note')
+
+    await filteredItems[0]!.trigger('click')
+    await flushUiState()
+
+    expect(router.currentRoute.value.name).toBe('local-note')
+    expect(router.currentRoute.value.params.sid).toBe('beta-note')
+  })
+
+  it('remembers the local note panel expanded preference across remounts', async () => {
+    const firstMount = await mountHomeEntry()
+
+    await firstMount.wrapper.get('[data-testid="local-notes-toggle"]').trigger('click')
+    await flushUiState()
+
+    expect(window.localStorage.getItem('note:home:local-notes-expanded')).toBe('true')
+
+    firstMount.wrapper.unmount()
+
+    const secondMount = await mountHomeEntry()
+
+    await flushUiState()
+
+    expect(secondMount.wrapper.get('[data-testid="local-notes-toggle"]').attributes('aria-expanded')).toBe(
+      'true'
+    )
+  })
+
+  it('shows an empty state when there are no saved local notes', async () => {
+    const { wrapper } = await mountHomeEntry()
+
+    await wrapper.get('[data-testid="local-notes-toggle"]').trigger('click')
+    await flushUiState()
+
+    expect(wrapper.get('[data-testid="local-notes-empty"]').text()).toContain('还没有本地便签')
   })
 })
