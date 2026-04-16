@@ -1,38 +1,82 @@
 // @vitest-environment jsdom
 
+import 'fake-indexeddb/auto'
+
 import { nextTick, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useLocalNote } from '../src/features/local-note/use-local-note'
-import { createLocalNoteStorageKey } from '../src/features/local-note/storage/local-note-storage'
+import {
+  LOCAL_NOTE_DB_NAME,
+  createLocalNoteRecord,
+  resolveLocalNoteStorage
+} from '../src/features/local-note/storage/local-note-storage'
 
 async function flushState() {
-  await Promise.resolve()
-  await nextTick()
+  for (let index = 0; index < 3; index += 1) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0)
+    })
+    await Promise.resolve()
+    await nextTick()
+  }
+}
+
+async function waitForAssertion(assertion: () => void, attempts = 20) {
+  let lastError: unknown = null
+
+  for (let index = 0; index < attempts; index += 1) {
+    try {
+      assertion()
+      return
+    } catch (error) {
+      lastError = error
+      await flushState()
+    }
+  }
+
+  throw lastError
+}
+
+async function resetLocalNoteDatabase() {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(LOCAL_NOTE_DB_NAME)
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error('delete database blocked'))
+  })
+}
+
+function getLocalNoteStorage() {
+  const storage = resolveLocalNoteStorage()
+
+  if (!storage) {
+    throw new Error('expected indexedDB local note storage to be available')
+  }
+
+  return storage
 }
 
 describe('useLocalNote', () => {
-  beforeEach(() => {
-    window.localStorage.clear()
+  beforeEach(async () => {
+    await resetLocalNoteDatabase()
     vi.restoreAllMocks()
   })
 
-  it('restores existing content for the current sid from a stable localStorage namespace', async () => {
-    window.localStorage.setItem(
-      createLocalNoteStorageKey('local-a'),
-      JSON.stringify({
-        sid: 'local-a',
-        content: '之前已经保存的本地正文',
-        updatedAt: '2026-04-04T00:00:00.000Z'
-      })
+  it('restores existing content for the current sid from indexedDB storage', async () => {
+    const storage = getLocalNoteStorage()
+
+    await storage.writeRecord(
+      createLocalNoteRecord('local-a', '之前已经保存的本地正文', '2026-04-04T00:00:00.000Z')
     )
 
     const sid = ref('local-a')
     const note = useLocalNote(sid)
 
-    await flushState()
-
-    expect(note.draftContent.value).toBe('之前已经保存的本地正文')
+    await waitForAssertion(() => {
+      expect(note.draftContent.value).toBe('之前已经保存的本地正文')
+    })
     expect(note.objectHeader.value).toMatchObject({
       sid: 'local-a',
       localStatusLabel: '已恢复本地内容'
@@ -40,7 +84,7 @@ describe('useLocalNote', () => {
     expect(note.primaryFeedback.value?.title).toBe('已恢复本地内容')
   })
 
-  it('saves to the namespaced localStorage key and keeps different sid values isolated', async () => {
+  it('saves to indexedDB and keeps different sid values isolated', async () => {
     const sid = ref('local-a')
     const note = useLocalNote(sid, {
       now: () => '2026-04-04T12:00:00.000Z'
@@ -52,21 +96,26 @@ describe('useLocalNote', () => {
     await note.saveNote()
     await flushState()
 
-    expect(window.localStorage.getItem(createLocalNoteStorageKey('local-a'))).toContain(
-      '只属于 A 的本地正文'
-    )
+    const storage = getLocalNoteStorage()
+    await expect(storage.readRecord('local-a')).resolves.toMatchObject({
+      sid: 'local-a',
+      content: '只属于 A 的本地正文',
+      updatedAt: '2026-04-04T12:00:00.000Z'
+    })
 
     sid.value = 'local-b'
     await flushState()
 
-    expect(note.draftContent.value).toBe('')
-    expect(note.primaryFeedback.value?.title).toBe('当前 sid 还没有本地内容')
+    await waitForAssertion(() => {
+      expect(note.draftContent.value).toBe('')
+      expect(note.primaryFeedback.value?.title).toBe('当前 sid 还没有本地内容')
+    })
 
     sid.value = 'local-a'
-    await flushState()
-
-    expect(note.draftContent.value).toBe('只属于 A 的本地正文')
-    expect(window.localStorage.getItem(createLocalNoteStorageKey('local-b'))).toBeNull()
+    await waitForAssertion(() => {
+      expect(note.draftContent.value).toBe('只属于 A 的本地正文')
+    })
+    await expect(storage.readRecord('local-b')).resolves.toBeNull()
   })
 
   it('returns an invalid-sid view model when the route param cannot be resolved', async () => {
@@ -97,14 +146,15 @@ describe('useLocalNote', () => {
     expect(note.primaryFeedback.value?.title).toBe('无法使用本地便签')
   })
 
-  it('preserves the current draft when saving to local storage fails', async () => {
+  it('preserves the current draft when saving to indexedDB fails', async () => {
     const sid = ref('broken-save')
     const note = useLocalNote(sid, {
       getStorage: () => ({
-        getItem: () => null,
-        setItem: () => {
+        readRecord: async () => null,
+        writeRecord: async () => {
           throw new Error('quota exceeded')
-        }
+        },
+        listSummaries: async () => []
       })
     })
 

@@ -4,9 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 
 import {
   createLocalNoteRecord,
-  readLocalNoteRecord,
   resolveLocalNoteStorage,
-  writeLocalNoteRecord,
   type LocalNoteStorageLike
 } from './storage/local-note-storage'
 import {
@@ -38,6 +36,7 @@ export function useLocalNote(
   const storageAvailable = shallowRef(true)
   const saveErrorMessage = shallowRef<string | null>(null)
   const restoreErrorMessage = shallowRef<string | null>(null)
+  let loadRequestId = 0
 
   const viewModel = computed(() =>
     resolveLocalNoteViewModel({
@@ -76,10 +75,15 @@ export function useLocalNote(
     restoreErrorMessage.value = null
   }
 
-  function loadLocalNote(nextSid: string) {
+  async function loadLocalNote(nextSid: string) {
+    const requestId = ++loadRequestId
     const storage = getStorage()
 
     if (!storage) {
+      if (requestId !== loadRequestId || sidValue.value !== nextSid) {
+        return
+      }
+
       storageAvailable.value = false
       restoreErrorMessage.value =
         '当前浏览器环境不支持本地便签存储，无法在此模式下保存或恢复内容。'
@@ -87,7 +91,11 @@ export function useLocalNote(
     }
 
     try {
-      const record = readLocalNoteRecord(storage, nextSid)
+      const record = await storage.readRecord(nextSid)
+
+      if (requestId !== loadRequestId || sidValue.value !== nextSid) {
+        return
+      }
 
       storageAvailable.value = true
       saveErrorMessage.value = null
@@ -105,6 +113,10 @@ export function useLocalNote(
       restorationState.value = 'empty'
       restoreErrorMessage.value = null
     } catch (error) {
+      if (requestId !== loadRequestId || sidValue.value !== nextSid) {
+        return
+      }
+
       storageAvailable.value = true
       draftContent.value = ''
       baselineContent.value = ''
@@ -137,10 +149,7 @@ export function useLocalNote(
     saveErrorMessage.value = null
 
     try {
-      const record = writeLocalNoteRecord(
-        storage,
-        createLocalNoteRecord(currentSid, draftContent.value, now())
-      )
+      const record = await storage.writeRecord(createLocalNoteRecord(currentSid, draftContent.value, now()))
 
       if (sidValue.value !== currentSid) {
         return
@@ -171,7 +180,7 @@ export function useLocalNote(
         return
       }
 
-      loadLocalNote(nextSid)
+      void loadLocalNote(nextSid)
     },
     {
       immediate: true
