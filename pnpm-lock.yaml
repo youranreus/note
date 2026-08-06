@@ -26,9 +26,6 @@ importers:
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
-      '@reus-able/sso-utils':
-        specifier: ^1.0.0
-        version: 1.0.0
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -38,6 +35,9 @@ importers:
       fastify-plugin:
         specifier: ^5.0.1
         version: 5.1.0
+      openid-client:
+        specifier: ^6.8.4
+        version: 6.8.4
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
@@ -1524,6 +1524,9 @@ packages:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
 
+  jose@6.2.8:
+    resolution: {integrity: sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ==}
+
   js-beautify@1.15.4:
     resolution: {integrity: sha512-9/KXeZUKKJwqCXUdBxFJ3vPh467OCckSBmYDwSK/EtV090K+iMJ7zx2S3HLVDIWFQdqMIsZWbnaGiba18aWhaA==}
     engines: {node: '>=14'}
@@ -1631,6 +1634,9 @@ packages:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
 
+  oauth4webapi@3.8.6:
+    resolution: {integrity: sha512-iwemM91xz8nryHti2yTmg5fhyEMVOkOXwHNqbvcATjyajb5oQxCQzrNOA6uElRHuMhQQTKUyFKV9y/CNyg25BQ==}
+
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
@@ -1645,6 +1651,9 @@ packages:
   on-exit-leak-free@2.1.2:
     resolution: {integrity: sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA==}
     engines: {node: '>=14.0.0'}
+
+  openid-client@6.8.4:
+    resolution: {integrity: sha512-QSw0BA08piujetEwfZsHoTrDpMEha7GDZDicQqVwX4u0ChCjefvjDB++TZ8BTg76UpwhzIQgdvvfgfl3HpCSAw==}
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
@@ -3415,6 +3424,8 @@ snapshots:
 
   jiti@1.21.7: {}
 
+  jose@6.2.8: {}
+
   js-beautify@1.15.4:
     dependencies:
       config-chain: 1.1.13
@@ -3524,6 +3535,8 @@ snapshots:
 
   normalize-path@3.0.0: {}
 
+  oauth4webapi@3.8.6: {}
+
   object-assign@4.1.1: {}
 
   object-hash@3.0.0: {}
@@ -3531,6 +3544,11 @@ snapshots:
   obliterator@2.0.5: {}
 
   on-exit-leak-free@2.1.2: {}
+
+  openid-client@6.8.4:
+    dependencies:
+      jose: 6.2.8
+      oauth4webapi: 3.8.6
 
   package-json-from-dist@1.0.1: {}
 

@@ -138,7 +138,7 @@ async function main() {
     normalizeOrigin(mergedEnv.API_ORIGIN, 'http://localhost:3001', 'API_ORIGIN') ??
     'http://localhost:3001'
   const callbackUrl = ensureAuthCallback(
-    readDefinedValue(mergedEnv.SSO_REDIRECT, mergedEnv.VITE_SSO_REDIRECT),
+    readDefinedValue(mergedEnv.OIDC_REDIRECT_URI),
     webOrigin,
     basePath
   )
@@ -152,22 +152,14 @@ async function main() {
     COOKIE_NAME: readDefinedValue(mergedEnv.COOKIE_NAME) ?? 'sid',
     COOKIE_SECURE: readDefinedValue(mergedEnv.COOKIE_SECURE) ?? 'false',
     SESSION_TTL_SECONDS: readDefinedValue(mergedEnv.SESSION_TTL_SECONDS) ?? '604800',
-    SSO_URL: readDefinedValue(mergedEnv.SSO_URL, mergedEnv.VITE_SSO_URL) ?? '',
-    SSO_ID: readDefinedValue(mergedEnv.SSO_ID, mergedEnv.VITE_SSO_ID) ?? '',
-    SSO_SECRET: readDefinedValue(mergedEnv.SSO_SECRET) ?? '',
-    SSO_REDIRECT: callbackUrl,
+    OIDC_ISSUER: readDefinedValue(mergedEnv.OIDC_ISSUER) ?? 'https://sf.imouto.tech/oidc',
+    OIDC_CLIENT_ID: readDefinedValue(mergedEnv.OIDC_CLIENT_ID) ?? '',
+    OIDC_REDIRECT_URI: callbackUrl,
     SSO_MOCK_ENABLED: readDefinedValue(mergedEnv.SSO_MOCK_ENABLED) ?? 'true',
     SSO_MOCK_TICKET_PREFIX: readDefinedValue(mergedEnv.SSO_MOCK_TICKET_PREFIX) ?? 'mock:',
     VITE_API_BASE_URL:
       normalizeOrigin(mergedEnv.VITE_API_BASE_URL, apiOrigin, 'VITE_API_BASE_URL') ?? apiOrigin,
-    VITE_SSO_URL: readDefinedValue(mergedEnv.VITE_SSO_URL, mergedEnv.SSO_URL) ?? '',
-    VITE_SSO_ID: readDefinedValue(mergedEnv.VITE_SSO_ID, mergedEnv.SSO_ID) ?? '',
-    VITE_BASE_URL: normalizeBasePath(basePath),
-    VITE_SSO_REDIRECT: ensureAuthCallback(
-      readDefinedValue(mergedEnv.VITE_SSO_REDIRECT, mergedEnv.SSO_REDIRECT),
-      webOrigin,
-      basePath
-    )
+    VITE_BASE_URL: normalizeBasePath(basePath)
   }
 
   const webEnv = Object.fromEntries(
@@ -176,7 +168,7 @@ async function main() {
 
   const apiEnv = Object.fromEntries(
     Object.entries(normalizedEnv).filter(
-      ([key]) => !key.startsWith('VITE_') || key === 'VITE_BASE_URL' || key === 'VITE_SSO_URL'
+      ([key]) => !key.startsWith('VITE_') || key === 'VITE_BASE_URL'
     )
   )
 

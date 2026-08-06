@@ -84,7 +84,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
     )
 
-    return reply.redirect(app.authSsoService.buildAuthorizeUrl({ state: pendingFlow.state }))
+    return reply.redirect(await app.authSsoService.buildAuthorizeUrl({
+      state: pendingFlow.state,
+      nonce: pendingFlow.nonce,
+      codeVerifier: pendingFlow.codeVerifier
+    }))
   })
 
   app.get<{
@@ -119,7 +123,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     try {
-      const user = await app.authSsoService.exchangeCode(request.query.code.trim())
+      const user = await app.authSsoService.exchangeCode({
+        code: request.query.code.trim(),
+        state,
+        nonce: pendingFlow.nonce,
+        codeVerifier: pendingFlow.codeVerifier
+      })
       const sessionId = app.authSessionService.createSession(user)
 
       logOperation(

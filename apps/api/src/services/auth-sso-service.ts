@@ -1,247 +1,78 @@
-import { UserAPI } from '@reus-able/sso-utils'
-
-import type { AuthCallbackErrorCode, AuthUserDto } from '@note/shared-types'
-
+import * as oidc from 'openid-client'
+import type { AuthUserDto } from '@note/shared-types'
 import type { AppConfig } from '../infra/config.js'
 
 export class AuthSsoServiceError extends Error {
-  code: AuthCallbackErrorCode
-
-  constructor(code: AuthCallbackErrorCode, message: string) {
+  code: 'AUTH_CALLBACK_FAILED'
+  constructor(message: string) {
     super(message)
-    this.code = code
+    this.code = 'AUTH_CALLBACK_FAILED'
     this.name = 'AuthSsoServiceError'
   }
 }
 
 export interface AuthSsoService {
-  buildAuthorizeUrl: (input: { state: string }) => string
-  exchangeCode: (code: string) => Promise<AuthUserDto>
+  buildAuthorizeUrl: (input: { state: string; nonce: string; codeVerifier: string }) => string | Promise<string>
+  exchangeCode: (input: string | { code: string; state: string; nonce: string; codeVerifier: string }) => Promise<AuthUserDto>
 }
 
-interface SsoEnvelope {
-  code?: unknown
-  data?: unknown
-  msg?: unknown
-}
-
-function readFirstString(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
-    }
-  }
-
-  return null
-}
-
-function readFirstText(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value)
-    }
-  }
-
-  return null
-}
-
-function resolveAuthorizationHeader(payload: unknown) {
-  const tokenPayload = unwrapSsoPayload(payload)
-
-  if (typeof tokenPayload === 'string' && tokenPayload.trim()) {
-    return tokenPayload.trim()
-  }
-
-  if (!tokenPayload || typeof tokenPayload !== 'object') {
-    return null
-  }
-
-  const tokenRecord = tokenPayload as Record<string, unknown>
-  const accessToken = readFirstString(
-    tokenRecord.access_token,
-    tokenRecord.accessToken,
-    tokenRecord.token
-  )
-
-  if (!accessToken) {
-    return null
-  }
-
-  const tokenType = readFirstString(tokenRecord.token_type, tokenRecord.tokenType)
-
-  return tokenType ? `${tokenType} ${accessToken}` : accessToken
-}
-
-function resolveAuthUser(payload: unknown) {
-  const unwrappedPayload = unwrapSsoPayload(payload)
-
-  if (!unwrappedPayload || typeof unwrappedPayload !== 'object') {
-    return null
-  }
-
-  const source = unwrappedPayload as Record<string, unknown>
-  const userCandidate =
-    source.user && typeof source.user === 'object'
-      ? (source.user as Record<string, unknown>)
-      : source
-
-  const id = readFirstText(
-    userCandidate.id,
-    userCandidate.userId,
-    userCandidate.uid,
-    userCandidate.ssoId,
-    userCandidate.username,
-    userCandidate.email
-  )
-
-  if (!id) {
-    return null
-  }
-
-  const ssoId =
-    readFirstText(
-      userCandidate.ssoId,
-      userCandidate.userId,
-      userCandidate.id,
-      userCandidate.uid,
-      userCandidate.username,
-      userCandidate.email
-    ) ?? id
-
-  const displayName =
-    readFirstString(
-      userCandidate.displayName,
-      userCandidate.name,
-      userCandidate.nickname,
-      userCandidate.username
-    ) ?? id
-
-  const avatarUrl = readFirstString(
-    userCandidate.avatarUrl,
-    userCandidate.avatar_url,
-    userCandidate.avatar,
-    userCandidate.headImg,
-    userCandidate.headimg,
-    userCandidate.headImage,
-    userCandidate.head_image,
-    userCandidate.photo,
-    userCandidate.picture,
-    userCandidate.image
-  )
-
-  return {
-    id,
-    ssoId,
-    displayName,
-    avatarUrl: avatarUrl ?? null
-  }
-}
-
-function resolveSsoEnvelope(payload: unknown): SsoEnvelope | null {
-  if (!payload || typeof payload !== 'object') {
-    return null
-  }
-
-  return payload as SsoEnvelope
-}
-
-function unwrapSsoPayload(payload: unknown) {
-  const envelope = resolveSsoEnvelope(payload)
-
-  if (!envelope || !('data' in envelope)) {
-    return payload
-  }
-
-  if (typeof envelope.code === 'number' && envelope.code !== 200 && envelope.code !== 0) {
-    const errorMessage = readFirstString(envelope.msg) ?? 'SSO 服务返回了未预期的错误响应。'
-    throw new AuthSsoServiceError('AUTH_CALLBACK_FAILED', errorMessage)
-  }
-
-  return envelope.data
-}
-
-function resolveMockUser(code: string, config: AppConfig) {
-  if (!config.ssoMockEnabled || !code.startsWith(config.ssoMockTicketPrefix)) {
-    return null
-  }
-
-  const segments = code.slice(config.ssoMockTicketPrefix.length).split(':')
-  const id = readFirstString(segments[0])
-
-  if (!id) {
-    throw new AuthSsoServiceError('AUTH_CALLBACK_FAILED', 'Mock SSO code 缺少用户标识。')
-  }
-
-  const displayName = readFirstString(
-    segments[1] ? decodeURIComponent(segments[1]) : undefined
-  ) ?? `Mock User ${id}`
-
-  return {
-    id,
-    ssoId: id,
-    displayName,
-    avatarUrl: null
-  }
+function claimString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
 export function createAuthSsoService(config: AppConfig): AuthSsoService {
-  const ssoClient = UserAPI({
-    SSO_ID: config.ssoId,
-    SSO_REDIRECT: config.ssoRedirect,
-    SSO_SECRET: config.ssoSecret,
-    SSO_URL: config.ssoUrl
-  })
+  let configurationPromise: Promise<oidc.Configuration> | undefined
+  const getConfiguration = () => {
+    configurationPromise ??= oidc.discovery(new URL(config.oidcIssuer), config.oidcClientId, undefined, oidc.None())
+    return configurationPromise
+  }
 
   return {
-    buildAuthorizeUrl({ state }) {
-      const authorizeUrl = new URL('/oauth/authorize', config.ssoBrowserUrl)
-      authorizeUrl.searchParams.set('client_id', config.ssoId)
-      authorizeUrl.searchParams.set('redirect_uri', config.ssoRedirect)
-      authorizeUrl.searchParams.set('state', state)
-      return authorizeUrl.toString()
-    },
-    async exchangeCode(code) {
-      const mockUser = resolveMockUser(code, config)
-
-      if (mockUser) {
-        return mockUser
-      }
-
+    async buildAuthorizeUrl({ state, nonce, codeVerifier }) {
       try {
-        const tokenResponse = await ssoClient.authorizeToken(code)
-        const authorizationHeader = resolveAuthorizationHeader(tokenResponse.data)
-
-        if (!authorizationHeader) {
-          throw new AuthSsoServiceError(
-            'AUTH_CALLBACK_FAILED',
-            'SSO token 响应缺少可用的访问凭据。'
-          )
+        const configuration = await getConfiguration()
+        const challenge = await oidc.calculatePKCECodeChallenge(codeVerifier)
+        return oidc.buildAuthorizationUrl(configuration, {
+          redirect_uri: config.oidcRedirectUri,
+          response_type: 'code',
+          scope: 'openid profile email',
+          state,
+          nonce,
+          code_challenge: challenge,
+          code_challenge_method: 'S256'
+        }).toString()
+      } catch {
+        throw new AuthSsoServiceError('OIDC discovery or authorization URL construction failed.')
+      }
+    },
+    async exchangeCode(input) {
+      const { code, state, nonce, codeVerifier } = typeof input === 'string'
+        ? { code: input, state: '', nonce: '', codeVerifier: '' }
+        : input
+      if (config.ssoMockEnabled && code.startsWith(config.ssoMockTicketPrefix)) {
+        const id = claimString(code.slice(config.ssoMockTicketPrefix.length).split(':')[0])
+        if (!id || !/^\d+$/u.test(id)) throw new AuthSsoServiceError('Mock OIDC code is invalid.')
+        return { id, ssoId: id, displayName: `Mock User ${id}`, avatarUrl: null }
+      }
+      try {
+        const configuration = await getConfiguration()
+        const callbackUrl = new URL(`${config.oidcRedirectUri}?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`)
+        const tokens = await oidc.authorizationCodeGrant(configuration, callbackUrl, {
+          pkceCodeVerifier: codeVerifier,
+          expectedState: state,
+          expectedNonce: nonce
+        })
+        const claims = tokens.claims()
+        const sub = claimString(claims?.sub)
+        if (!sub || !/^\d+$/u.test(sub)) {
+          throw new AuthSsoServiceError('OIDC ID token sub must match the numeric SSO user id.')
         }
-
-        const userResponse = await ssoClient.getUserInfo(authorizationHeader)
-        const user = resolveAuthUser(userResponse.data)
-
-        if (!user) {
-          throw new AuthSsoServiceError(
-            'AUTH_CALLBACK_FAILED',
-            'SSO userinfo 响应缺少最小身份字段。'
-          )
-        }
-
-        return user
+        const displayName = claimString(claims?.name) ?? claimString(claims?.preferred_username) ?? claimString(claims?.email) ?? sub
+        const avatarUrl = claimString(claims?.picture)
+        return { id: sub, ssoId: sub, displayName, avatarUrl }
       } catch (error) {
-        if (error instanceof AuthSsoServiceError) {
-          throw error
-        }
-
-        throw new AuthSsoServiceError(
-          'AUTH_CALLBACK_FAILED',
-          'SSO 回调处理失败，请稍后重试或联系管理员。'
-        )
+        if (error instanceof AuthSsoServiceError) throw error
+        throw new AuthSsoServiceError('OIDC callback validation failed.')
       }
     }
   }

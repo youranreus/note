@@ -91,10 +91,9 @@ export interface AppConfig {
   port: number
   sessionTtlSeconds: number
   ssoBrowserUrl: string
-  ssoId: string
-  ssoRedirect: string
-  ssoSecret?: string
-  ssoUrl: string
+  oidcIssuer: string
+  oidcClientId: string
+  oidcRedirectUri: string
   ssoMockEnabled: boolean
   ssoMockTicketPrefix: string
   webOrigin: string
@@ -163,22 +162,16 @@ export function resolveAppConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): Ap
   const sessionTtlSeconds = Number(
     readDefinedValue(overrides.SESSION_TTL_SECONDS, process.env.SESSION_TTL_SECONDS) ?? '604800'
   )
-  const ssoBrowserUrl = normalizeOrigin(
-    overrides.VITE_SSO_URL ?? process.env.VITE_SSO_URL,
-    'https://sf.imouto.tech',
-    'VITE_SSO_URL'
-  )
-  const ssoId = readDefinedValue(overrides.SSO_ID, process.env.SSO_ID) ?? 'note-web'
-  const ssoRedirect = normalizeCallbackUrl(
-    overrides.SSO_REDIRECT ?? process.env.SSO_REDIRECT,
+  const oidcIssuer = normalizeOrigin(
+    overrides.OIDC_ISSUER ?? process.env.OIDC_ISSUER,
+    'https://sf.imouto.tech/oidc',
+    'OIDC_ISSUER'
+  ) + '/oidc'
+  const oidcClientId = readDefinedValue(overrides.OIDC_CLIENT_ID, process.env.OIDC_CLIENT_ID) ?? 'note-web'
+  const oidcRedirectUri = readDefinedValue(overrides.OIDC_REDIRECT_URI, process.env.OIDC_REDIRECT_URI) ?? normalizeCallbackUrl(
+    undefined,
     webOrigin,
     basePath
-  )
-  const ssoSecret = readDefinedValue(overrides.SSO_SECRET, process.env.SSO_SECRET)
-  const ssoUrl = normalizeOrigin(
-    overrides.SSO_URL ?? process.env.SSO_URL,
-    'https://sf.imouto.tech',
-    'SSO_URL'
   )
   const ssoMockEnabled = readBooleanValue(
     overrides.SSO_MOCK_ENABLED ?? process.env.SSO_MOCK_ENABLED,
@@ -194,11 +187,10 @@ export function resolveAppConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): Ap
     cookieSecure,
     port,
     sessionTtlSeconds,
-    ssoBrowserUrl,
-    ssoId,
-    ssoRedirect,
-    ssoSecret,
-    ssoUrl,
+    ssoBrowserUrl: 'https://sf.imouto.tech',
+    oidcIssuer,
+    oidcClientId,
+    oidcRedirectUri,
     ssoMockEnabled,
     ssoMockTicketPrefix,
     webOrigin

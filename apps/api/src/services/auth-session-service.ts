@@ -7,7 +7,9 @@ import type {
 } from '@note/shared-types'
 
 export interface PendingAuthFlow {
+  codeVerifier: string
   expiresAt: number
+  nonce: string
   postLoginAction: PostLoginActionDto | null
   returnTo: string
   state: string
@@ -62,7 +64,9 @@ export function createAuthSessionService(options: { sessionTtlSeconds: number })
   return {
     createPendingFlow(returnTo, postLoginAction = null) {
       return {
+        codeVerifier: randomBytes(32).toString('base64url'),
         expiresAt: now() + 10 * 60 * 1000,
+        nonce: randomBytes(16).toString('base64url'),
         postLoginAction,
         returnTo,
         state: randomBytes(16).toString('hex')
@@ -106,6 +110,8 @@ export function createAuthSessionService(options: { sessionTtlSeconds: number })
         if (
           !parsedValue ||
           typeof parsedValue !== 'object' ||
+          typeof parsedValue.codeVerifier !== 'string' ||
+          typeof parsedValue.nonce !== 'string' ||
           typeof parsedValue.state !== 'string' ||
           typeof parsedValue.returnTo !== 'string' ||
           typeof parsedValue.expiresAt !== 'number'

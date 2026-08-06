@@ -72,7 +72,7 @@ export function createPrismaUserRepository(
       const matchedUser = await lookupUser(ssoId, transactionClient)
 
       if (!matchedUser) {
-        throw new Error(`Unable to resolve user mapping for SSO id "${ssoId.toString()}".`)
+        throw new Error(`Unable to resolve user mapping for SSO id "${ssoId}".`)
       }
 
       return matchedUser

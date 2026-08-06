@@ -9,7 +9,8 @@ function createFakeAuthSsoService(browserUrl: string): AuthSsoService {
     buildAuthorizeUrl({ state }) {
       return `${browserUrl}/oauth/authorize?client_id=note-web&state=${state}`
     },
-    async exchangeCode(code) {
+    async exchangeCode(input) {
+      const code = typeof input === 'string' ? input : input.code
       if (code !== 'valid-code') {
         throw new Error('SSO code exchange failed.')
       }
